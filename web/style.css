@@ -1,83 +1,48 @@
 /* ==========================================================================
-   QuyenHealth - Mediq Medical Clean Design System
-   Inspired by Mediq (Clean UI Kit for Medical App, Figma Community)
-   Built with jakubkrehel/skills: better-ui, better-typography, better-colors,
-   better-layout, better-accessibility, better-writing.
+   QuyenHealth - Human-Crafted, Utilitarian Product Architecture
+   Design Standard: Senior Product Designer & Frontend Architect
+   Strict Constraints: Zero AI Clichés, No Card Nesting, Spacing over Borders
    ========================================================================== */
 
 :root {
-  /* Mediq Clean Medical Palette */
-  --bg-canvas: #f6f8fb;             /* Clean, luminous clinical off-white */
-  --surface-card: #ffffff;          /* Pure white medical card */
-  --surface-card-subtle: #f8fafc;   /* Soft neutral secondary surface */
-  --surface-nested: #f1f5f9;        /* Input / inner chip background */
-  --surface-hover: #e2e8f0;         /* Hover state */
-  --surface-active: #cbd5e1;
+  /* 1. Palette: Balanced Neutrals (Slate/Zinc) with ONE Restrained Accent */
+  --bg-page: #ffffff;
+  --bg-subtle: #f8fafc;
+  --bg-elevated: #ffffff;
+  --bg-muted: #f1f5f9;
 
-  /* Mediq Primary Emerald Green Ramps */
-  --accent-primary: #10b981;
-  --accent-primary-hover: #059669;
-  --accent-primary-active: #047857;
-  --accent-text: #059669;
-  --accent-subtle: #ecfdf5;         /* Soft mint tint for cards & badges */
-  --accent-border: #a7f3d0;
+  /* Typographic Contrast (WCAG AAA for primary, AA for secondary) */
+  --text-primary: #0f172a;       /* Slate-900: Titles, numbers, high-emphasis */
+  --text-secondary: #475569;     /* Slate-600: Body copy, descriptions */
+  --text-muted: #64748b;         /* Slate-500: Captions, units, hints */
+  --text-tertiary: #94a3b8;      /* Slate-400: Icons, inactive tabs */
 
-  /* Hydration Medical Sky Blue */
-  --sky-primary: #0ea5e9;
-  --sky-hover: #0284c7;
-  --sky-text: #0284c7;
-  --sky-subtle: #f0f9ff;
-  --sky-border: #bae6fd;
+  /* Hairline Structural Lines */
+  --border-hairline: #e2e8f0;    /* Slate-200: Section dividers, separators */
+  --border-strong: #cbd5e1;      /* Slate-300: Control outlines */
+  --border-focus: #0284c7;       /* Sky-600: Accessible focus outlines */
 
-  /* Status Accents */
-  --emerald: #10b981;
-  --emerald-subtle: #ecfdf5;
-  --emerald-border: #a7f3d0;
-  --emerald-text: #065f46;
+  /* One Deliberate, Restrained Accent (Clinical Deep Blue) */
+  --accent: #0284c7;
+  --accent-hover: #0369a1;
+  --accent-active: #075985;
+  --accent-muted: #e0f2fe;
 
-  --amber: #f59e0b;
-  --amber-subtle: #fffbeb;
-  --amber-border: #fde68a;
-  --amber-text: #92400e;
+  /* Semantic State Colors (Functional, never decorative) */
+  --color-success: #15803d;      /* Emerald-700 */
+  --color-success-bg: #f0fdf4;
+  --color-warning: #b45309;      /* Amber-700 */
+  --color-warning-bg: #fffbeb;
+  --color-danger: #b91c1c;       /* Red-700 */
+  --color-danger-bg: #fef2f2;
 
-  --rose: #ef4444;
-  --rose-subtle: #fef2f2;
-  --rose-border: #fecaca;
-  --rose-text: #991b1b;
-
-  /* Typography Colors (WCAG AA & AAA compliant) */
-  --text-primary: #0f172a;          /* Deep Slate-900 */
-  --text-secondary: #475569;        /* Slate-600 */
-  --text-tertiary: #94a3b8;         /* Slate-400 */
-
-  /* Borders & Dividers */
-  --border-subtle: #e2e8f0;
-  --border-medium: #cbd5e1;
-  --border-focus: #10b981;
-
-  /* Concentric Radius Hierarchy: R_outer = R_inner + padding */
-  --radius-card: 20px;
-  --radius-inner: 14px;
-  --radius-chip: 10px;
-  --radius-pill: 9999px;
-
-  /* Layered Elevation Shadows (Clean medical shadows) */
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
-  --shadow-card: 0 4px 16px -2px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.03);
-  --shadow-popover: 0 20px 35px -8px rgba(15, 23, 42, 0.12), 0 4px 10px -2px rgba(15, 23, 42, 0.06);
-
-  /* Micro-motion & Transitions */
-  --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-press: cubic-bezier(0.2, 0, 0, 1);
-  --duration-fast: 150ms;
-  --duration-normal: 220ms;
-
+  /* Typography Scale */
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --safe-bottom: env(safe-area-inset-bottom, 16px);
 }
 
 /* --------------------------------------------------------------------------
-   Reset & Base Styles
+   Reset & Baseline Typography
    -------------------------------------------------------------------------- */
 *, *::before, *::after {
   box-sizing: border-box;
@@ -88,7 +53,7 @@
 
 html {
   font-family: var(--font-sans);
-  background-color: var(--bg-canvas);
+  background-color: var(--bg-page);
   color: var(--text-primary);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -96,15 +61,26 @@ html {
 }
 
 body {
-  background-color: var(--bg-canvas);
+  background-color: var(--bg-page);
   color: var(--text-primary);
   min-height: 100dvh;
-  padding-bottom: calc(84px + var(--safe-bottom));
+  padding-bottom: calc(72px + var(--safe-bottom));
   overflow-x: hidden;
-  letter-spacing: -0.01em;
 }
 
-/* Accessibility: Visible Focus Indicators */
+/* Tabular Numbers */
+.metric-huge,
+.metric-sub,
+.metric-percent,
+.vital-stat-val,
+.btn-stepper,
+.time-chip-input,
+.table-scroll-container td,
+.tile-val {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Visible Keyboard Focus Indicators */
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
@@ -114,111 +90,68 @@ a:focus-visible,
   outline-offset: 2px;
 }
 
-/* Tabular Numbers */
-.tabular-nums,
-.water-cur-val,
-.weight-digits,
-.metric-value,
-.threshold-val,
-.stat-val,
-.chip-vol,
-.stepper-btn,
-.time-chip-input {
-  font-variant-numeric: tabular-nums;
-}
-
 /* --------------------------------------------------------------------------
-   App Header & Brand (Mediq Clean Header)
+   App Header: Clean, Solid Application Bar
    -------------------------------------------------------------------------- */
 header.app-header {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--border-subtle);
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+  background: var(--bg-page);
+  border-bottom: 1px solid var(--border-hairline);
 }
 
 .header-inner {
-  max-width: 860px;
+  max-width: 760px;
   margin: 0 auto;
-  padding: 12px 20px;
+  padding: 12px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.brand-monogram {
-  width: 38px;
-  height: 38px;
-  background: var(--accent-subtle);
-  border: 1px solid var(--accent-border);
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  font-weight: 800;
-  color: var(--accent-primary);
-  box-shadow: var(--shadow-sm);
-}
-
-.brand-meta {
-  display: flex;
-  flex-direction: column;
-}
-
-.brand-title {
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--text-primary);
-  line-height: 1.2;
-}
-
-.brand-tagline {
-  font-size: 11px;
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-
-.header-status {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  background: var(--surface-card-subtle);
-  border: 1px solid var(--border-subtle);
-  padding: 6px 14px;
-  border-radius: var(--radius-pill);
+.header-brand-group {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.header-status::before {
-  content: '';
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--accent-primary);
+.header-logo {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.header-sep {
+  color: var(--border-strong);
+  font-size: 13px;
+}
+
+.header-date {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.header-user-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+@media (max-width: 480px) {
+  .header-user-meta {
+    display: none;
+  }
 }
 
 /* --------------------------------------------------------------------------
-   Layout & Responsive Dashboard Grid
+   Main Content Container: Content-First Layout
    -------------------------------------------------------------------------- */
 main.app-main {
-  max-width: 860px;
+  max-width: 760px;
   margin: 0 auto;
-  padding: 20px 16px;
-  scroll-padding-block-start: 65px;
+  padding: 24px 16px 40px;
 }
 
 .tab-pane {
@@ -227,508 +160,298 @@ main.app-main {
 
 .tab-pane.active {
   display: block;
-  animation: viewFadeIn 0.22s var(--ease-standard);
 }
 
-@keyframes viewFadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+/* Page Heading Group */
+.page-heading-group {
+  margin-bottom: 28px;
 }
 
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 18px;
+.page-title {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--text-primary);
+  line-height: 1.2;
 }
 
-@media (min-width: 768px) {
-  .dashboard-grid {
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-    align-items: start;
-  }
-
-  .card-hero {
-    grid-column: 1 / 2;
-  }
-
-  .dashboard-side {
-    grid-column: 2 / 3;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-  }
-
-  .card-span-full {
-    grid-column: 1 / -1;
-  }
+.page-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  line-height: 1.4;
 }
 
-/* --------------------------------------------------------------------------
-   Cards & Surfaces (Mediq Clean White Cards)
-   -------------------------------------------------------------------------- */
-.card {
-  background: var(--surface-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-card);
-  padding: 22px;
-  box-shadow: var(--shadow-card);
-  position: relative;
-  transition: border-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
+/* Structural Dividers (Spacing over borders) */
+.section-block {
+  padding: 4px 0;
 }
 
-@media (hover: hover) {
-  .card:hover {
-    border-color: #cbd5e1;
-    box-shadow: 0 6px 20px -2px rgba(15, 23, 42, 0.07);
-  }
+.section-divider {
+  border: 0;
+  border-top: 1px solid var(--border-hairline);
+  margin: 32px 0;
 }
 
-.card-header {
+.section-header-row {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 16px;
-  gap: 12px;
+  gap: 16px;
+  margin-bottom: 12px;
 }
 
-.card-header-titles {
+.section-header-right {
   display: flex;
   flex-direction: column;
+  align-items: flex-end;
   gap: 2px;
 }
 
-.card-category {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-tertiary);
-}
-
-.card-title {
+.section-title {
   font-size: 16px;
-  font-weight: 700;
-  color: var(--text-primary);
-  line-height: 1.25;
-}
-
-/* Badges (Mediq Pastel Pill Badges) */
-.badge {
-  font-size: 11px;
   font-weight: 600;
-  padding: 4px 10px;
-  border-radius: var(--radius-pill);
-  background: var(--sky-subtle);
-  color: var(--sky-text);
-  border: 1px solid var(--sky-border);
-  white-space: nowrap;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
 }
 
-.badge-emerald {
-  background: var(--emerald-subtle);
-  color: var(--accent-text);
-  border-color: var(--emerald-border);
-}
-
-.badge-amber {
-  background: var(--amber-subtle);
-  color: var(--amber-text);
-  border-color: var(--amber-border);
+.section-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  line-height: 1.4;
 }
 
 /* --------------------------------------------------------------------------
-   Widget 1: Lượng Nước Lọc (Mediq Circular Ring)
+   Section 1: Nước Lọc (Hydration Tracking - Linear Utilitarian Flow)
    -------------------------------------------------------------------------- */
-.water-card {
-  display: flex;
-  flex-direction: column;
-}
-
-.water-ring-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin: 6px 0 16px;
-}
-
-.water-ring-wrapper {
-  position: relative;
-  width: 176px;
-  height: 176px;
-}
-
-.water-ring-svg {
-  width: 100%;
-  height: 100%;
-  transform: rotate(-90deg);
-}
-
-.water-ring-track {
-  fill: none;
-  stroke: #f1f5f9;
-  stroke-width: 11;
-}
-
-.water-ring-indicator {
-  fill: none;
-  stroke-width: 11;
-  stroke-linecap: round;
-  transition: stroke-dashoffset 0.5s var(--ease-standard);
-}
-
-.water-ring-center {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.water-number-row {
+.metric-readout-row {
   display: flex;
   align-items: baseline;
-  gap: 3px;
+  gap: 6px;
+  margin-top: 2px;
 }
 
-.water-cur-val {
-  font-size: 34px;
-  font-weight: 800;
+.metric-huge {
+  font-size: 38px;
+  font-weight: 700;
+  color: var(--text-primary);
   line-height: 1;
   letter-spacing: -0.03em;
-  color: var(--text-primary);
 }
 
-.water-unit-val {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-tertiary);
-}
-
-.water-progress-sub {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--sky-text);
-  margin-top: 5px;
-  background: var(--sky-subtle);
-  border: 1px solid var(--sky-border);
-  padding: 2px 10px;
-  border-radius: var(--radius-pill);
-}
-
-/* Thước đo tối thiểu / tối đa */
-.water-thresholds {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 20px;
-  margin-top: 14px;
-  background: var(--surface-card-subtle);
-  padding: 8px 18px;
-  border-radius: var(--radius-inner);
-  border: 1px solid var(--border-subtle);
-  width: 100%;
-  max-width: 280px;
-}
-
-.threshold-col {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.threshold-label {
-  font-size: 11px;
-  color: var(--text-tertiary);
+.metric-sub {
+  font-size: 15px;
   font-weight: 500;
+  color: var(--text-muted);
 }
 
-.threshold-val {
-  font-size: 13px;
+.metric-percent {
+  font-size: 20px;
   font-weight: 700;
-  color: var(--text-secondary);
+  color: var(--accent);
+  line-height: 1;
 }
 
-.threshold-sep {
-  width: 1px;
-  height: 20px;
-  background: var(--border-subtle);
+.status-indicator {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
 }
 
-/* Nút bấm thêm nước */
-.water-actions-grid {
+/* Linear Progress Track */
+.progress-track {
+  width: 100%;
+  height: 8px;
+  background-color: var(--bg-muted);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 14px 0 16px;
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: var(--accent);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+/* Quick Add Buttons */
+.actions-grid-water {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
-  margin-top: 4px;
+  margin-bottom: 12px;
 }
 
-.btn-water-chip {
-  background: var(--surface-card-subtle);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-primary);
-  padding: 10px 4px;
-  border-radius: var(--radius-inner);
+@media (max-width: 480px) {
+  .actions-grid-water {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.btn-action-tile {
+  background: var(--bg-page);
+  border: 1px solid var(--border-hairline);
+  border-radius: 8px;
+  padding: 10px 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 2px;
-  min-height: 52px;
   cursor: pointer;
-  transition: transform var(--duration-fast) var(--ease-press), background-color var(--duration-fast) ease, border-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
+  min-height: 52px;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
-.btn-water-chip:hover {
-  background: var(--sky-subtle);
-  border-color: var(--sky-border);
+.btn-action-tile:hover {
+  border-color: var(--border-strong);
+  background-color: var(--bg-subtle);
 }
 
-.btn-water-chip:active {
-  transform: scale(0.96);
+.btn-action-tile:active {
+  background-color: var(--bg-muted);
 }
 
-.chip-vol {
+.tile-val {
   font-size: 14px;
-  font-weight: 700;
-  color: var(--sky-text);
-  line-height: 1.1;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
-.chip-label {
+.tile-desc {
   font-size: 11px;
-  color: var(--text-tertiary);
-  font-weight: 500;
+  color: var(--text-muted);
 }
 
-.water-meta-footer {
+.meta-status-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border-subtle);
+  flex-wrap: wrap;
+  gap: 8px;
   font-size: 12px;
-  color: var(--text-tertiary);
 }
 
-.water-count-text {
-  font-size: 12px;
-  color: var(--text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.meta-caption {
+  color: var(--text-muted);
+}
+
+.meta-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 /* --------------------------------------------------------------------------
-   Widget 2: Cân Nặng (Mediq Stepper)
+   Section 2: Cân Nặng (Weight Stepper)
    -------------------------------------------------------------------------- */
-.weight-card {
-  display: flex;
-  flex-direction: column;
+.field-hint {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  margin-bottom: 14px;
 }
 
-.weight-display-center {
-  text-align: center;
-  margin: 4px 0 16px;
-}
-
-.weight-number-wrap {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 4px;
-}
-
-.weight-digits {
-  font-size: 44px;
-  font-weight: 800;
-  color: var(--text-primary);
-  letter-spacing: -0.03em;
-  line-height: 1;
-}
-
-.weight-unit {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-tertiary);
-}
-
-.weight-hint-text {
-  font-size: 12px;
-  color: var(--text-tertiary);
-  margin-top: 6px;
-}
-
-/* Stepper Cluster */
-.stepper-cluster {
+.stepper-row {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin-bottom: 16px;
-  background: var(--surface-card-subtle);
-  padding: 6px;
-  border-radius: 14px;
-  border: 1px solid var(--border-subtle);
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.stepper-btn {
-  background: var(--surface-card);
-  border: 1px solid var(--border-subtle);
+.btn-stepper {
+  background: var(--bg-page);
+  border: 1px solid var(--border-hairline);
   color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
   width: 48px;
   height: 40px;
-  border-radius: var(--radius-chip);
-  font-size: 13px;
-  font-weight: 700;
+  border-radius: 6px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: var(--shadow-sm);
-  transition: transform var(--duration-fast) var(--ease-press), background-color var(--duration-fast) ease, border-color var(--duration-fast) ease;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
-.stepper-btn:hover {
-  background: var(--surface-hover);
-  border-color: var(--border-medium);
+.btn-stepper:hover {
+  border-color: var(--border-strong);
+  background-color: var(--bg-subtle);
 }
 
-.stepper-btn:active {
-  transform: scale(0.96);
+.btn-stepper:active {
+  background-color: var(--bg-muted);
 }
 
 .stepper-sep {
   width: 1px;
   height: 24px;
-  background: var(--border-subtle);
+  background-color: var(--border-hairline);
   margin: 0 4px;
 }
 
 /* --------------------------------------------------------------------------
-   Widget 3: Thuốc Hôm Nay (Mediq Medical Habit Card)
+   Section 3: Thuốc Hôm Nay (Medication Check)
    -------------------------------------------------------------------------- */
-.med-card {
+.med-checklist-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  padding: 16px 20px;
+  gap: 16px;
 }
 
-.med-info-group {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.med-icon-box {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-inner);
-  background: var(--accent-subtle);
-  border: 1px solid var(--accent-border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--accent-primary);
-  flex-shrink: 0;
-}
-
-.med-icon-box svg {
-  width: 20px;
-  height: 20px;
-}
-
-.med-text-meta {
-  display: flex;
-  flex-direction: column;
-}
-
-.med-title {
-  font-size: 14px;
-  font-weight: 700;
+.btn-med-check {
+  background: var(--bg-page);
+  border: 1px solid var(--border-strong);
   color: var(--text-primary);
-  line-height: 1.25;
-}
-
-.med-subtitle {
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.btn-med-toggle {
-  background: var(--surface-card-subtle);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-secondary);
-  padding: 8px 16px;
-  border-radius: var(--radius-inner);
   font-size: 13px;
   font-weight: 600;
+  padding: 10px 18px;
+  border-radius: 6px;
   cursor: pointer;
-  min-height: 40px;
   white-space: nowrap;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform var(--duration-fast) var(--ease-press), background-color var(--duration-fast) ease, border-color var(--duration-fast) ease, color var(--duration-fast) ease;
+  min-height: 42px;
+  transition: all 0.15s ease;
 }
 
-.btn-med-toggle:hover {
-  background: var(--surface-hover);
-  color: var(--text-primary);
+.btn-med-check:hover {
+  border-color: var(--text-primary);
 }
 
-.btn-med-toggle:active {
-  transform: scale(0.96);
-}
-
-.btn-med-toggle.taken {
-  background: var(--accent-primary);
-  border-color: var(--accent-primary);
+.btn-med-check.taken {
+  background: var(--color-success);
+  border-color: var(--color-success);
   color: #ffffff;
-  font-weight: 700;
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);
 }
 
 /* --------------------------------------------------------------------------
-   Widget 4: Bữa Ăn Hôm Nay (Next Meal Slot)
+   Section 4: Bữa Ăn Tiếp Theo (Next Meal)
    -------------------------------------------------------------------------- */
-.next-meal-card {
-  margin-top: 4px;
-}
-
 .meal-slot {
-  background: var(--surface-card-subtle);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-inner);
-  padding: 16px;
-  margin-bottom: 10px;
+  margin-top: 10px;
 }
 
 .meal-slot-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .meal-slot-name {
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text-primary);
 }
 
 .meal-slot-kcal {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--accent-text);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
-  background: var(--accent-subtle);
-  border: 1px solid var(--accent-border);
-  padding: 2px 10px;
-  border-radius: var(--radius-pill);
 }
 
 .meal-items-list {
@@ -737,7 +460,7 @@ main.app-main {
   margin-bottom: 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .meal-item {
@@ -749,22 +472,18 @@ main.app-main {
 }
 
 .meal-item-red {
-  color: var(--rose-text);
-  background: var(--rose-subtle);
-  padding: 2px 6px;
-  border-radius: 6px;
+  color: var(--color-danger);
 }
 
 .meal-item-red-tag {
-  color: var(--rose);
+  color: var(--color-danger);
   font-weight: 600;
   font-size: 12px;
 }
 
 .meal-item-qty {
   font-size: 12px;
-  font-weight: 600;
-  color: var(--text-tertiary);
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -773,555 +492,461 @@ main.app-main {
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
-  padding-top: 10px;
-  border-top: 1px solid var(--border-subtle);
+  padding-top: 8px;
 }
 
 .btn-slot-act {
-  background: var(--surface-card);
-  border: 1px solid var(--border-subtle);
+  background: var(--bg-page);
+  border: 1px solid var(--border-hairline);
   color: var(--text-secondary);
   font-size: 12px;
-  font-weight: 600;
-  padding: 6px 14px;
-  border-radius: var(--radius-chip);
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 6px;
   cursor: pointer;
-  min-height: 34px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  box-shadow: var(--shadow-sm);
-  transition: transform var(--duration-fast) var(--ease-press), background-color var(--duration-fast) ease, border-color var(--duration-fast) ease, color var(--duration-fast) ease;
+  min-height: 32px;
+  transition: all 0.15s ease;
 }
 
 .btn-slot-act:hover {
-  background: var(--surface-hover);
+  border-color: var(--border-strong);
   color: var(--text-primary);
 }
 
-.btn-slot-act:active {
-  transform: scale(0.96);
-}
-
 .btn-slot-act.active-done {
-  background: var(--accent-subtle);
-  border-color: var(--accent-border);
-  color: var(--accent-text);
-  font-weight: 700;
+  background: var(--color-success-bg);
+  border-color: var(--color-success);
+  color: var(--color-success);
+  font-weight: 600;
 }
 
 .btn-slot-act.active-diff {
-  background: var(--amber-subtle);
-  border-color: var(--amber-border);
-  color: var(--amber-text);
-  font-weight: 700;
+  background: var(--color-warning-bg);
+  border-color: var(--color-warning);
+  color: var(--color-warning);
+  font-weight: 600;
 }
 
 .meal-note-box {
   margin-top: 8px;
   font-size: 12px;
-  background: #fdf4ff;
-  border: 1px solid #f0abfc;
-  color: #86198f;
-  padding: 8px 12px;
-  border-radius: var(--radius-chip);
+  background: var(--bg-muted);
+  border-left: 3px solid var(--border-strong);
+  color: var(--text-secondary);
+  padding: 6px 10px;
 }
 
-.meal-empty-state {
-  text-align: center;
-  color: var(--text-secondary);
-  padding: 24px 0;
+.empty-state-box {
+  padding: 20px 0;
+  color: var(--text-muted);
+  font-size: 13px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 /* --------------------------------------------------------------------------
-   Buttons (Mediq Medical Buttons)
+   Buttons (Utilitarian, Crisp, Accessible)
    -------------------------------------------------------------------------- */
 .btn-primary {
-  background: var(--accent-primary);
+  background-color: var(--accent);
   color: #ffffff;
-  border: none;
-  padding: 12px 20px;
-  border-radius: var(--radius-inner);
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  min-height: 46px;
-  box-shadow: 0 2px 10px rgba(16, 185, 129, 0.28);
-  transition: transform var(--duration-fast) var(--ease-press), background-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
-}
-
-.btn-primary:hover {
-  background: var(--accent-primary-hover);
-  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.38);
-}
-
-.btn-primary:active {
-  transform: scale(0.96);
-}
-
-.btn-secondary {
-  background: var(--surface-card);
-  color: var(--text-primary);
-  border: 1px solid var(--border-subtle);
-  padding: 10px 16px;
-  border-radius: var(--radius-inner);
+  border: 1px solid transparent;
+  padding: 10px 18px;
+  border-radius: 6px;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 42px;
-  box-shadow: var(--shadow-sm);
-  transition: transform var(--duration-fast) var(--ease-press), background-color var(--duration-fast) ease, border-color var(--duration-fast) ease;
+  min-height: 40px;
+  transition: background-color 0.15s ease;
+}
+
+.btn-primary:hover {
+  background-color: var(--accent-hover);
+}
+
+.btn-primary:active {
+  background-color: var(--accent-active);
+}
+
+.btn-secondary {
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  border: 1px solid var(--border-hairline);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
 .btn-secondary:hover {
-  background: var(--surface-card-subtle);
-  border-color: var(--border-medium);
+  border-color: var(--border-strong);
+  background-color: var(--bg-subtle);
 }
 
 .btn-secondary:active {
-  transform: scale(0.96);
+  background-color: var(--bg-muted);
 }
 
 .btn-sm {
-  padding: 6px 14px;
+  padding: 4px 12px;
   font-size: 12px;
-  min-height: 34px;
+  min-height: 32px;
 }
 
 .btn-link {
   background: none;
   border: none;
-  color: var(--accent-text);
+  color: var(--accent);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
-  padding: 4px 6px;
-  border-radius: var(--radius-chip);
-  transition: color var(--duration-fast) ease;
+  padding: 0;
 }
 
 .btn-link:hover {
-  color: var(--accent-primary-hover);
   text-decoration: underline;
 }
 
-.btn-danger-link {
+.btn-danger-text {
   background: none;
   border: none;
-  color: var(--rose);
+  color: var(--color-danger);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
-  padding: 6px 12px;
+  padding: 0;
 }
 
-.btn-danger-link:hover {
+.btn-danger-text:hover {
   text-decoration: underline;
-}
-
-.btn-file-label {
-  text-align: center;
 }
 
 /* --------------------------------------------------------------------------
    Tab 2: Bữa Ăn (7 Ngày)
    -------------------------------------------------------------------------- */
-.meals-toolbar {
+.meals-toolbar-row {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
   margin-bottom: 16px;
 }
 
-.meals-toolbar .btn-primary {
-  flex: 2;
-  min-width: 200px;
-}
-
-.meals-toolbar .btn-secondary {
-  flex: 1;
-  min-width: 140px;
-}
-
-.notice-callout {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  background: var(--accent-subtle);
-  border: 1px solid var(--accent-border);
-  border-radius: var(--radius-inner);
-  padding: 12px 16px;
-  margin-bottom: 18px;
-}
-
-.notice-icon {
-  color: var(--accent-primary);
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.notice-icon svg {
-  width: 18px;
-  height: 18px;
-}
-
-.notice-text {
-  font-size: 12px;
-  color: var(--emerald-text);
+.editorial-notice {
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: var(--bg-subtle);
+  border-left: 3px solid var(--border-strong);
+  padding: 10px 14px;
+  margin-bottom: 24px;
   line-height: 1.5;
 }
 
 .meal-day-card {
-  margin-bottom: 18px;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-hairline);
 }
 
 .meal-day-header {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
-  margin-bottom: 14px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.loading-state {
-  text-align: center;
-  padding: 40px 0;
-  color: var(--text-tertiary);
-  font-size: 13px;
+  margin-bottom: 10px;
 }
 
 /* --------------------------------------------------------------------------
-   Tab 3: Cân Nặng & Biểu Đồ (Mediq Stat Trio)
+   Tab 3: Cân Nặng (Vitals & SVG Chart)
    -------------------------------------------------------------------------- */
-.metric-trio-grid {
+.vitals-stats-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  margin-bottom: 18px;
+  gap: 16px;
+  margin-bottom: 20px;
 }
 
-/* Mediq Style Soft Pastel Stat Boxes */
-.metric-trio-card {
-  background: var(--surface-card-subtle);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-inner);
-  padding: 12px 10px;
-  text-align: center;
+@media (max-width: 480px) {
+  .vitals-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
 }
 
-.metric-trio-card:nth-child(2) {
-  background: var(--sky-subtle);
-  border-color: var(--sky-border);
+.vital-stat-col {
+  display: flex;
+  flex-direction: column;
 }
 
-.metric-trio-card:nth-child(3) {
-  background: var(--accent-subtle);
-  border-color: var(--accent-border);
+.vital-stat-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
 }
 
-.metric-label {
-  display: block;
-  font-size: 11px;
-  color: var(--text-secondary);
-  font-weight: 600;
-  margin-bottom: 3px;
-}
-
-.metric-value {
-  font-size: 17px;
-  font-weight: 800;
+.vital-stat-val {
+  font-size: 20px;
+  font-weight: 700;
   color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
 }
 
-.metric-value-accent {
-  color: var(--sky-text);
+.text-accent {
+  color: var(--accent);
 }
 
-.metric-value-emerald {
-  color: var(--accent-text);
+.text-success {
+  color: var(--color-success);
 }
 
-.chart-container {
+.chart-wrapper {
   width: 100%;
   height: 200px;
-  margin: 12px 0 8px;
+  margin: 12px 0 6px;
 }
 
-.chart-svg {
+.chart-canvas {
   width: 100%;
   height: 100%;
   overflow: visible;
-  font-variant-numeric: tabular-nums;
 }
 
-.chart-legend {
+.chart-legend-row {
   display: flex;
   justify-content: space-between;
   font-size: 12px;
-  color: var(--text-secondary);
-  padding-top: 10px;
-  border-top: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  padding-top: 8px;
 }
 
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.legend-dash-green {
+.legend-line {
   display: inline-block;
-  width: 14px;
+  width: 12px;
   height: 2px;
-  background: #10b981;
+  vertical-align: middle;
+  margin-right: 4px;
 }
 
-.legend-line-blue {
-  display: inline-block;
-  width: 14px;
-  height: 3px;
-  background: #0ea5e9;
-  border-radius: 2px;
+.line-target {
+  background: var(--color-success);
 }
 
-.history-table-container {
+.line-actual {
+  background: var(--accent);
+}
+
+.table-scroll-container {
   max-height: 280px;
   overflow-y: auto;
 }
 
-/* --------------------------------------------------------------------------
-   Tab 4: Cài Đặt & Form
-   -------------------------------------------------------------------------- */
-.section-desc {
+.table-scroll-container table {
+  width: 100%;
+  border-collapse: collapse;
   font-size: 13px;
-  color: var(--text-secondary);
-  margin-bottom: 14px;
-  line-height: 1.5;
 }
 
-.actions-split-row {
+.table-scroll-container th {
+  padding: 8px 6px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-align: left;
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.table-scroll-container td {
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+/* --------------------------------------------------------------------------
+   Tab 4: Cài Đặt (Clean Structured Rows)
+   -------------------------------------------------------------------------- */
+.button-row {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+  margin-top: 10px;
 }
 
-.actions-split-row .btn-primary {
-  flex: 2;
-  min-width: 180px;
-}
-
-.actions-split-row .btn-secondary {
-  flex: 1;
-  min-width: 120px;
-}
-
-.guide-callout {
-  margin-top: 14px;
-  background: var(--amber-subtle);
-  border: 1px solid var(--amber-border);
-  border-radius: var(--radius-inner);
-  padding: 12px 14px;
-}
-
-.guide-badge {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--amber-text);
-  margin-bottom: 4px;
-}
-
-.guide-text {
+.editorial-callout {
   font-size: 12px;
-  color: var(--amber-text);
+  color: var(--text-secondary);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-hairline);
+  padding: 10px 12px;
+  border-radius: 6px;
   line-height: 1.5;
 }
 
-/* Lịch & Số Lần Nhắc Nhở Tự Do */
-.reminders-settings-list {
+/* Schedule Rows */
+.schedule-settings-stack {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
+  margin-top: 12px;
 }
 
-.reminder-group-box {
-  background: var(--surface-card-subtle);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-inner);
-  padding: 14px;
+.schedule-item-row {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 16px;
+  align-items: start;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-hairline);
 }
 
-.reminder-group-header {
+@media (max-width: 600px) {
+  .schedule-item-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}
+
+.schedule-meta {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 12px;
-  gap: 8px;
+  flex-direction: column;
 }
 
-.reminder-group-title {
-  display: block;
+.schedule-name {
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text-primary);
 }
 
-.reminder-group-sub {
-  display: block;
+.schedule-hint {
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--text-muted);
   margin-top: 2px;
 }
 
-.reminder-chips-wrap {
+.schedule-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  font-weight: 500;
+}
+
+.schedule-chips-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chips-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 10px;
+  gap: 6px;
 }
 
 .time-chip {
   display: inline-flex;
   align-items: center;
-  background: var(--surface-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-chip);
-  padding: 4px 6px 4px 10px;
-  gap: 6px;
-  box-shadow: var(--shadow-sm);
-  transition: border-color var(--duration-fast) ease;
-}
-
-.time-chip:focus-within {
-  border-color: var(--border-focus);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-hairline);
+  border-radius: 4px;
+  padding: 2px 6px 2px 8px;
+  gap: 4px;
 }
 
 .time-chip-input {
   background: transparent;
   border: none;
+  font-size: 14px;
+  font-weight: 600;
   color: var(--text-primary);
   font-family: inherit;
-  font-size: 15px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
   outline: none;
-  padding: 2px 0;
   cursor: pointer;
 }
 
 .btn-chip-del {
   background: transparent;
   border: none;
-  color: var(--text-tertiary);
-  font-size: 16px;
-  line-height: 1;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
+  color: var(--text-muted);
+  font-size: 15px;
   cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color var(--duration-fast) ease, color var(--duration-fast) ease;
+  padding: 0 2px;
+  line-height: 1;
 }
 
 .btn-chip-del:hover {
-  background: var(--rose-subtle);
-  color: var(--rose);
+  color: var(--color-danger);
 }
 
-.btn-add-time {
-  background: var(--surface-card);
-  border: 1px dashed var(--accent-border);
-  color: var(--accent-text);
+.btn-inline-add {
+  background: none;
+  border: none;
+  color: var(--accent);
   font-size: 12px;
-  font-weight: 600;
-  padding: 6px 12px;
-  border-radius: var(--radius-chip);
+  font-weight: 500;
   cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  transition: background-color var(--duration-fast) ease, border-color var(--duration-fast) ease, transform var(--duration-fast) var(--ease-press);
+  padding: 0;
+  text-align: left;
 }
 
-.btn-add-time:hover {
-  background: var(--accent-subtle);
-  border-color: var(--accent-primary);
+.btn-inline-add:hover {
+  text-decoration: underline;
 }
 
-.btn-add-time:active {
-  transform: scale(0.96);
+/* Glucose Data List */
+.glucose-data-list {
+  margin-top: 10px;
 }
 
-.form-grid-2 {
+/* Form Grid */
+.form-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
 
-@media (min-width: 500px) {
-  .form-grid-2 {
-    grid-template-columns: 1fr 1fr;
+@media (max-width: 500px) {
+  .form-grid {
+    grid-template-columns: 1fr;
   }
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .form-label {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-secondary);
 }
 
 .form-input {
   width: 100%;
-  background: var(--surface-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-chip);
-  padding: 10px 14px;
+  background: var(--bg-page);
+  border: 1px solid var(--border-hairline);
+  border-radius: 6px;
+  padding: 8px 12px;
   color: var(--text-primary);
-  /* 16px on mobile to avoid iOS Safari auto-zoom */
+  /* 16px mobile input floor to prevent iOS zoom */
   font-size: 16px;
   font-family: inherit;
-  box-shadow: var(--shadow-sm);
-  transition: border-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
+  transition: border-color 0.15s ease;
 }
 
 .form-input:focus {
   outline: none;
   border-color: var(--border-focus);
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
-}
-
-.card-danger-zone {
-  margin-top: 16px;
-  padding-top: 14px;
-  border-top: 1px solid var(--border-subtle);
-  text-align: center;
 }
 
 /* --------------------------------------------------------------------------
-   Bottom Navigation Bar (Mediq Clean White Navbar)
+   Bottom Navigation Bar (Minimalist, Solid, Production-Grade)
    -------------------------------------------------------------------------- */
 nav.app-navbar {
   position: fixed;
@@ -1329,18 +954,15 @@ nav.app-navbar {
   left: 0;
   right: 0;
   z-index: 100;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-page);
+  border-top: 1px solid var(--border-hairline);
   padding-bottom: var(--safe-bottom);
-  box-shadow: 0 -2px 10px rgba(15, 23, 42, 0.04);
 }
 
 .navbar-inner {
-  max-width: 860px;
+  max-width: 760px;
   margin: 0 auto;
-  height: 58px;
+  height: 52px;
   display: flex;
   align-items: center;
   justify-content: space-around;
@@ -1353,63 +975,58 @@ nav.app-navbar {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 2px;
   height: 100%;
   color: var(--text-tertiary);
   background: none;
   border: none;
   cursor: pointer;
-  border-radius: var(--radius-inner);
-  transition: color var(--duration-fast) ease, transform var(--duration-fast) var(--ease-press);
+  transition: color 0.15s ease;
 }
 
 .nav-item svg {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   stroke: currentColor;
-  stroke-width: 1.8;
+  stroke-width: 1.75;
   fill: none;
-  transition: stroke var(--duration-fast) ease;
 }
 
 .nav-label {
   font-size: 11px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-weight: 500;
 }
 
 .nav-item:hover {
   color: var(--text-secondary);
 }
 
-.nav-item:active {
-  transform: scale(0.94);
-}
-
 .nav-item.active {
-  color: var(--accent-primary);
+  color: var(--text-primary);
 }
 
 .nav-item.active svg {
-  stroke: var(--accent-primary);
+  stroke: var(--text-primary);
+}
+
+.nav-item.active .nav-label {
+  font-weight: 600;
 }
 
 /* --------------------------------------------------------------------------
-   Modals & Overlays
+   Modals
    -------------------------------------------------------------------------- */
 .modal-overlay {
   position: fixed;
   inset: 0;
   z-index: 200;
-  background: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: rgba(15, 23, 42, 0.4);
   display: flex;
   align-items: flex-end;
   justify-content: center;
   opacity: 0;
   pointer-events: none;
-  transition: opacity var(--duration-normal) ease;
+  transition: opacity 0.2s ease;
 }
 
 .modal-overlay.open {
@@ -1417,33 +1034,32 @@ nav.app-navbar {
   pointer-events: auto;
 }
 
-.modal-content {
-  background: var(--surface-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-card) var(--radius-card) 0 0;
+.modal-dialog {
+  background: var(--bg-page);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px 12px 0 0;
   width: 100%;
-  max-width: 580px;
+  max-width: 540px;
   max-height: 85dvh;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 24px;
-  box-shadow: var(--shadow-popover);
+  padding: 20px 20px 32px;
   transform: translateY(100%);
-  transition: transform 0.25s var(--ease-standard);
+  transition: transform 0.2s ease;
 }
 
-@media (min-width: 640px) {
+@media (min-width: 580px) {
   .modal-overlay {
     align-items: center;
     padding: 20px;
   }
-  .modal-content {
-    border-radius: var(--radius-card);
-    transform: translateY(16px);
+  .modal-dialog {
+    border-radius: 10px;
+    transform: translateY(12px);
   }
 }
 
-.modal-overlay.open .modal-content {
+.modal-overlay.open .modal-dialog {
   transform: translateY(0);
 }
 
@@ -1451,78 +1067,49 @@ nav.app-navbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .modal-title {
-  font-size: 17px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 600;
   color: var(--text-primary);
 }
 
 .modal-close {
   background: none;
   border: none;
-  color: var(--text-tertiary);
-  font-size: 24px;
+  color: var(--text-muted);
+  font-size: 22px;
   line-height: 1;
   cursor: pointer;
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-chip);
+  padding: 4px;
 }
 
-.modal-close:hover {
-  background: var(--surface-card-subtle);
-  color: var(--text-primary);
+.modal-scroll-body {
+  max-height: 50dvh;
+  overflow-y: auto;
 }
 
-.modal-desc {
-  font-size: 13px;
-  color: var(--text-secondary);
-  margin-bottom: 14px;
-}
-
-.quick-tags-label {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-bottom: 8px;
-}
-
-.quick-tags-cluster {
+.chips-flex-row {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
-  margin-bottom: 16px;
 }
 
-.btn-tag {
-  background: var(--surface-card-subtle);
-  border: 1px solid var(--border-subtle);
+.btn-chip-tag {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-hairline);
   color: var(--text-secondary);
   font-size: 12px;
-  padding: 6px 12px;
-  border-radius: var(--radius-chip);
+  padding: 4px 10px;
+  border-radius: 4px;
   cursor: pointer;
-  transition: background-color var(--duration-fast) ease;
 }
 
-.btn-tag:hover {
-  background: var(--accent-subtle);
-  color: var(--accent-text);
-  border-color: var(--accent-border);
-}
-
-.btn-tag:active {
-  transform: scale(0.96);
-}
-
-.shopping-scroll-area {
-  max-height: 50dvh;
-  overflow-y: auto;
+.btn-chip-tag:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
 }
 
 /* --------------------------------------------------------------------------
@@ -1538,105 +1125,72 @@ nav.app-navbar {
   flex-direction: column;
   gap: 8px;
   width: 90%;
-  max-width: 400px;
+  max-width: 380px;
   pointer-events: none;
 }
 
 .toast {
-  background: #ffffff;
-  border: 1px solid var(--border-medium);
-  color: var(--text-primary);
-  padding: 12px 16px;
-  border-radius: var(--radius-inner);
+  background: #0f172a;
+  color: #ffffff;
+  padding: 10px 14px;
+  border-radius: 6px;
   font-size: 13px;
-  font-weight: 600;
-  box-shadow: var(--shadow-popover);
+  font-weight: 500;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  animation: toastSlide 0.2s var(--ease-standard);
   pointer-events: auto;
 }
 
-@keyframes toastSlide {
-  from { opacity: 0; transform: translateY(-8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
 /* --------------------------------------------------------------------------
-   Login View (Mediq Style)
+   Login View
    -------------------------------------------------------------------------- */
 .login-view {
-  min-height: 90dvh;
+  min-height: 85dvh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
 }
 
-.login-card {
+.login-container {
   width: 100%;
-  max-width: 380px;
-  background: var(--surface-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-card);
-  padding: 36px 28px;
-  text-align: center;
-  box-shadow: var(--shadow-popover);
+  max-width: 360px;
 }
 
-.login-card .brand-monogram {
-  width: 52px;
-  height: 52px;
-  font-size: 26px;
-  margin: 0 auto 16px;
+.login-brand {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 6px;
 }
 
-.login-title {
-  font-size: 22px;
-  font-weight: 800;
-  margin-bottom: 4px;
+.login-heading {
+  font-size: 20px;
+  font-weight: 700;
   color: var(--text-primary);
+  margin-bottom: 4px;
 }
 
-.login-sub {
+.login-subtext {
   font-size: 13px;
   color: var(--text-secondary);
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .pin-input {
   text-align: center;
-  font-size: 24px;
-  letter-spacing: 8px;
-  padding: 12px;
+  font-size: 22px;
+  letter-spacing: 6px;
+  padding: 10px;
 }
 
 /* --------------------------------------------------------------------------
-   Accessibility & Reduced Motion
+   Reduced Motion
    -------------------------------------------------------------------------- */
-@media (max-width: 360px) {
-  .water-actions-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .stepper-btn {
-    width: 40px;
-    height: 38px;
-    font-size: 12px;
-  }
-  .weight-digits {
-    font-size: 34px;
-  }
-  .metric-trio-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
   }
 }

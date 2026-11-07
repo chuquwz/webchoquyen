@@ -79,6 +79,21 @@
       // 1. Kiểm tra bản cập nhật mới ngay khi nạp trang
       reg.update().catch(() => {});
 
+      if (reg.waiting) {
+        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+
+      reg.addEventListener('updatefound', () => {
+        const worker = reg.installing;
+        if (worker) {
+          worker.addEventListener('statechange', () => {
+            if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+              window.location.reload();
+            }
+          });
+        }
+      });
+
       // 2. Tự động kiểm tra cập nhật mỗi khi người dùng quay lại tab web
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
@@ -86,10 +101,10 @@
         }
       });
 
-      // 3. Định kỳ kiểm tra mỗi 60 giây
+      // 3. Định kỳ kiểm tra mỗi 30 giây
       setInterval(() => {
         reg.update().catch(() => {});
-      }, 60000);
+      }, 30000);
     }).catch(() => {});
 
     // Khi Service Worker mới kích hoạt thành công -> tự động nạp lại trang để dùng ngay phiên bản mới
@@ -100,7 +115,35 @@
         window.location.reload();
       }
     });
+
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data && event.data.type === 'FORCE_RELOAD') {
+        if (!isRefreshing) {
+          isRefreshing = true;
+          window.location.reload();
+        }
+      }
+    });
   }
+
+  window.forceCheckUpdate = async function () {
+    showToast('Đang kiểm tra và tải phiên bản mới nhất...');
+    try {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        for (let r of regs) {
+          await r.unregister();
+        }
+      }
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        for (let k of keys) {
+          await caches.delete(k);
+        }
+      }
+    } catch (e) { }
+    window.location.reload();
+  };
 
   function showLoginView() {
     document.getElementById('login-view').style.display = 'flex';
@@ -231,18 +274,9 @@
     const pct = Math.min(100, Math.round((cur / min) * 100));
     document.getElementById('water-percent-text').textContent = pct + '%';
 
-    // Cập nhật SVG Progress Ring nếu có
-    const ring = document.getElementById('water-ring-progress');
-    if (ring) {
-      const ringPct = Math.min(100, (cur / min) * 100);
-      const offset = 465 - (465 * ringPct / 100);
-      ring.style.strokeDashoffset = offset;
-    }
-
     const fillEl = document.getElementById('water-fill');
     if (fillEl) {
-      const fillHeight = Math.min(100, (cur / max) * 100);
-      fillEl.style.height = `${fillHeight}%`;
+      fillEl.style.width = `${pct}%`;
     }
 
     const badge = document.getElementById('water-badge');
@@ -251,14 +285,14 @@
 
     if (cur >= min && cur <= max) {
       badge.textContent = 'Đã đạt mục tiêu';
-      badge.className = 'badge badge-emerald';
+      badge.className = 'status-indicator text-success';
     } else if (cur > max) {
       badge.textContent = 'Đã vượt 3.000ml';
-      badge.className = 'badge badge-amber';
+      badge.className = 'status-indicator text-accent';
     } else {
       const remain = min - cur;
       badge.textContent = `Thiếu ${remain.toLocaleString('vi-VN')}ml`;
-      badge.className = 'badge';
+      badge.className = 'status-indicator';
     }
 
     if (state.waterEntries.length > 0) {
@@ -324,11 +358,12 @@
   // --- CHECKLIST THUỐC ---
   function renderMedWidget() {
     const btn = document.getElementById('btn-today-med');
+    if (!btn) return;
     if (state.medTaken) {
-      btn.className = 'btn-med-toggle taken';
-      btn.innerHTML = '<span>Đã uống thuốc</span>';
+      btn.className = 'btn-med-check taken';
+      btn.innerHTML = '<span>Đã uống thuốc hôm nay</span>';
     } else {
-      btn.className = 'btn-med-toggle';
+      btn.className = 'btn-med-check';
       btn.innerHTML = '<span>Chưa uống</span>';
     }
   }
@@ -469,7 +504,7 @@
     const container = document.getElementById('meals-list-container');
     if (!state.mealPlan || state.mealPlan.length === 0) {
       container.innerHTML = `
-        <div class="card" style="text-align: center; padding: 40px 20px;">
+        <div class="empty-state-box">
           <h3 style="margin-bottom: 8px;">Chưa có lịch ăn 7 ngày</h3>
           <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">
             Hệ thống sẽ tự động cân đối kcal (~1.800 kcal/ngày), đủ rau xanh, thực phẩm đỏ, hạn chế đạm purin cao cho Quyền.
@@ -495,13 +530,13 @@
       const totalKcal = dayMeals.reduce((s, m) => s + m.kcal, 0);
 
       html += `
-        <div class="card meal-day-card" style="${isToday ? 'border-color: rgba(56, 189, 248, 0.4);' : ''}">
+        <div class="meal-day-card">
           <div class="meal-day-header">
             <div style="display: flex; align-items: center; gap: 8px;">
               <strong style="font-size: 15px; font-weight: 700;">${getDayOfWeekVN(date)} (${formatVNDate(date)})</strong>
-              ${isToday ? '<span class="badge badge-emerald">HÔM NAY</span>' : ''}
+              ${isToday ? '<span class="meta-caption text-accent" style="font-weight: 600;">(Hôm nay)</span>' : ''}
             </div>
-            <span style="font-size: 13px; color: var(--text-tertiary); font-weight: 600; font-variant-numeric: tabular-nums;">${totalKcal} kcal</span>
+            <span style="font-size: 13px; color: var(--text-muted); font-weight: 600; font-variant-numeric: tabular-nums;">${totalKcal} kcal</span>
           </div>`;
 
       dayMeals.forEach(slotMeal => {
@@ -517,7 +552,7 @@
               <span class="meal-slot-name">${slotNames[slotMeal.slot] || slotMeal.slot}</span>
               <div style="display: flex; gap: 8px; align-items: center;">
                 <span class="meal-slot-kcal">${slotMeal.kcal} kcal</span>
-                ${slotMeal.status === 'pending' ? `<button class="btn-chip" style="padding: 2px 8px; font-size: 11px;" onclick="swapMeal('${date}', '${slotMeal.slot}')">Đổi món</button>` : ''}
+                ${slotMeal.status === 'pending' ? `<button type="button" class="btn-slot-act" style="padding: 2px 8px; font-size: 11px;" onclick="swapMeal('${date}', '${slotMeal.slot}')">Đổi món</button>` : ''}
               </div>
             </div>
             <ul class="meal-items-list">${itemsHtml}</ul>
@@ -635,17 +670,17 @@
       let html = '';
 
       Object.keys(groups).sort().forEach(grp => {
-        html += `<div style="font-weight: 700; font-size: 14px; margin: 12px 0 6px; color: #38bdf8;">${grp}</div>`;
+        html += `<div style="font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; margin: 16px 0 8px; color: var(--text-primary);">${grp}</div>`;
         groups[grp].forEach(item => {
           const key = item.name + '_' + item.text;
           const checked = boughtItems[key] ? 'checked' : '';
           html += `
-            <label style="display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; background: rgba(0,0,0,0.15); margin-bottom: 6px; border-radius: 8px; cursor: pointer;">
-              <span style="display: flex; align-items: center; gap: 8px;">
-                <input type="checkbox" ${checked} onchange="toggleBoughtItem('${key}', this.checked)" style="width: 18px; height: 18px;">
-                <span style="${checked ? 'text-decoration: line-through; opacity: 0.5;' : ''}">${item.name}</span>
+            <label style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: var(--bg-subtle); border: 1px solid var(--border-hairline); margin-bottom: 6px; border-radius: 6px; cursor: pointer;">
+              <span style="display: flex; align-items: center; gap: 10px;">
+                <input type="checkbox" ${checked} onchange="toggleBoughtItem('${key}', this.checked)" style="width: 18px; height: 18px; accent-color: var(--accent);">
+                <span style="font-size: 14px; color: var(--text-primary); ${checked ? 'text-decoration: line-through; opacity: 0.5;' : ''}">${item.name}</span>
               </span>
-              <span style="font-size: 13px; font-weight: 600; color: #cbd5e1;">${item.text}</span>
+              <span style="font-size: 13px; font-weight: 600; color: var(--text-secondary); font-variant-numeric: tabular-nums;">${item.text}</span>
             </label>`;
         });
       });
@@ -748,11 +783,11 @@
   function renderWeightHistory() {
     const container = document.getElementById('weight-history-list');
     if (state.weights.length === 0) {
-      container.innerHTML = '<div style="color: var(--text-tertiary); padding: 12px 0; font-size: 13px;">Chưa có ngày đo nào.</div>';
+      container.innerHTML = '<div style="color: var(--text-muted); padding: 12px 0; font-size: 13px;">Chưa có ngày đo nào.</div>';
       return;
     }
-    let html = '<table style="width: 100%; font-size: 13px; border-collapse: collapse;">';
-    html += '<tr style="color: var(--text-tertiary); border-bottom: 1px solid var(--border-subtle); text-align: left;"><th style="padding: 8px 6px; font-weight: 500;">Ngày</th><th style="padding: 8px 6px; font-weight: 500;">Cân nặng</th><th style="padding: 8px 6px; text-align: right; font-weight: 500;">Thay đổi</th></tr>';
+    let html = '<table>';
+    html += '<thead><tr><th>Ngày</th><th>Cân nặng</th><th style="text-align: right;">Thay đổi</th></tr></thead><tbody>';
 
     for (let i = state.weights.length - 1; i >= 0; i--) {
       const item = state.weights[i];
@@ -760,18 +795,18 @@
       if (i > 0) {
         const prev = state.weights[i - 1];
         const diff = item.kg - prev.kg;
-        if (diff > 0) diffStr = `<span style="color: var(--rose); font-weight: 600;">+${diff.toFixed(1)}kg</span>`;
-        else if (diff < 0) diffStr = `<span style="color: var(--emerald); font-weight: 600;">${diff.toFixed(1)}kg</span>`;
-        else diffStr = '<span style="color: var(--text-tertiary);">0.0kg</span>';
+        if (diff > 0) diffStr = `<span style="color: var(--color-danger); font-weight: 600;">+${diff.toFixed(1)}kg</span>`;
+        else if (diff < 0) diffStr = `<span style="color: var(--color-success); font-weight: 600;">${diff.toFixed(1)}kg</span>`;
+        else diffStr = '<span style="color: var(--text-muted);">0.0kg</span>';
       }
       html += `
-        <tr style="border-bottom: 1px solid var(--border-subtle);">
-          <td style="padding: 10px 6px; color: var(--text-secondary);">${formatVNDate(item.date)}</td>
-          <td style="padding: 10px 6px; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums;">${item.kg.toFixed(1)} kg</td>
-          <td style="padding: 10px 6px; text-align: right; font-variant-numeric: tabular-nums;">${diffStr}</td>
+        <tr>
+          <td style="color: var(--text-secondary);">${formatVNDate(item.date)}</td>
+          <td style="font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums;">${item.kg.toFixed(1)} kg</td>
+          <td style="text-align: right; font-variant-numeric: tabular-nums;">${diffStr}</td>
         </tr>`;
     }
-    html += '</table>';
+    html += '</tbody></table>';
     container.innerHTML = html;
   }
 
@@ -837,15 +872,15 @@
     if (badge) {
       if (list.length === 0) {
         badge.textContent = 'Đang tắt';
-        badge.className = 'badge';
+        badge.className = 'schedule-count';
       } else {
         badge.textContent = `${list.length} mốc/ngày`;
-        badge.className = 'badge badge-emerald';
+        badge.className = 'schedule-count text-accent';
       }
     }
 
     if (list.length === 0) {
-      container.innerHTML = '<span style="font-size:12px; color:var(--text-tertiary); padding:4px 0;">Chưa có mốc nào (bấm nút bên dưới để thêm)</span>';
+      container.innerHTML = '<span style="font-size:12px; color:var(--text-muted); padding:4px 0;">Chưa có mốc nào (bấm nút bên dưới để thêm)</span>';
       return;
     }
 
@@ -1021,29 +1056,29 @@
   function renderGlucoseHistory() {
     const container = document.getElementById('glucose-history-list');
     if (state.glucose.length === 0) {
-      container.innerHTML = '<div style="color: var(--text-tertiary); padding: 8px 0; font-size: 13px;">Chưa ghi số đo nào gần đây.</div>';
+      container.innerHTML = '<div style="color: var(--text-muted); padding: 8px 0; font-size: 13px;">Chưa ghi số đo nào gần đây.</div>';
       return;
     }
     const ctxLabels = { fasting: 'Sáng đói', after: 'Sau ăn', bedtime: 'Trước ngủ', other: 'Khác' };
     let html = '';
     state.glucose.slice(0, 5).forEach(g => {
-      let color = 'var(--emerald)';
+      let color = 'var(--color-success)';
       let tag = 'Bình thường';
       if (g.mmol >= 7.0) {
-        color = 'var(--rose)';
+        color = 'var(--color-danger)';
         tag = 'Cao (ngưỡng tiểu đường)';
       } else if (g.mmol >= 5.6) {
-        color = 'var(--amber)';
+        color = 'var(--color-warning)';
         tag = 'Cận ngưỡng';
       }
       const timeStr = new Date(g.ts * 1000).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
       html += `
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border-subtle);">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border-hairline);">
           <div>
             <strong style="color: ${color}; font-size: 15px; font-variant-numeric: tabular-nums;">${g.mmol.toFixed(1)} mmol/L</strong>
-            <span style="font-size: 12px; color: var(--text-tertiary); margin-left: 6px;">(${ctxLabels[g.ctx] || g.ctx})</span>
+            <span style="font-size: 12px; color: var(--text-muted); margin-left: 6px;">(${ctxLabels[g.ctx] || g.ctx})</span>
           </div>
-          <div style="font-size: 12px; color: var(--text-tertiary);">${timeStr} · <span style="color:${color}; font-weight:600;">${tag}</span></div>
+          <div style="font-size: 12px; color: var(--text-muted);">${timeStr} · <span style="color:${color}; font-weight:600;">${tag}</span></div>
         </div>`;
     });
     container.innerHTML = html;
@@ -1103,15 +1138,15 @@
       }
 
       container.innerHTML = `
-        <div style="background: rgba(0,0,0,0.2); padding: 14px; border-radius: 12px; margin-bottom: 14px;">
-          <div style="font-size: 15px; font-weight: 700; margin-bottom: 8px; color: #38bdf8;">Tóm tắt tuân thủ 7 ngày</div>
-          <div><strong>Nước lọc trung bình:</strong> ${avgWater.toLocaleString('vi-VN')} ml / ngày (mục tiêu 2500ml)</div>
-          <div><strong>Ăn đúng thực đơn:</strong> ${mealRate}% các bữa chính</div>
-          <div><strong>Uống thuốc đều:</strong> ${medRate}% số ngày (${medCount}/7 ngày)</div>
-          <div><strong>Cân nặng thay đổi:</strong> <strong>${weightChange}</strong></div>
+        <div style="background: var(--bg-subtle); border: 1px solid var(--border-hairline); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+          <div style="font-size: 15px; font-weight: 700; margin-bottom: 10px; color: var(--text-primary);">Tóm tắt tuân thủ 7 ngày</div>
+          <div style="margin-bottom: 6px; color: var(--text-secondary);"><strong>Nước lọc trung bình:</strong> <span style="color: var(--text-primary); font-variant-numeric: tabular-nums;">${avgWater.toLocaleString('vi-VN')} ml / ngày</span> (mục tiêu 2.500ml)</div>
+          <div style="margin-bottom: 6px; color: var(--text-secondary);"><strong>Ăn đúng thực đơn:</strong> <span style="color: var(--text-primary); font-variant-numeric: tabular-nums;">${mealRate}%</span> các bữa chính</div>
+          <div style="margin-bottom: 6px; color: var(--text-secondary);"><strong>Uống thuốc đều:</strong> <span style="color: var(--text-primary); font-variant-numeric: tabular-nums;">${medRate}%</span> số ngày (${medCount}/7 ngày)</div>
+          <div style="color: var(--text-secondary);"><strong>Cân nặng thay đổi:</strong> <strong style="color: var(--text-primary);">${weightChange}</strong></div>
         </div>
-        <div style="color: var(--text-muted); font-size: 12px; margin-bottom: 12px;">
-          * Bác sĩ có thể chụp màn hình này trong mỗi lần tái khám để đánh giá mức độ cải thiện gan nhiễm mỡ và phòng ngừa tiểu đường/gút.
+        <div style="color: var(--text-muted); font-size: 12px; margin-bottom: 14px; line-height: 1.5;">
+          * Báo cáo tổng hợp số liệu thực tế để đưa Bác sĩ xem trong mỗi lần tái khám định kỳ, đánh giá mức độ cải thiện gan và mỡ máu.
         </div>
         <button class="btn-primary" onclick="window.print()">In hoặc Lưu PDF báo cáo</button>
       `;

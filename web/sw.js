@@ -1,19 +1,19 @@
-const CACHE_NAME = 'quyenhealth-v5';
+const CACHE_NAME = 'quyenhealth-v7';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/style.css',
-  '/app.js',
+  '/style.css?v=7',
+  '/app.js?v=7',
   '/manifest.webmanifest',
   '/icons/icon-192.png',
   '/icons/icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
-  );
   self.skipWaiting();
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)).catch(() => {})
+  );
 });
 
 self.addEventListener('activate', (event) => {
@@ -24,18 +24,24 @@ self.addEventListener('activate', (event) => {
           if (key !== CACHE_NAME) return caches.delete(key);
         })
       )
-    )
+    ).then(() => self.clients.claim()).then(() => {
+      // Báo hiệu cho toàn bộ client tab đang mở tự reload để nạp giao diện mới nhất ngay lập tức
+      return self.clients.matchAll({ type: 'window' }).then((clients) => {
+        clients.forEach((client) => {
+          client.postMessage({ type: 'FORCE_RELOAD' });
+        });
+      });
+    })
   );
-  self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-  // Đối với API: dùng network trước, không cache API
+  // Không chặn và không cache API
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/healthz')) {
     return;
   }
-  // Đối với tài nguyên web: Network First để luôn cập nhật giao diện mới nhất, fallback sang Cache khi offline
+  // Chiến lược Network First: Luôn tải từ máy chủ để người dùng nhận ngay bản mới, chỉ fallback cache khi offline
   event.respondWith(
     fetch(event.request).then((resp) => {
       if (resp.status === 200 && event.request.method === 'GET') {
@@ -45,6 +51,13 @@ self.addEventListener('fetch', (event) => {
       return resp;
     }).catch(() => caches.match(event.request).then((cached) => cached || caches.match('/index.html')))
   );
+});
+
+// Xử lý thông điệp từ trang
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 // Xử lý Web Push Notification
@@ -86,4 +99,3 @@ self.addEventListener('notificationclick', (event) => {
     })
   );
 });
-
