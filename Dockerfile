@@ -35,3 +35,4 @@ ENV GOMAXPROCS=1
 EXPOSE 8080
 
 CMD ["/app/quyenhealth"]
+
