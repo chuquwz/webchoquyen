@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>QuyenHealth - Theo Dõi Sức Khoẻ</title>
   <meta name="theme-color" content="#0b1329">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -84,19 +84,19 @@
 
           <!-- Các nút bấm nhanh -->
           <div class="water-actions">
-            <button class="btn-water" onclick="addWater(300)">
+            <button class="btn-water" aria-label="Uống 1 ca 300 ml nước lọc" onclick="addWater(300)">
               <span>🥛 Ca</span>
               <span class="vol">+300ml</span>
             </button>
-            <button class="btn-water" onclick="addWater(500)">
+            <button class="btn-water" aria-label="Uống 1 chai 500 ml nước lọc" onclick="addWater(500)">
               <span>🍶 Chai</span>
               <span class="vol">+500ml</span>
             </button>
-            <button class="btn-water" onclick="addWater(1000)">
+            <button class="btn-water" aria-label="Uống 1 bình 1000 ml nước lọc" onclick="addWater(1000)">
               <span>🫙 Bình</span>
               <span class="vol">+1.000ml</span>
             </button>
-            <button class="btn-water" onclick="openCustomWaterModal()">
+            <button class="btn-water" aria-label="Tự nhập số ml nước vừa uống" onclick="openCustomWaterModal()">
               <span>✏️ Nhập</span>
               <span class="vol">Tự gõ</span>
             </button>
@@ -127,13 +127,13 @@
           </div>
 
           <div class="weight-stepper">
-            <button class="stepper-btn" onclick="adjustWeight(-0.5)">-0.5</button>
-            <button class="stepper-btn" onclick="adjustWeight(-0.1)">-0.1</button>
+            <button class="stepper-btn" aria-label="Giảm 0.5 kg" onclick="adjustWeight(-0.5)">-0.5</button>
+            <button class="stepper-btn" aria-label="Giảm 0.1 kg" onclick="adjustWeight(-0.1)">-0.1</button>
             <div class="stepper-display">
               <span id="weight-val">97.0</span> <span>kg</span>
             </div>
-            <button class="stepper-btn" onclick="adjustWeight(0.1)">+0.1</button>
-            <button class="stepper-btn" onclick="adjustWeight(0.5)">+0.5</button>
+            <button class="stepper-btn" aria-label="Tăng 0.1 kg" onclick="adjustWeight(0.1)">+0.1</button>
+            <button class="stepper-btn" aria-label="Tăng 0.5 kg" onclick="adjustWeight(0.5)">+0.5</button>
           </div>
 
           <div class="stepper-quick-row">
@@ -358,21 +358,21 @@
     </main>
 
     <!-- Bottom Navigation Bar -->
-    <nav class="app-navbar">
-      <button class="nav-item active" onclick="switchTab('today')">
-        <svg viewBox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+    <nav class="app-navbar" role="tablist" aria-label="Điều hướng các mục chính">
+      <button class="nav-item active" role="tab" aria-selected="true" aria-label="Hôm nay" onclick="switchTab('today')">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
         <span>Hôm nay</span>
       </button>
-      <button class="nav-item" onclick="switchTab('meals')">
-        <svg viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+      <button class="nav-item" role="tab" aria-selected="false" aria-label="Bữa ăn" onclick="switchTab('meals')">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
         <span>Bữa ăn</span>
       </button>
-      <button class="nav-item" onclick="switchTab('weight')">
-        <svg viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+      <button class="nav-item" role="tab" aria-selected="false" aria-label="Cân nặng" onclick="switchTab('weight')">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
         <span>Cân nặng</span>
       </button>
-      <button class="nav-item" onclick="switchTab('settings')">
-        <svg viewBox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+      <button class="nav-item" role="tab" aria-selected="false" aria-label="Cài đặt" onclick="switchTab('settings')">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
         <span>Cài đặt</span>
       </button>
     </nav>
@@ -383,11 +383,11 @@
     <div class="modal-content">
       <div class="modal-header">
         <span class="modal-title">💧 Nhập Lượng Nước Lọc</span>
-        <button class="modal-close" onclick="closeModal('modal-water')">&times;</button>
+        <button class="modal-close" aria-label="Đóng cửa sổ nhập nước" onclick="closeModal('modal-water')">&times;</button>
       </div>
       <form onsubmit="submitCustomWater(event)">
         <div class="form-group">
-          <label class="form-label">Số ml nước lọc vừa uống (1 - 2000 ml)</label>
+          <label class="form-label" for="custom-water-ml">Số ml nước lọc vừa uống (1 - 2000 ml)</label>
           <input type="number" id="custom-water-ml" class="form-input" placeholder="Ví dụ: 350" min="1" max="2000" required autofocus>
         </div>
         <button type="submit" class="btn-primary" style="margin-top: 10px;">Xác nhận thêm</button>
@@ -400,13 +400,13 @@
     <div class="modal-content">
       <div class="modal-header">
         <span class="modal-title">✍️ Bữa Này Ăn Món Khác</span>
-        <button class="modal-close" onclick="closeModal('modal-meal-note')">&times;</button>
+        <button class="modal-close" aria-label="Đóng cửa sổ ghi chú" onclick="closeModal('modal-meal-note')">&times;</button>
       </div>
       <form onsubmit="submitMealNote(event)">
         <input type="hidden" id="note-meal-date">
         <input type="hidden" id="note-meal-slot">
         <div class="form-group">
-          <label class="form-label">Quyền ơi, bữa này thực tế đã ăn món gì?</label>
+          <label class="form-label" for="note-meal-text">Quyền ơi, bữa này thực tế đã ăn món gì?</label>
           <input type="text" id="note-meal-text" class="form-input" placeholder="Ví dụ: Ăn bát bún cá + ít đậu phụ..." maxlength="300" required>
         </div>
         <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">Gợi ý đánh dấu nhanh:</div>
@@ -427,7 +427,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <span class="modal-title">🛒 Danh Sách Đi Chợ 7 Ngày</span>
-        <button class="modal-close" onclick="closeModal('modal-shopping')">&times;</button>
+        <button class="modal-close" aria-label="Đóng danh sách đi chợ" onclick="closeModal('modal-shopping')">&times;</button>
       </div>
       <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">
         Đã tự động gộp tất cả nguyên liệu quê cần mua cho các bữa ăn chưa tick. Tick vào ô khi đã mua xong:
@@ -443,15 +443,15 @@
     <div class="modal-content">
       <div class="modal-header">
         <span class="modal-title">🩸 Ghi Chỉ Số Đường Huyết</span>
-        <button class="modal-close" onclick="closeModal('modal-glucose')">&times;</button>
+        <button class="modal-close" aria-label="Đóng cửa sổ ghi đường huyết" onclick="closeModal('modal-glucose')">&times;</button>
       </div>
       <form onsubmit="submitGlucose(event)">
         <div class="form-group">
-          <label class="form-label">Chỉ số đo (mmol/L)</label>
+          <label class="form-label" for="glucose-mmol">Chỉ số đo (mmol/L)</label>
           <input type="number" step="0.1" id="glucose-mmol" class="form-input" placeholder="Ví dụ: 5.6" min="1" max="40" required>
         </div>
         <div class="form-group">
-          <label class="form-label">Thời điểm đo</label>
+          <label class="form-label" for="glucose-ctx">Thời điểm đo</label>
           <select id="glucose-ctx" class="form-input">
             <option value="fasting">Sáng sớm lúc đói (trước ăn sáng)</option>
             <option value="after">Sau ăn 2 tiếng</option>
@@ -469,7 +469,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <span class="modal-title">📑 Tổng Hợp Sức Khoẻ 7 Ngày</span>
-        <button class="modal-close" onclick="closeModal('modal-report')">&times;</button>
+        <button class="modal-close" aria-label="Đóng báo cáo tuần" onclick="closeModal('modal-report')">&times;</button>
       </div>
       <div id="report-content" style="font-size: 13px; line-height: 1.6;">
         Đang tải báo cáo...

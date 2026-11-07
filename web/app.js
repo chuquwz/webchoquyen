@@ -1,5 +1,5 @@
 // QuyenHealth - Ultra-fast, minimal Vanilla JS App
-(function() {
+(function () {
   'use strict';
 
   // State cục bộ của ứng dụng
@@ -19,7 +19,7 @@
   };
 
   // Utility Toast
-  window.showToast = function(msg, isErr = false) {
+  window.showToast = function (msg, isErr = false) {
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
     toast.className = 'toast';
@@ -74,7 +74,7 @@
 
   function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(() => {});
+      navigator.serviceWorker.register('/sw.js').catch(() => { });
     }
   }
 
@@ -103,21 +103,24 @@
         await loadToday();
         showToast('Chào Quyền! Chúc một ngày nhiều sức khoẻ 💪');
       }
-    } catch (err) {}
+    } catch (err) { }
   });
 
-  window.logout = async function() {
+  window.logout = async function () {
     if (!confirm('Bạn có chắc muốn đăng xuất khỏi thiết bị này?')) return;
     await api('/api/logout', { method: 'POST' });
     showLoginView();
   };
 
   // Quản lý Tab
-  window.switchTab = function(tabId) {
+  window.switchTab = function (tabId) {
     state.activeTab = tabId;
     document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-    
+    document.querySelectorAll('.nav-item').forEach(el => {
+      el.classList.remove('active');
+      el.setAttribute('aria-selected', 'false');
+    });
+
     const targetPane = document.getElementById('tab-' + tabId);
     if (targetPane) targetPane.classList.add('active');
 
@@ -126,6 +129,7 @@
     const idx = tabs.indexOf(tabId);
     if (idx !== -1 && navButtons[idx]) {
       navButtons[idx].classList.add('active');
+      navButtons[idx].setAttribute('aria-selected', 'true');
     }
 
     if (tabId === 'meals') loadMeals();
@@ -167,7 +171,7 @@
       state.waterTotal = data.water ? data.water.total : 0;
       state.waterEntries = (data.water && data.water.entries) || [];
       state.medTaken = data.med && data.med.taken;
-      
+
       if (data.weight) {
         state.todayWeight = data.weight.today;
         if (data.weight.last) {
@@ -182,7 +186,7 @@
       renderMedWidget();
       renderWeightStepper();
       renderTodayNextMeal(data.meals || []);
-    } catch (e) {}
+    } catch (e) { }
   }
 
   function renderTodayHeader() {
@@ -237,7 +241,7 @@
     }
   }
 
-  window.addWater = async function(ml) {
+  window.addWater = async function (ml) {
     // Optimistic UI update
     state.waterTotal += ml;
     renderWaterWidget();
@@ -258,7 +262,7 @@
     }
   };
 
-  window.undoLastWater = async function() {
+  window.undoLastWater = async function () {
     if (state.waterEntries.length === 0) return;
     const last = state.waterEntries[state.waterEntries.length - 1];
     try {
@@ -267,15 +271,15 @@
       state.waterEntries = res.entries || [];
       renderWaterWidget();
       showToast('Đã hoàn tác lần uống nước vừa rồi');
-    } catch (e) {}
+    } catch (e) { }
   };
 
-  window.openCustomWaterModal = function() {
+  window.openCustomWaterModal = function () {
     document.getElementById('custom-water-ml').value = '';
     openModal('modal-water');
   };
 
-  window.submitCustomWater = async function(e) {
+  window.submitCustomWater = async function (e) {
     e.preventDefault();
     const ml = parseInt(document.getElementById('custom-water-ml').value);
     if (!ml || ml < 1 || ml > 2000) {
@@ -298,7 +302,7 @@
     }
   }
 
-  window.toggleMed = async function() {
+  window.toggleMed = async function () {
     const next = !state.medTaken;
     state.medTaken = next;
     renderMedWidget();
@@ -332,7 +336,7 @@
     }
   }
 
-  window.adjustWeight = function(delta) {
+  window.adjustWeight = function (delta) {
     let cur = parseFloat(document.getElementById('weight-val').textContent);
     cur = Math.round((cur + delta) * 10) / 10;
     if (cur < 40) cur = 40;
@@ -340,7 +344,7 @@
     document.getElementById('weight-val').textContent = cur.toFixed(1);
   };
 
-  window.saveWeight = async function() {
+  window.saveWeight = async function () {
     const kg = parseFloat(document.getElementById('weight-val').textContent);
     try {
       await api('/api/weight', {
@@ -351,7 +355,7 @@
       state.currentWeight = kg;
       renderWeightStepper();
       showToast(`Đã lưu cân nặng hôm nay: ${kg.toFixed(1)} kg! 🎉`);
-    } catch (e) {}
+    } catch (e) { }
   };
 
   // --- BỮA TIẾP THEO TRONG NGÀY ---
@@ -415,7 +419,7 @@
     }
   }
 
-  window.generateMealPlan = async function() {
+  window.generateMealPlan = async function () {
     if (state.mealPlan.length > 0) {
       if (!confirm('Tạo lại lịch sẽ làm mới các bữa ăn chưa ăn trong 7 ngày tới (các bữa đã tick ăn hoặc đã ghi chú sẽ được giữ nguyên). Tiếp tục?')) {
         return;
@@ -427,7 +431,7 @@
       state.mealPlan = data.rows || [];
       renderMealPlanList();
       showToast('Đã tạo lịch bữa ăn 7 ngày thành công! 🎉');
-    } catch (e) {}
+    } catch (e) { }
   };
 
   function renderMealPlanList() {
@@ -506,7 +510,7 @@
     container.innerHTML = html;
   }
 
-  window.swapMeal = async function(date, slot) {
+  window.swapMeal = async function (date, slot) {
     try {
       showToast('Đang chọn món thay thế phù hợp...');
       const updated = await api('/api/meals/swap', {
@@ -519,10 +523,10 @@
       }
       renderMealPlanList();
       showToast('Đã đổi món thành công!');
-    } catch (e) {}
+    } catch (e) { }
   };
 
-  window.checkMeal = async function(date, slot, status) {
+  window.checkMeal = async function (date, slot, status) {
     try {
       const res = await api('/api/meals/check', {
         method: 'POST',
@@ -536,17 +540,17 @@
       renderMealPlanList();
       if (date === state.today) loadToday();
       showToast(status === 'done' ? 'Đã tick ăn đúng thực đơn! 👍' : 'Đã cập nhật trạng thái');
-    } catch (e) {}
+    } catch (e) { }
   };
 
-  window.openMealNoteModal = function(date, slot, currentNote) {
+  window.openMealNoteModal = function (date, slot, currentNote) {
     document.getElementById('note-meal-date').value = date;
     document.getElementById('note-meal-slot').value = slot;
     document.getElementById('note-meal-text').value = currentNote || '';
     openModal('modal-meal-note');
   };
 
-  window.appendNoteTag = function(tag) {
+  window.appendNoteTag = function (tag) {
     const input = document.getElementById('note-meal-text');
     if (input.value) {
       input.value += ', ' + tag;
@@ -555,7 +559,7 @@
     }
   };
 
-  window.submitMealNote = async function(e) {
+  window.submitMealNote = async function (e) {
     e.preventDefault();
     const date = document.getElementById('note-meal-date').value;
     const slot = document.getElementById('note-meal-slot').value;
@@ -576,11 +580,11 @@
       renderMealPlanList();
       if (date === state.today) loadToday();
       showToast('Đã ghi nhận món ăn thực tế ✍️');
-    } catch (e) {}
+    } catch (e) { }
   };
 
   // --- 🛒 DANH SÁCH ĐI CHỢ ---
-  window.openShoppingModal = async function() {
+  window.openShoppingModal = async function () {
     openModal('modal-shopping');
     const container = document.getElementById('shopping-list-items');
     container.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted);">Đang gộp nguyên liệu...</div>';
@@ -590,7 +594,7 @@
         container.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted);">Chưa có món nào cần đi chợ (hãy tạo lịch trước).</div>';
         return;
       }
-      
+
       const groups = {};
       data.lines.forEach(l => {
         if (!groups[l.group]) groups[l.group] = [];
@@ -622,7 +626,7 @@
     }
   };
 
-  window.toggleBoughtItem = function(key, checked) {
+  window.toggleBoughtItem = function (key, checked) {
     const bought = JSON.parse(localStorage.getItem('quyen_bought_items') || '{}');
     if (checked) {
       bought[key] = true;
@@ -639,7 +643,7 @@
       state.weights = data.rows || [];
       renderWeightChart();
       renderWeightHistory();
-    } catch (e) {}
+    } catch (e) { }
   }
 
   function renderWeightChart() {
@@ -711,7 +715,7 @@
     }
     let html = '<table style="width: 100%; font-size: 13px; border-collapse: collapse;">';
     html += '<tr style="color: var(--text-muted); border-bottom: 1px solid var(--border); text-align: left;"><th style="padding: 6px;">Ngày</th><th style="padding: 6px;">Cân nặng</th><th style="padding: 6px; text-align: right;">Thay đổi</th></tr>';
-    
+
     for (let i = state.weights.length - 1; i >= 0; i--) {
       const item = state.weights[i];
       let diffStr = '-';
@@ -749,10 +753,10 @@
       document.getElementById('set-t-med').value = s.t_med || '08:00';
       document.getElementById('set-t-sleep').value = s.t_sleep || '22:30';
       document.getElementById('set-snack').value = s.snack || '1';
-    } catch (e) {}
+    } catch (e) { }
   }
 
-  window.saveSettings = async function(e) {
+  window.saveSettings = async function (e) {
     e.preventDefault();
     const payload = {
       name: document.getElementById('set-name').value.trim(),
@@ -774,7 +778,7 @@
       state.settings = res.settings;
       state.targetKcal = res.target_kcal;
       showToast('Đã lưu cấu hình cá nhân thành công! 🎉');
-    } catch (e) {}
+    } catch (e) { }
   };
 
   // --- THÔNG BÁO WEB PUSH ---
@@ -789,7 +793,7 @@
     return outputArray;
   }
 
-  window.enablePushNotifications = async function() {
+  window.enablePushNotifications = async function () {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
       showToast('Trình duyệt này chưa hỗ trợ nhận thông báo push', true);
       return;
@@ -804,7 +808,7 @@
       const keyData = await api('/api/push/key');
       const pubKey = keyData.publicKey;
       const reg = await navigator.serviceWorker.ready;
-      
+
       let sub = await reg.pushManager.getSubscription();
       if (!sub) {
         sub = await reg.pushManager.subscribe({
@@ -823,7 +827,7 @@
     }
   };
 
-  window.sendTestPush = async function() {
+  window.sendTestPush = async function () {
     try {
       const res = await api('/api/push/test', { method: 'POST' });
       if (res.sent > 0) {
@@ -831,7 +835,7 @@
       } else {
         showToast('Chưa có thiết bị nào đăng ký nhận thông báo. Bấm "Bật Nhắc Nhở" trước nhé.', true);
       }
-    } catch (e) {}
+    } catch (e) { }
   };
 
   // --- ĐƯỜNG HUYẾT ---
@@ -840,7 +844,7 @@
       const data = await api('/api/glucose?days=30');
       state.glucose = data.rows || [];
       renderGlucoseHistory();
-    } catch (e) {}
+    } catch (e) { }
   }
 
   function renderGlucoseHistory() {
@@ -874,12 +878,12 @@
     container.innerHTML = html;
   }
 
-  window.openGlucoseModal = function() {
+  window.openGlucoseModal = function () {
     document.getElementById('glucose-mmol').value = '';
     openModal('modal-glucose');
   };
 
-  window.submitGlucose = async function(e) {
+  window.submitGlucose = async function (e) {
     e.preventDefault();
     const mmol = parseFloat(document.getElementById('glucose-mmol').value);
     const ctx = document.getElementById('glucose-ctx').value;
@@ -892,11 +896,11 @@
       closeModal('modal-glucose');
       await loadGlucoseData();
       showToast('Đã ghi chỉ số đường huyết! 🩸');
-    } catch (e) {}
+    } catch (e) { }
   };
 
   // --- BÁO CÁO TUẦN ---
-  window.viewWeeklyReport = async function() {
+  window.viewWeeklyReport = async function () {
     openModal('modal-report');
     const container = document.getElementById('report-content');
     container.innerHTML = 'Đang tính toán số liệu 7 ngày qua...';
@@ -904,7 +908,7 @@
       const data = await api('/api/report?days=7');
       const days = data.days || [];
       const weights = data.weights || [];
-      
+
       let totalWater = 0;
       let medCount = 0;
       let totalDoneMeals = 0;
@@ -946,11 +950,11 @@
   };
 
   // --- SAO LƯU & KHÔI PHỤC ---
-  window.downloadBackup = function() {
+  window.downloadBackup = function () {
     window.location.href = '/api/backup';
   };
 
-  window.restoreBackup = async function(e) {
+  window.restoreBackup = async function (e) {
     const file = e.target.files[0];
     if (!file) return;
     if (!confirm('Khôi phục dữ liệu sẽ ghi đè dữ liệu hiện tại trên web bằng nội dung file sao lưu. Bạn có chắc chắn?')) {
@@ -973,12 +977,16 @@
   };
 
   // Modal helpers
-  window.openModal = function(id) {
+  window.openModal = function (id) {
     const el = document.getElementById(id);
-    if (el) el.classList.add('open');
+    if (el) {
+      el.classList.add('open');
+      const firstInput = el.querySelector('input:not([type=hidden]), button:not(.modal-close)');
+      if (firstInput) setTimeout(() => firstInput.focus(), 50);
+    }
   };
 
-  window.closeModal = function(id) {
+  window.closeModal = function (id) {
     const el = document.getElementById(id);
     if (el) el.classList.remove('open');
   };
@@ -988,6 +996,15 @@
     el.addEventListener('click', (e) => {
       if (e.target === el) el.classList.remove('open');
     });
+  });
+
+  // Hỗ trợ phím Escape để đóng modal (WCAG 2.1 / better-accessibility)
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.modal-overlay.open').forEach(el => {
+        el.classList.remove('open');
+      });
+    }
   });
 
   // Khởi động
