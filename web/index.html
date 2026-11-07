@@ -4,497 +4,923 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>QuyenHealth - Theo Dõi Sức Khoẻ</title>
-  <meta name="theme-color" content="#ffffff">
+  <meta name="theme-color" content="#F5F7F4">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="QuyenHealth">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
-  <link rel="stylesheet" href="/style.css?v=7">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css?v=8">
 </head>
 <body>
-  <!-- Toast thông báo -->
+  <!-- Container Toast thông báo -->
   <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
-  <!-- Màn hình Đăng nhập (Mã PIN) -->
-  <div id="login-view" class="login-view" style="display: none;">
-    <div class="login-container">
-      <div class="login-brand">QuyenHealth</div>
-      <h1 class="login-heading">Đăng nhập tài khoản</h1>
-      <p class="login-subtext">Ứng dụng theo dõi sức khoẻ cá nhân của Phùng Văn Quyền</p>
-      
-      <form id="login-form">
-        <div class="form-group">
-          <label class="form-label" for="pin-input">Mã PIN bảo mật</label>
-          <input type="password" id="pin-input" class="form-input pin-input" placeholder="••••" inputmode="numeric" maxlength="8" required autofocus>
+  <!-- Device Presentation Canvas (Mockup Frame) -->
+  <div class="device-mockup-wrapper">
+    <div class="device-phone-frame">
+
+      <!-- Status Bar giả lập giống thiết bị thật trong ảnh -->
+      <div class="mockup-status-bar" aria-hidden="true">
+        <span class="status-time">18:30</span>
+        <div class="status-notch"></div>
+        <div class="status-icons">
+          <svg class="status-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M12 4C7.31 4 3.07 5.9 0 8.98L12 21 24 8.98A16.88 16.88 0 0 0 12 4z"/></svg>
+          <svg class="status-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M2 22h20V2L2 22z"/></svg>
+          <div class="battery-icon"><div class="battery-fill"></div></div>
         </div>
-        <button type="submit" class="btn-primary" style="margin-top: 12px;">Đăng nhập</button>
-      </form>
+      </div>
+
+      <!-- MÀN HÌNH ĐĂNG NHẬP (MÃ PIN) -->
+      <div id="login-view" class="login-view" style="display: none;">
+        <div class="login-container">
+          <div class="login-brand-icon">
+            <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="#2B5719" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+              <path d="M3.5 12h3l2-3 3 6 2-3h5"/>
+            </svg>
+          </div>
+          <h1 class="login-heading">Chào mừng trở lại!</h1>
+          <p class="login-subtext">Ứng dụng theo dõi sức khoẻ cá nhân của Phùng Văn Quyền</p>
+          
+          <form id="login-form">
+            <div class="form-group">
+              <label class="form-label" for="pin-input">Mã PIN bảo mật</label>
+              <div class="pin-input-wrap">
+                <input type="password" id="pin-input" class="form-input pin-input" placeholder="••••" inputmode="numeric" maxlength="8" required autofocus>
+              </div>
+            </div>
+            <button type="submit" class="btn-green-pill" style="width: 100%; margin-top: 14px;">Đăng nhập ngay</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- GIAO DIỆN CHÍNH CỦA ỨNG DỤNG -->
+      <div id="app-view" class="app-content-area" style="display: none;">
+
+        <!-- =====================================================================
+             SCREEN 1: HOME DASHBOARD (Ảnh 1)
+             ===================================================================== -->
+        <section id="tab-today" class="tab-pane active" role="tabpanel" aria-label="Trang chủ">
+          <!-- Top Header: Avatar + Welcome back Alex + Bell button -->
+          <div class="home-top-bar">
+            <div class="user-greeting-group">
+              <div class="user-avatar-circle" onclick="switchTab('settings')" title="Xem cài đặt hồ sơ">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#2B5719" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              </div>
+              <div class="user-name-stack">
+                <span class="greeting-sub">Welcome Back,</span>
+                <span class="greeting-name" id="user-display-name">Alex! 👋</span>
+              </div>
+            </div>
+            <button type="button" class="btn-circle-action" aria-label="Thông báo" onclick="openNotificationsModal()">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#1C1F1B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Hero Headline -->
+          <h1 class="hero-feeling-title">
+            How are you feeling<br>right now today?
+          </h1>
+
+          <!-- Search / AI Ask Input Bar with Mic button -->
+          <div class="search-ai-bar" onclick="switchTab('ai')">
+            <div class="search-inner-left">
+              <svg class="search-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8A9185" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+              </svg>
+              <span class="search-placeholder">Ask anything about your health</span>
+            </div>
+            <button type="button" class="btn-mic-circle" aria-label="Hỏi bằng giọng nói" onclick="event.stopPropagation(); switchTab('ai')">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#1E3B13" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Daily Health Score Card (White Card with Circular Progress Gauge) -->
+          <div class="daily-score-card">
+            <div class="daily-score-info">
+              <div class="score-title-row">
+                <span class="score-label">Daily Health Score</span>
+                <span class="score-info-icon" title="Điểm sức khoẻ tổng hợp từ mức nước, cân nặng và thuốc">ⓘ</span>
+              </div>
+              <div class="score-number-row">
+                <span id="daily-score-val" class="score-huge-val">85/100</span>
+              </div>
+              <div class="score-status-row">
+                <span class="dot-green"></span>
+                <span id="daily-score-badge" class="score-status-text">Good</span>
+              </div>
+            </div>
+
+            <!-- SVG Circular Gauge Ring with Heart & ECG Pulse -->
+            <div class="daily-score-gauge-wrap">
+              <svg class="daily-score-svg" viewBox="0 0 100 100" width="92" height="92">
+                <circle class="score-track" cx="50" cy="50" r="40" stroke="#E2F0D6" stroke-width="8" fill="none" />
+                <circle id="score-ring-circle" class="score-fill" cx="50" cy="50" r="40" stroke="#5E9447" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="251.2" stroke-dashoffset="37.6" transform="rotate(-90 50 50)" />
+              </svg>
+              <div class="score-gauge-center-icon">
+                <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#5E9447" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M19.5 12.572l-7.5 7.428l-7.5 -7.428a5 5 0 1 1 7.5 -6.566a5 5 0 1 1 7.5 6.572"/>
+                  <path d="M4 12h2.5l2-3 3 6 2-3h3.5"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Action Section (4 Squircle Tiles Grid) -->
+          <div class="section-container">
+            <div class="section-title-header">
+              <h2 class="section-heading">Quick Action</h2>
+              <button type="button" class="btn-see-all" onclick="switchTab('overview')">See All</button>
+            </div>
+            <div class="quick-action-grid">
+              <!-- Tile 1: Symptom Checker -->
+              <button type="button" class="quick-action-tile" onclick="openSymptomChecker()">
+                <div class="tile-icon-box">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#254516" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/>
+                  </svg>
+                </div>
+                <span class="tile-label">Symptom<br>Checker</span>
+              </button>
+
+              <!-- Tile 2: AI Chat -->
+              <button type="button" class="quick-action-tile" onclick="switchTab('ai')">
+                <div class="tile-icon-box">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#254516" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="8" y1="10" x2="8.01" y2="10"/><line x1="12" y1="10" x2="12.01" y2="10"/><line x1="16" y1="10" x2="16.01" y2="10"/>
+                  </svg>
+                </div>
+                <span class="tile-label">AI Chat</span>
+              </button>
+
+              <!-- Tile 3: Scan & Analyze -->
+              <button type="button" class="quick-action-tile" onclick="openGlucoseModal()">
+                <div class="tile-icon-box">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#254516" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                </div>
+                <span class="tile-label">Scan &<br>Analyze</span>
+              </button>
+
+              <!-- Tile 4: Health Record -->
+              <button type="button" class="quick-action-tile" onclick="switchTab('records')">
+                <div class="tile-icon-box">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#254516" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/>
+                  </svg>
+                </div>
+                <span class="tile-label">Health<br>Record</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Today's Summary Section (Row of 3 Metric Cards) -->
+          <div class="section-container">
+            <div class="section-title-header">
+              <h2 class="section-heading">Today's Summary</h2>
+              <button type="button" class="btn-see-all" onclick="switchTab('overview')">See All</button>
+            </div>
+            <div class="today-summary-grid">
+              <!-- Summary Card 1: Heart Rate / Cân nặng -->
+              <div class="summary-stat-card card-pink-tint" onclick="switchTab('overview')">
+                <div class="summary-card-header">
+                  <div class="summary-icon-circle icon-pink">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="#E55B6C" stroke="#E55B6C"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                  </div>
+                  <span class="summary-card-label">Heart Rate</span>
+                </div>
+                <div class="summary-val-row">
+                  <span class="summary-val-num">89</span>
+                  <span class="summary-val-unit">bpm</span>
+                </div>
+              </div>
+
+              <!-- Summary Card 2: Sleep / Thuốc -->
+              <div class="summary-stat-card card-green-tint" onclick="switchTab('overview')">
+                <div class="summary-card-header">
+                  <div class="summary-icon-circle icon-green">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="#5E9447" stroke="#5E9447"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                  </div>
+                  <span class="summary-card-label">Sleep</span>
+                </div>
+                <div class="summary-val-row">
+                  <span class="summary-val-num">7<span class="summary-val-unit">h</span> 28<span class="summary-val-unit">m</span></span>
+                </div>
+              </div>
+
+              <!-- Summary Card 3: Water -->
+              <div class="summary-stat-card card-blue-tint" onclick="openCustomWaterModal()">
+                <div class="summary-card-header">
+                  <div class="summary-icon-circle icon-blue">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="#38A3A5" stroke="#38A3A5"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+                  </div>
+                  <span class="summary-card-label">Water</span>
+                </div>
+                <div class="summary-val-row">
+                  <span id="summary-water-display" class="summary-val-num">1.8</span>
+                  <span class="summary-val-unit">L</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Rapid Daily Logging Card: Nước lọc & Cân nặng & Thuốc -->
+          <div class="section-container" style="margin-top: 22px;">
+            <div class="quick-log-card">
+              <div class="log-card-header">
+                <div>
+                  <h3 class="log-card-title">Nước lọc hôm nay</h3>
+                  <div class="log-card-subtitle">
+                    <span id="water-cur" class="font-tabular">0</span> / <span id="water-min-text">2.500 ml</span>
+                    <span id="water-percent-text" class="log-badge-pct">0%</span>
+                  </div>
+                </div>
+                <span id="water-badge" class="badge-status-pill">Đang tải</span>
+              </div>
+
+              <!-- Linear Progress Bar -->
+              <div class="log-progress-track">
+                <div id="water-fill" class="log-progress-fill" style="width: 0%;"></div>
+              </div>
+
+              <!-- Nút bấm thêm nước nhanh -->
+              <div class="water-pill-grid">
+                <button type="button" class="btn-water-chip" onclick="addWater(300)">+300ml</button>
+                <button type="button" class="btn-water-chip" onclick="addWater(500)">+500ml</button>
+                <button type="button" class="btn-water-chip" onclick="addWater(1000)">+1.000ml</button>
+                <button type="button" class="btn-water-chip btn-water-custom" onclick="openCustomWaterModal()">Tự gõ</button>
+              </div>
+
+              <div class="log-footer-row">
+                <span id="water-entries-count" class="footer-caption">Chưa có lần uống nào</span>
+                <button id="btn-undo-water" class="btn-link-action" style="display: none;" onclick="undoLastWater()">Hoàn tác</button>
+              </div>
+              <span id="water-max-text" style="display: none;">3.000 ml</span>
+            </div>
+
+            <!-- Ghi nhận Cân nặng & Thuốc -->
+            <div class="quick-log-card" style="margin-top: 14px;">
+              <div class="log-card-header">
+                <div>
+                  <h3 class="log-card-title">Cân nặng sáng nay</h3>
+                  <div class="log-card-subtitle">
+                    <span id="weight-val" class="font-tabular font-bold-lg">97.0</span> <span style="font-size: 14px;">kg</span>
+                    <span id="weight-diff-badge" style="font-size: 12px; color: var(--text-sub); margin-left: 6px;">(Mục tiêu 70kg)</span>
+                  </div>
+                </div>
+                <button type="button" id="btn-today-med" class="btn-med-chip" onclick="toggleMed()">
+                  <span>Chưa uống thuốc</span>
+                </button>
+              </div>
+              <p id="weight-status-sub" class="footer-caption" style="margin: 8px 0 12px;">Cân vào sáng sớm sau khi vệ sinh, trước ăn sáng.</p>
+
+              <!-- Stepper -->
+              <div class="weight-stepper-row">
+                <button type="button" class="btn-stepper-pill" onclick="adjustWeight(-0.5)">-0.5</button>
+                <button type="button" class="btn-stepper-pill" onclick="adjustWeight(-0.1)">-0.1</button>
+                <button type="button" class="btn-stepper-pill" onclick="adjustWeight(0.1)">+0.1</button>
+                <button type="button" class="btn-stepper-pill" onclick="adjustWeight(0.5)">+0.5</button>
+                <button type="button" id="btn-save-weight" class="btn-green-pill btn-save-weight" onclick="saveWeight()">Lưu cân nặng</button>
+              </div>
+            </div>
+
+            <!-- Bữa ăn tiếp theo preview -->
+            <div class="quick-log-card" style="margin-top: 14px;">
+              <div class="log-card-header">
+                <div>
+                  <h3 class="log-card-title">Bữa ăn tiếp theo</h3>
+                  <div class="log-card-subtitle" style="font-size: 13px; color: var(--text-sub);">Thực đơn ít dầu mỡ, bảo vệ gan</div>
+                </div>
+                <button type="button" class="btn-link-action" onclick="switchTab('records')">Xem 7 ngày &rarr;</button>
+              </div>
+              <div id="today-next-meal-content" style="margin-top: 10px;">
+                <div style="font-size: 13px; color: var(--text-sub); text-align: center; padding: 12px 0;">Đang tải thực đơn...</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- =====================================================================
+             SCREEN 2: HEALTH OVERVIEW (Ảnh 2)
+             ===================================================================== -->
+        <section id="tab-overview" class="tab-pane" role="tabpanel" aria-label="Tổng quan sức khoẻ">
+          <!-- Header with Back Button + Title + 3 dots -->
+          <div class="screen-nav-header">
+            <button type="button" class="btn-circle-action" aria-label="Quay lại" onclick="switchTab('today')">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#1C1F1B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M15 18l-6-6 6-6"/>
+              </svg>
+            </button>
+            <h1 class="screen-nav-title">Health Overview</h1>
+            <button type="button" class="btn-circle-action" aria-label="Tùy chọn khác" onclick="openOverviewMenu()">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#1C1F1B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="19" r="1.5"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Date Selector Row: Month Dropdown -->
+          <div class="date-selector-row">
+            <div class="month-pill-btn" onclick="openCalendarPicker()">
+              <span id="current-month-display">August, 2027</span>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+          </div>
+
+          <!-- Horizontal Days Picker Strip -->
+          <div class="calendar-days-strip" id="calendar-days-container">
+            <div class="day-capsule" onclick="selectCalendarDay(this, 16)">
+              <span class="day-name">Mon</span>
+              <span class="day-num">16</span>
+            </div>
+            <div class="day-capsule" onclick="selectCalendarDay(this, 17)">
+              <span class="day-name">Tue</span>
+              <span class="day-num">17</span>
+            </div>
+            <div class="day-capsule active" onclick="selectCalendarDay(this, 18)">
+              <span class="day-name">Wed</span>
+              <span class="day-num">18</span>
+            </div>
+            <div class="day-capsule" onclick="selectCalendarDay(this, 19)">
+              <span class="day-name">Thu</span>
+              <span class="day-num">19</span>
+            </div>
+            <div class="day-capsule" onclick="selectCalendarDay(this, 20)">
+              <span class="day-name">Fri</span>
+              <span class="day-num">20</span>
+            </div>
+          </div>
+
+          <!-- Overview Section Title -->
+          <div class="section-container" style="margin-top: 24px;">
+            <div class="section-title-header">
+              <h2 class="section-heading">Overview</h2>
+              <button type="button" class="btn-see-all" onclick="loadWeightData()">See All</button>
+            </div>
+
+            <!-- List of 4 Metric Cards with Sparklines & Badges -->
+            <div class="metric-cards-list">
+
+              <!-- Metric Card 1: Heart Rate -->
+              <div class="overview-metric-card">
+                <div class="metric-card-left">
+                  <div class="metric-icon-circle icon-pink">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#E55B6C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                    </svg>
+                  </div>
+                  <div class="metric-info-col">
+                    <span class="metric-title-text">Heart Rate</span>
+                    <div class="metric-main-value">
+                      <span class="metric-num">89</span>
+                      <span class="metric-unit">bpm</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="metric-card-right">
+                  <span class="badge-status-pill badge-normal">Normal</span>
+                  <div class="sparkline-wrap">
+                    <!-- Smooth Pink ECG Sparkline -->
+                    <svg viewBox="0 0 100 36" width="90" height="32" fill="none">
+                      <path d="M0 20 L25 20 L32 20 L36 8 L42 28 L46 14 L50 20 L60 20 L68 12 L74 24 L80 20 L100 20" stroke="#E55B6C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Metric Card 2: Blood Pressure -->
+              <div class="overview-metric-card">
+                <div class="metric-card-left">
+                  <div class="metric-icon-circle icon-blue">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#38A3A5" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="9" cy="12" r="6"/><circle cx="15" cy="12" r="6"/>
+                    </svg>
+                  </div>
+                  <div class="metric-info-col">
+                    <span class="metric-title-text">Blood Pressure</span>
+                    <div class="metric-main-value">
+                      <span class="metric-num">110/80</span>
+                      <span class="metric-unit">mmHg</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="metric-card-right">
+                  <span class="badge-status-pill badge-normal">Normal</span>
+                  <div class="sparkline-wrap">
+                    <!-- Smooth Blue Wave Sparkline -->
+                    <svg viewBox="0 0 100 36" width="90" height="32" fill="none">
+                      <path d="M0 22 C 20 6, 25 32, 45 18 C 65 6, 75 30, 100 16" stroke="#38A3A5" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Metric Card 3: Respiration Rate -->
+              <div class="overview-metric-card">
+                <div class="metric-card-left">
+                  <div class="metric-icon-circle icon-green">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#5E9447" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M6.5 12a4.5 4.5 0 0 0 4.5 4.5h.5V7a4.5 4.5 0 0 0-5 5z"/><path d="M17.5 12a4.5 4.5 0 0 1-4.5 4.5h-.5V7a4.5 4.5 0 0 1 5 5z"/><line x1="12" y1="4" x2="12" y2="20"/>
+                    </svg>
+                  </div>
+                  <div class="metric-info-col">
+                    <span class="metric-title-text">Respiration Rate</span>
+                    <div class="metric-main-value">
+                      <span class="metric-num">16</span>
+                      <span class="metric-unit">br/min</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="metric-card-right">
+                  <span class="badge-status-pill badge-normal">Normal</span>
+                  <div class="sparkline-wrap">
+                    <!-- Green Mountain Filled Area Sparkline -->
+                    <svg viewBox="0 0 100 36" width="90" height="32" fill="none">
+                      <defs>
+                        <linearGradient id="greenAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stop-color="#A4DB7A" stop-opacity="0.6"/>
+                          <stop offset="100%" stop-color="#A4DB7A" stop-opacity="0.05"/>
+                        </linearGradient>
+                      </defs>
+                      <path d="M0 30 L10 24 L22 18 L34 26 L46 12 L58 28 L70 14 L82 24 L95 16 L100 20 L100 36 L0 36 Z" fill="url(#greenAreaGrad)"/>
+                      <path d="M0 30 L10 24 L22 18 L34 26 L46 12 L58 28 L70 14 L82 24 L95 16 L100 20" stroke="#5E9447" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Metric Card 4: Calories Burn -->
+              <div class="overview-metric-card">
+                <div class="metric-card-left">
+                  <div class="metric-icon-circle icon-pink">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#E55B6C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
+                    </svg>
+                  </div>
+                  <div class="metric-info-col">
+                    <span class="metric-title-text">Calories Burn</span>
+                    <div class="metric-main-value">
+                      <span class="metric-num">1013</span>
+                      <span class="metric-unit">Kcal</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="metric-card-right">
+                  <span class="badge-status-pill badge-good">Good</span>
+                  <div class="sparkline-wrap" style="display: flex; justify-content: flex-end; align-items: center;">
+                    <!-- Mini Red Circular Gauge (75%) -->
+                    <div class="mini-donut-wrap">
+                      <svg viewBox="0 0 40 40" width="34" height="34">
+                        <circle cx="20" cy="20" r="15" stroke="#FDEEF0" stroke-width="4" fill="none"/>
+                        <circle cx="20" cy="20" r="15" stroke="#E55B6C" stroke-width="4" fill="none" stroke-linecap="round" stroke-dasharray="94.2" stroke-dashoffset="23.5" transform="rotate(-90 20 20)"/>
+                      </svg>
+                      <span class="mini-donut-text">75%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Weight Progress Chart Block -->
+            <div class="chart-container-card" style="margin-top: 20px;">
+              <div class="log-card-header">
+                <div>
+                  <h3 class="log-card-title">Tiến độ cân nặng</h3>
+                  <div class="log-card-subtitle">Mục tiêu giảm từ 97.0 kg về 70.0 kg</div>
+                </div>
+                <div style="text-align: right;">
+                  <span id="weight-chart-current" class="score-huge-val font-tabular" style="font-size: 20px;">97.0 kg</span>
+                  <div style="font-size: 11px; color: var(--text-sub);">Còn <span id="weight-chart-rem" style="font-weight: 700; color: #5E9447;">27.0 kg</span></div>
+                </div>
+              </div>
+              <div class="chart-svg-box">
+                <svg id="weight-svg" viewBox="0 0 500 200" width="100%" height="160" style="overflow: visible;"></svg>
+              </div>
+              <div id="weight-history-list" class="weight-history-wrap"></div>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- =====================================================================
+             SCREEN 3: AI ASSISTANT (Ảnh 3)
+             ===================================================================== -->
+        <section id="tab-ai" class="tab-pane" role="tabpanel" aria-label="Trợ lý AI">
+          <!-- Header with Back Button + AI Assistant + History Clock button -->
+          <div class="screen-nav-header">
+            <button type="button" class="btn-circle-action btn-header-green" aria-label="Quay lại" onclick="switchTab('today')">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#254516" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M15 18l-6-6 6-6"/>
+              </svg>
+            </button>
+            <h1 class="screen-nav-title">AI Assistant</h1>
+            <button type="button" class="btn-circle-action btn-header-green" aria-label="Lịch sử trò chuyện" onclick="showAiHistory()">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#254516" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Chat Stream Messages -->
+          <div class="ai-chat-stream" id="ai-chat-messages">
+
+            <!-- Bubble 1: User message (Green Capsule on Right) -->
+            <div class="chat-row user-row">
+              <div class="chat-bubble user-bubble">
+                I have a headache and feel tired for 2 days
+              </div>
+            </div>
+
+            <!-- Bubble 2: AI assistant response (White Card with Sparkle Icon on Left) -->
+            <div class="chat-row ai-row">
+              <div class="ai-sparkle-avatar">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                  <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"/>
+                </svg>
+              </div>
+              <div class="chat-bubble ai-bubble">
+                <p class="ai-bubble-intro">
+                  I'm sorry to hear that, Alex. Based on your symptoms, it could be related to stress or lack of sleep. Here are some recommendations:
+                </p>
+                <ul class="ai-recs-list">
+                  <li>
+                    <span class="rec-check-icon">✔</span>
+                    <span>Get enough rest and sleep</span>
+                  </li>
+                  <li>
+                    <span class="rec-check-icon">✔</span>
+                    <span>Stay hydrated</span>
+                  </li>
+                  <li>
+                    <span class="rec-check-icon">✔</span>
+                    <span>Avoid screen time before bed</span>
+                  </li>
+                  <li>
+                    <span class="rec-check-icon">✔</span>
+                    <span>If it continues, consult a doctor</span>
+                  </li>
+                </ul>
+                <div class="ai-feedback-toolbar">
+                  <button type="button" class="btn-feedback" title="Sao chép" onclick="copyAiResponse(this)">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                  </button>
+                  <button type="button" class="btn-feedback" title="Hữu ích" onclick="rateAiResponse(this, 'up')">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+                  </button>
+                  <button type="button" class="btn-feedback" title="Chưa chuẩn" onclick="rateAiResponse(this, 'down')">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Quick Suggestion Prompt Chips -->
+          <div class="ai-prompt-chips-row">
+            <button type="button" class="prompt-chip" onclick="sendQuickPrompt('Tư vấn thực đơn dinh dưỡng hôm nay cho người giảm cân?')">Thực đơn hôm nay</button>
+            <button type="button" class="prompt-chip" onclick="sendQuickPrompt('Tôi nên uống nước như thế nào để tốt cho gan?')">Uống nước chuẩn</button>
+            <button type="button" class="prompt-chip" onclick="sendQuickPrompt('Các lưu ý vận động khi giảm cân từ 97kg?')">Lời khuyên tập luyện</button>
+          </div>
+
+          <!-- Chat Input Bar at Bottom (Plus button + Pill input + Mic + Send button) -->
+          <div class="ai-input-dock">
+            <button type="button" class="btn-circle-action btn-green-circle" aria-label="Thêm đính kèm" onclick="openAttachOptions()">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#1E3B13" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+            <div class="ai-input-pill">
+              <input type="text" id="ai-input-field" class="ai-input-text" placeholder="Ask me Anything..." onkeydown="handleAiKeydown(event)">
+              <button type="button" class="btn-input-mic" aria-label="Ghi âm giọng nói" onclick="startVoiceInput()">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#1C1F1B" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+              </button>
+            </div>
+            <button type="button" class="btn-circle-action btn-green-circle" aria-label="Gửi tin nhắn" onclick="submitAiMessage()">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="#1E3B13"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            </button>
+          </div>
+        </section>
+
+        <!-- =====================================================================
+             SCREEN 4: HEALTH RECORDS (Ảnh 4)
+             ===================================================================== -->
+        <section id="tab-records" class="tab-pane" role="tabpanel" aria-label="Hồ sơ sức khoẻ">
+          <!-- Header with Back Button + Health Records + Upload/Export button -->
+          <div class="screen-nav-header">
+            <button type="button" class="btn-circle-action" aria-label="Quay lại" onclick="switchTab('today')">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#1C1F1B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M15 18l-6-6 6-6"/>
+              </svg>
+            </button>
+            <h1 class="screen-nav-title">Health Records</h1>
+            <button type="button" class="btn-circle-action" aria-label="Xuất báo cáo" onclick="viewWeeklyReport()">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#1C1F1B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Category Filter Tabs (Pill Row: All, Lab Result, Prescription, Report, Meal Plan) -->
+          <div class="records-filter-pills" id="records-filter-bar">
+            <button type="button" class="filter-pill active" onclick="filterRecords('all', this)">All</button>
+            <button type="button" class="filter-pill" onclick="filterRecords('lab', this)">Lab Result</button>
+            <button type="button" class="filter-pill" onclick="filterRecords('prescription', this)">Prescription</button>
+            <button type="button" class="filter-pill" onclick="filterRecords('report', this)">Report</button>
+            <button type="button" class="filter-pill" onclick="filterRecords('meal', this)">Meal Plan</button>
+          </div>
+
+          <!-- List of Health Record Cards -->
+          <div class="records-cards-list" id="records-list-container">
+
+            <!-- Card 1: Blood Test Report -->
+            <div class="record-card-item record-cat-lab" onclick="viewRecordDetail('blood')">
+              <div class="record-icon-circle icon-pink">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#E55B6C" stroke-width="2"><circle cx="9" cy="12" r="5"/><circle cx="15" cy="12" r="5"/></svg>
+              </div>
+              <div class="record-text-col">
+                <strong class="record-title">Blood Test Report</strong>
+                <span class="record-date-sub">• 19 may 2027 • 2:30 PM</span>
+              </div>
+              <span class="badge-status-pill badge-normal">Normal</span>
+            </div>
+
+            <!-- Card 2: X-ray Chest -->
+            <div class="record-card-item record-cat-lab" onclick="viewRecordDetail('xray')">
+              <div class="record-icon-circle icon-blue">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#38A3A5" stroke-width="2"><path d="M6.5 12a4.5 4.5 0 0 0 4.5 4.5h.5V7a4.5 4.5 0 0 0-5 5z"/><path d="M17.5 12a4.5 4.5 0 0 1-4.5 4.5h-.5V7a4.5 4.5 0 0 1 5 5z"/></svg>
+              </div>
+              <div class="record-text-col">
+                <strong class="record-title">X-ray Chest</strong>
+                <span class="record-date-sub">• 24 may 2027 • 1:30 PM</span>
+              </div>
+              <span class="badge-status-pill badge-normal">Normal</span>
+            </div>
+
+            <!-- Card 3: Vitamin D Test -->
+            <div class="record-card-item record-cat-lab" onclick="viewRecordDetail('vitamind')">
+              <div class="record-icon-circle icon-green">
+                <span style="font-weight: 700; font-size: 14px; color: #5E9447;">D</span>
+              </div>
+              <div class="record-text-col">
+                <strong class="record-title">Vitamin D Test</strong>
+                <span class="record-date-sub">• 29 may 2027 • 3:30 PM</span>
+              </div>
+              <span class="badge-status-pill badge-low">Low</span>
+            </div>
+
+            <!-- Card 4: ECG Report -->
+            <div class="record-card-item record-cat-report" onclick="viewRecordDetail('ecg')">
+              <div class="record-icon-circle icon-pink">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#E55B6C" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/><path d="M3.5 12h3l2-3 3 6 2-3h5"/></svg>
+              </div>
+              <div class="record-text-col">
+                <strong class="record-title">ECG Report</strong>
+                <span class="record-date-sub">• 29 may 2027 • 3:30 PM</span>
+              </div>
+              <span class="badge-status-pill badge-normal">Normal</span>
+            </div>
+
+          </div>
+
+          <!-- Section: 7-Day Meal Plan & Shopping List Integration -->
+          <div class="section-container" style="margin-top: 24px;">
+            <div class="section-title-header">
+              <h2 class="section-heading">Thực đơn 7 ngày (~1.800 kcal)</h2>
+              <button type="button" class="btn-green-pill btn-sm" onclick="openShoppingModal()">Đi chợ</button>
+            </div>
+            <div class="meal-plan-toolbar">
+              <button type="button" class="btn-secondary-pill" onclick="generateMealPlan()">+ Tạo lại thực đơn mới</button>
+            </div>
+            <div id="meals-list-container" style="margin-top: 14px;">
+              <div class="empty-state-box">Đang tải thực đơn 7 ngày...</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- =====================================================================
+             SCREEN 5: PROFILE & SETTINGS (Cài đặt)
+             ===================================================================== -->
+        <section id="tab-settings" class="tab-pane" role="tabpanel" aria-label="Hồ sơ và Cài đặt">
+          <div class="screen-nav-header">
+            <button type="button" class="btn-circle-action" aria-label="Quay lại" onclick="switchTab('today')">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#1C1F1B" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <h1 class="screen-nav-title">Profile & Settings</h1>
+            <div style="width: 40px;"></div>
+          </div>
+
+          <div class="profile-card">
+            <div class="profile-avatar-large">
+              <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="#2B5719" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+            <div class="profile-meta-info">
+              <strong class="profile-name">Phùng Văn Quyền</strong>
+              <span class="profile-target">Hành trình: 97.0 kg &rarr; Mục tiêu 70.0 kg</span>
+            </div>
+          </div>
+
+          <!-- Cài đặt thông báo & Nhắc nhở -->
+          <div class="settings-card-block">
+            <h3 class="settings-block-title">Thông báo thiết bị</h3>
+            <p class="settings-block-desc">Nhận chuông nhắc nhở uống nước, uống thuốc đúng giờ</p>
+            <div class="settings-btn-row">
+              <button type="button" id="btn-enable-push" class="btn-green-pill btn-sm" onclick="enablePushNotifications()">Bật thông báo</button>
+              <button type="button" class="btn-secondary-pill btn-sm" onclick="sendTestPush()">Thử chuông</button>
+            </div>
+          </div>
+
+          <!-- Lịch nhắc nhở -->
+          <div class="settings-card-block">
+            <div class="section-title-header">
+              <h3 class="settings-block-title">Lịch nhắc nhở tự do</h3>
+              <button type="button" class="btn-link-action" onclick="saveReminderSchedule()">Lưu lịch</button>
+            </div>
+            <div class="reminder-schedule-list">
+              <div class="schedule-row">
+                <span class="schedule-label">Đo cân sáng:</span>
+                <div id="remind-weight-chips" class="schedule-chips"></div>
+                <button type="button" class="btn-add-chip" onclick="addReminderTime('weight', '06:30')">+</button>
+                <span id="badge-count-weight" class="schedule-count-sub">1 mốc</span>
+              </div>
+              <div class="schedule-row">
+                <span class="schedule-label">Uống thuốc:</span>
+                <div id="remind-med-chips" class="schedule-chips"></div>
+                <button type="button" class="btn-add-chip" onclick="addReminderTime('med', '08:00')">+</button>
+                <span id="badge-count-med" class="schedule-count-sub">2 mốc</span>
+              </div>
+              <div class="schedule-row">
+                <span class="schedule-label">Nước lọc:</span>
+                <div id="remind-water-chips" class="schedule-chips"></div>
+                <button type="button" class="btn-add-chip" onclick="addReminderTime('water', '10:00')">+</button>
+                <span id="badge-count-water" class="schedule-count-sub">4 mốc</span>
+              </div>
+              <div class="schedule-row">
+                <span class="schedule-label">Giờ đi ngủ:</span>
+                <div id="remind-sleep-chips" class="schedule-chips"></div>
+                <button type="button" class="btn-add-chip" onclick="addReminderTime('sleep', '22:30')">+</button>
+                <span id="badge-count-sleep" class="schedule-count-sub">1 mốc</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Đường huyết đói -->
+          <div class="settings-card-block">
+            <div class="section-title-header">
+              <h3 class="settings-block-title">Nhật ký đường huyết</h3>
+              <button type="button" class="btn-secondary-pill btn-sm" onclick="openGlucoseModal()">+ Ghi số đo</button>
+            </div>
+            <div id="glucose-history-list" style="margin-top: 10px;"></div>
+          </div>
+
+          <!-- Cấu hình thông số cá nhân -->
+          <div class="settings-card-block">
+            <h3 class="settings-block-title">Thông số cá nhân</h3>
+            <form id="settings-form" onsubmit="saveSettings(event)" style="margin-top: 12px;">
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label class="form-label" for="set-name">Họ và tên</label>
+                  <input type="text" id="set-name" class="form-input" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="set-age">Tuổi</label>
+                  <input type="number" id="set-age" class="form-input" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="set-height">Chiều cao (cm)</label>
+                  <input type="number" id="set-height" class="form-input" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="set-goal">Mục tiêu cân (kg)</label>
+                  <input type="number" step="0.1" id="set-goal" class="form-input" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="set-water-min">Nước tối thiểu (ml)</label>
+                  <input type="number" id="set-water-min" class="form-input" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="set-water-max">Nước tối đa (ml)</label>
+                  <input type="number" id="set-water-max" class="form-input" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="set-t-weight">Giờ nhắc cân</label>
+                  <input type="time" id="set-t-weight" class="form-input" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="set-t-med">Giờ nhắc thuốc</label>
+                  <input type="time" id="set-t-med" class="form-input" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="set-t-sleep">Giờ đi ngủ</label>
+                  <input type="time" id="set-t-sleep" class="form-input" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="set-snack">Bữa phụ</label>
+                  <select id="set-snack" class="form-input">
+                    <option value="1">Có bữa phụ</option>
+                    <option value="0">Không bữa phụ</option>
+                  </select>
+                </div>
+              </div>
+              <button type="submit" class="btn-green-pill" style="width: 100%; margin-top: 14px;">Lưu thông số hồ sơ</button>
+            </form>
+          </div>
+
+          <!-- Dữ liệu sao lưu & Đăng xuất -->
+          <div class="settings-card-block" style="margin-bottom: 30px;">
+            <h3 class="settings-block-title">Dữ liệu & Tài khoản</h3>
+            <div class="settings-btn-row" style="margin-top: 10px;">
+              <button type="button" class="btn-secondary-pill btn-sm" onclick="downloadBackup()">Tải sao lưu (.json)</button>
+              <label class="btn-secondary-pill btn-sm" style="cursor: pointer;">
+                Khôi phục file
+                <input type="file" id="restore-file-input" accept=".json" style="display: none;" onchange="restoreBackup(event)">
+              </label>
+            </div>
+            <div style="margin-top: 14px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-subtle); padding-top: 12px;">
+              <button type="button" class="btn-link-action" onclick="forceCheckUpdate()">Cập nhật ứng dụng</button>
+              <button type="button" class="btn-danger-link" onclick="logout()">Đăng xuất</button>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- =====================================================================
+           BOTTOM NAVIGATION BAR (Với hiệu ứng Green Pill Active như trong ảnh)
+           ===================================================================== -->
+      <nav class="mockup-bottom-nav" role="tablist" aria-label="Điều hướng chính">
+        <!-- 1. Home -->
+        <button type="button" class="nav-pill-btn active" id="nav-btn-today" role="tab" aria-selected="true" aria-label="Home" onclick="switchTab('today')">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1V9.5z"/>
+          </svg>
+          <span class="nav-label">Home</span>
+        </button>
+
+        <!-- 2. Overview -->
+        <button type="button" class="nav-pill-btn" id="nav-btn-overview" role="tab" aria-selected="false" aria-label="Overview" onclick="switchTab('overview')">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/>
+          </svg>
+          <span class="nav-label">Overview</span>
+        </button>
+
+        <!-- 3. AI Assistant -->
+        <button type="button" class="nav-pill-btn" id="nav-btn-ai" role="tab" aria-selected="false" aria-label="AI Chat" onclick="switchTab('ai')">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          <span class="nav-label">AI Chat</span>
+        </button>
+
+        <!-- 4. Records -->
+        <button type="button" class="nav-pill-btn" id="nav-btn-records" role="tab" aria-selected="false" aria-label="Records" onclick="switchTab('records')">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+          </svg>
+          <span class="nav-label">Records</span>
+        </button>
+
+        <!-- 5. Profile -->
+        <button type="button" class="nav-pill-btn" id="nav-btn-settings" role="tab" aria-selected="false" aria-label="Profile" onclick="switchTab('settings')">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+          </svg>
+          <span class="nav-label">Profile</span>
+        </button>
+      </nav>
+
     </div>
   </div>
 
-  <!-- Giao diện Chính của Ứng dụng -->
-  <div id="app-view" style="display: none;">
-    <!-- Top Header Bar -->
-    <header class="app-header">
-      <div class="header-inner">
-        <div class="header-brand-group">
-          <span class="header-logo">QuyenHealth</span>
-          <span class="header-sep">/</span>
-          <span id="today-date-badge" class="header-date">Hôm nay</span>
-        </div>
-        <div class="header-user-meta">
-          <span>Phùng Văn Quyền (97kg &rarr; 70kg)</span>
-        </div>
-      </div>
-    </header>
-
-    <main class="app-main">
-      <!-- =====================================================================
-           1. TAB: HÔM NAY
-           ===================================================================== -->
-      <section id="tab-today" class="tab-pane active">
-        <div class="page-heading-group">
-          <h1 class="page-title">Hôm nay</h1>
-          <p class="page-subtitle">Nhật ký thói quen, mức nước lọc và cân nặng buổi sáng</p>
-        </div>
-
-        <!-- Khối 1: Lượng Nước Lọc -->
-        <section class="section-block" aria-labelledby="heading-water">
-          <div class="section-header-row">
-            <div>
-              <h2 id="heading-water" class="section-title">Lượng nước lọc</h2>
-              <div class="metric-readout-row">
-                <span id="water-cur" class="metric-huge">0</span>
-                <span class="metric-sub">/ <span id="water-min-text">2.500 ml</span></span>
-              </div>
-            </div>
-            <div class="section-header-right">
-              <span id="water-percent-text" class="metric-percent">0%</span>
-              <span id="water-badge" class="status-indicator">Đang tải</span>
-            </div>
-          </div>
-
-          <!-- Linear Progress Bar -->
-          <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100">
-            <div id="water-fill" class="progress-fill" style="width: 0%;"></div>
-          </div>
-
-          <!-- Nút bấm thêm nước nhanh -->
-          <div class="actions-grid-water" role="group" aria-label="Thêm nhanh nước uống">
-            <button type="button" class="btn-action-tile" onclick="addWater(300)">
-              <span class="tile-val">+300ml</span>
-              <span class="tile-desc">1 ca nước</span>
-            </button>
-            <button type="button" class="btn-action-tile" onclick="addWater(500)">
-              <span class="tile-val">+500ml</span>
-              <span class="tile-desc">1 chai nhỏ</span>
-            </button>
-            <button type="button" class="btn-action-tile" onclick="addWater(1000)">
-              <span class="tile-val">+1.000ml</span>
-              <span class="tile-desc">1 bình lớn</span>
-            </button>
-            <button type="button" class="btn-action-tile" onclick="openCustomWaterModal()">
-              <span class="tile-val">Tự gõ</span>
-              <span class="tile-desc">Nhập số ml</span>
-            </button>
-          </div>
-
-          <div class="meta-status-row">
-            <span id="water-entries-count" class="meta-caption">Chưa có lần uống nào hôm nay</span>
-            <div class="meta-actions">
-              <button id="btn-undo-water" class="btn-link" style="display: none;" onclick="undoLastWater()">Hoàn tác vừa bấm</button>
-              <span class="meta-caption">Mục tiêu tối đa: <span id="water-max-text">3.000 ml</span></span>
-            </div>
-          </div>
-        </section>
-
-        <!-- Hairline Divider -->
-        <hr class="section-divider">
-
-        <!-- Khối 2: Cân Nặng Hôm Nay -->
-        <section class="section-block" aria-labelledby="heading-weight">
-          <div class="section-header-row">
-            <div>
-              <h2 id="heading-weight" class="section-title">Cân nặng hôm nay</h2>
-              <div class="metric-readout-row">
-                <span id="weight-val" class="metric-huge">97.0</span>
-                <span class="metric-sub">kg</span>
-              </div>
-            </div>
-            <div class="section-header-right">
-              <span id="weight-diff-badge" class="meta-caption">Mục tiêu 70.0 kg (cần giảm 27.0 kg)</span>
-            </div>
-          </div>
-
-          <p id="weight-status-sub" class="field-hint">
-            Cân vào sáng sớm sau khi vệ sinh cá nhân, trước khi ăn sáng.
-          </p>
-
-          <!-- Stepper Điều Chỉnh -->
-          <div class="stepper-row" role="group" aria-label="Điều chỉnh số cân nặng">
-            <button type="button" class="btn-stepper" aria-label="Giảm 0.5 kg" onclick="adjustWeight(-0.5)">-0.5</button>
-            <button type="button" class="btn-stepper" aria-label="Giảm 0.1 kg" onclick="adjustWeight(-0.1)">-0.1</button>
-            <span class="stepper-sep"></span>
-            <button type="button" class="btn-stepper" aria-label="Tăng 0.1 kg" onclick="adjustWeight(0.1)">+0.1</button>
-            <button type="button" class="btn-stepper" aria-label="Tăng 0.5 kg" onclick="adjustWeight(0.5)">+0.5</button>
-            <button type="button" id="btn-save-weight" class="btn-primary" onclick="saveWeight()">
-              Lưu cân nặng hôm nay
-            </button>
-          </div>
-        </section>
-
-        <!-- Hairline Divider -->
-        <hr class="section-divider">
-
-        <!-- Khối 3: Thuốc Hôm Nay -->
-        <section class="section-block" aria-labelledby="heading-med">
-          <div class="med-checklist-row">
-            <div>
-              <h2 id="heading-med" class="section-title">Thuốc điều trị hôm nay</h2>
-              <p class="section-desc">Uống đều đặn theo đơn bác sĩ sau bữa ăn để hạ men gan và bảo vệ tế bào gan</p>
-            </div>
-            <button type="button" id="btn-today-med" class="btn-med-check" onclick="toggleMed()">
-              <span>Chưa uống</span>
-            </button>
-          </div>
-        </section>
-
-        <!-- Hairline Divider -->
-        <hr class="section-divider">
-
-        <!-- Khối 4: Bữa Ăn Tiếp Theo -->
-        <section class="section-block" aria-labelledby="heading-next-meal">
-          <div class="section-header-row">
-            <div>
-              <h2 id="heading-next-meal" class="section-title">Bữa ăn tiếp theo</h2>
-              <p class="section-desc">Thực đơn hạn chế dầu mỡ, nhiều chất xơ, không dùng phủ tạng</p>
-            </div>
-            <button type="button" class="btn-link" onclick="switchTab('meals')">Xem thực đơn cả tuần &rarr;</button>
-          </div>
-
-          <div id="today-next-meal-content">
-            <div class="empty-state-box">
-              <span>Chưa có lịch bữa ăn cho hôm nay.</span>
-              <button type="button" class="btn-secondary btn-sm" onclick="switchTab('meals')">Đến trang Bữa ăn để tạo lịch</button>
-            </div>
-          </div>
-        </section>
-      </section>
-
-      <!-- =====================================================================
-           2. TAB: BỮA ĂN (7 NGÀY)
-           ===================================================================== -->
-      <section id="tab-meals" class="tab-pane">
-        <div class="page-heading-group">
-          <h1 class="page-title">Thực đơn 7 ngày</h1>
-          <p class="page-subtitle">Kế hoạch dinh dưỡng ~1.800 kcal/ngày phù hợp với người giảm cân và men gan cao</p>
-        </div>
-
-        <div class="meals-toolbar-row">
-          <button type="button" class="btn-primary" onclick="generateMealPlan()">
-            Tạo lịch bữa ăn 7 ngày mới
-          </button>
-          <button type="button" class="btn-secondary" onclick="openShoppingModal()">
-            Danh sách đi chợ
-          </button>
-        </div>
-
-        <div class="editorial-notice">
-          <strong>Lưu ý dinh dưỡng từ bác sĩ:</strong> Thực đơn ưu tiên thực phẩm làng quê quen thuộc (ức gà luộc, trứng luộc, nạc heo luộc, cá đồng nấu ngót, khoai lang, ngô luộc, rau xanh...). Tuyệt đối không chiên rán nhiều dầu mỡ và không ăn nội tạng động vật.
-        </div>
-
-        <div id="meals-list-container">
-          <div class="empty-state-box">
-            Đang tải thực đơn 7 ngày...
-          </div>
-        </div>
-      </section>
-
-      <!-- =====================================================================
-           3. TAB: CÂN NẶNG & TIẾN ĐỘ
-           ===================================================================== -->
-      <section id="tab-weight" class="tab-pane">
-        <div class="page-heading-group">
-          <h1 class="page-title">Tiến độ giảm cân</h1>
-          <p class="page-subtitle">Theo dõi hành trình giảm từ 97.0 kg về mốc 70.0 kg</p>
-        </div>
-
-        <!-- 3 Cột số liệu -->
-        <div class="vitals-stats-grid">
-          <div class="vital-stat-col">
-            <span class="vital-stat-label">Bắt đầu</span>
-            <span class="vital-stat-val">97.0 kg</span>
-          </div>
-          <div class="vital-stat-col">
-            <span class="vital-stat-label">Hiện tại</span>
-            <span id="weight-chart-current" class="vital-stat-val text-accent">97.0 kg</span>
-          </div>
-          <div class="vital-stat-col">
-            <span class="vital-stat-label">Còn lại</span>
-            <span id="weight-chart-rem" class="vital-stat-val text-success">27.0 kg</span>
-          </div>
-        </div>
-
-        <!-- Biểu đồ SVG -->
-        <div class="chart-wrapper">
-          <svg id="weight-svg" class="chart-canvas" viewBox="0 0 500 200" aria-label="Biểu đồ tiến độ cân nặng theo thời gian">
-            <!-- Vẽ biểu đồ tiến độ SVG -->
-          </svg>
-        </div>
-        <div class="chart-legend-row">
-          <span><span class="legend-line line-target"></span> Mốc mục tiêu 70kg</span>
-          <span><span class="legend-line line-actual"></span> Cân nặng thực tế</span>
-        </div>
-
-        <hr class="section-divider">
-
-        <h2 class="section-title" style="margin-bottom: 12px;">Nhật ký các lần đo</h2>
-        <div id="weight-history-list" class="table-scroll-container">
-          <!-- Bảng lịch sử cân nặng -->
-        </div>
-      </section>
-
-      <!-- =====================================================================
-           4. TAB: CÀI ĐẶT
-           ===================================================================== -->
-      <section id="tab-settings" class="tab-pane">
-        <div class="page-heading-group">
-          <h1 class="page-title">Cài đặt</h1>
-          <p class="page-subtitle">Tuỳ chỉnh thông báo, lịch nhắc nhở và cấu hình thông số cá nhân</p>
-        </div>
-
-        <!-- Khối A: Thông Báo Thiết Bị -->
-        <section class="section-block">
-          <h2 class="section-title">Thông báo trên thiết bị</h2>
-          <p class="section-desc">Nhận thông báo nhắc nhở tự động trên điện thoại hoặc máy tính khi đến giờ</p>
-          <div class="button-row">
-            <button type="button" id="btn-enable-push" class="btn-primary" onclick="enablePushNotifications()">
-              Bật thông báo trên thiết bị
-            </button>
-            <button type="button" class="btn-secondary" onclick="sendTestPush()">
-              Thử chuông
-            </button>
-          </div>
-          <div id="ios-guide-box" class="editorial-callout" style="margin-top: 14px;">
-            <strong>Dành cho iPhone/iPad:</strong> Mở Safari &rarr; bấm nút Chia sẻ (hình vuông mũi tên lên) &rarr; chọn <strong>"Thêm vào Màn hình chính"</strong> để hệ thống gửi thông báo được chuẩn xác nhé Quyền!
-          </div>
-        </section>
-
-        <hr class="section-divider">
-
-        <!-- Khối B: Lịch Nhắc Nhở Tự Do -->
-        <section class="section-block">
-          <div class="section-header-row">
-            <div>
-              <h2 class="section-title">Lịch & số lần nhắc nhở</h2>
-              <p class="section-desc">Thêm hoặc bớt các mốc giờ trong ngày. Bấm dấu x để bỏ bớt mốc nhắc không cần thiết.</p>
-            </div>
-            <button type="button" class="btn-secondary btn-sm" onclick="saveReminderSchedule()">Lưu lịch nhắc</button>
-          </div>
-
-          <div class="schedule-settings-stack">
-            <!-- 1. Đo cân -->
-            <div class="schedule-item-row">
-              <div class="schedule-meta">
-                <strong class="schedule-name">Đo cân sáng</strong>
-                <span class="schedule-hint">Sau vệ sinh, trước ăn sáng</span>
-                <span id="badge-count-weight" class="schedule-count">1 mốc/ngày</span>
-              </div>
-              <div class="schedule-chips-cell">
-                <div id="remind-weight-chips" class="chips-container"></div>
-                <button type="button" class="btn-inline-add" onclick="addReminderTime('weight', '06:30')">+ Thêm mốc giờ</button>
-              </div>
-            </div>
-
-            <!-- 2. Thuốc -->
-            <div class="schedule-item-row">
-              <div class="schedule-meta">
-                <strong class="schedule-name">Uống thuốc</strong>
-                <span class="schedule-hint">Tự tắt khi đã bấm Đã uống</span>
-                <span id="badge-count-med" class="schedule-count">2 mốc/ngày</span>
-              </div>
-              <div class="schedule-chips-cell">
-                <div id="remind-med-chips" class="chips-container"></div>
-                <button type="button" class="btn-inline-add" onclick="addReminderTime('med', '12:00')">+ Thêm mốc giờ</button>
-              </div>
-            </div>
-
-            <!-- 3. Nước lọc -->
-            <div class="schedule-item-row">
-              <div class="schedule-meta">
-                <strong class="schedule-name">Uống nước</strong>
-                <span class="schedule-hint">Tự tắt khi đã đạt tiến độ</span>
-                <span id="badge-count-water" class="schedule-count">4 mốc/ngày</span>
-              </div>
-              <div class="schedule-chips-cell">
-                <div id="remind-water-chips" class="chips-container"></div>
-                <button type="button" class="btn-inline-add" onclick="addReminderTime('water', '15:00')">+ Thêm mốc giờ</button>
-              </div>
-            </div>
-
-            <!-- 4. Đi ngủ -->
-            <div class="schedule-item-row">
-              <div class="schedule-meta">
-                <strong class="schedule-name">Giờ đi ngủ</strong>
-                <span class="schedule-hint">Nghỉ ngơi bảo vệ gan</span>
-                <span id="badge-count-sleep" class="schedule-count">1 mốc/ngày</span>
-              </div>
-              <div class="schedule-chips-cell">
-                <div id="remind-sleep-chips" class="chips-container"></div>
-                <button type="button" class="btn-inline-add" onclick="addReminderTime('sleep', '22:30')">+ Thêm mốc giờ</button>
-              </div>
-            </div>
-          </div>
-
-          <button type="button" class="btn-primary" style="margin-top: 14px;" onclick="saveReminderSchedule()">
-            Lưu toàn bộ lịch nhắc nhở
-          </button>
-        </section>
-
-        <hr class="section-divider">
-
-        <!-- Khối C: Đường Huyết -->
-        <section class="section-block">
-          <div class="section-header-row">
-            <div>
-              <h2 class="section-title">Nhật ký đường huyết</h2>
-              <p class="section-desc">Theo dõi mức đường huyết lúc đói (ngưỡng an toàn dưới 5.6 mmol/L)</p>
-            </div>
-            <button type="button" class="btn-secondary btn-sm" onclick="openGlucoseModal()">+ Ghi số đo</button>
-          </div>
-          <div id="glucose-history-list" class="glucose-data-list">
-            <!-- Danh sách đo đường huyết -->
-          </div>
-        </section>
-
-        <hr class="section-divider">
-
-        <!-- Khối D: Báo Cáo Y Tế -->
-        <section class="section-block">
-          <div class="section-header-row">
-            <div>
-              <h2 class="section-title">Báo cáo sức khoẻ tuần</h2>
-              <p class="section-desc">Tổng hợp số liệu 7 ngày gửi bác sĩ trong mỗi lần tái khám định kỳ</p>
-            </div>
-            <button type="button" class="btn-secondary btn-sm" onclick="viewWeeklyReport()">Xem tổng hợp</button>
-          </div>
-        </section>
-
-        <hr class="section-divider">
-
-        <!-- Khối E: Hồ Sơ Cá Nhân -->
-        <section class="section-block">
-          <h2 class="section-title" style="margin-bottom: 12px;">Hồ sơ cá nhân</h2>
-          <form id="settings-form" onsubmit="saveSettings(event)">
-            <div class="form-grid">
-              <div class="form-group">
-                <label class="form-label" for="set-name">Họ và tên</label>
-                <input type="text" id="set-name" class="form-input" required>
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="set-age">Tuổi</label>
-                <input type="number" id="set-age" class="form-input" required>
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="set-height">Chiều cao (cm)</label>
-                <input type="number" id="set-height" class="form-input" required>
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="set-goal">Mục tiêu cân nặng (kg)</label>
-                <input type="number" step="0.1" id="set-goal" class="form-input" required>
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="set-water-min">Nước tối thiểu (ml)</label>
-                <input type="number" id="set-water-min" class="form-input" required>
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="set-water-max">Nước tối đa (ml)</label>
-                <input type="number" id="set-water-max" class="form-input" required>
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="set-t-weight">Giờ nhắc cân chính</label>
-                <input type="time" id="set-t-weight" class="form-input" required>
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="set-t-med">Giờ nhắc thuốc chính</label>
-                <input type="time" id="set-t-med" class="form-input" required>
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="set-t-sleep">Giờ đi ngủ chính</label>
-                <input type="time" id="set-t-sleep" class="form-input" required>
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="set-snack">Bữa phụ</label>
-                <select id="set-snack" class="form-input">
-                  <option value="1">Có bữa phụ (trái cây nhẹ)</option>
-                  <option value="0">Không có bữa phụ</option>
-                </select>
-              </div>
-            </div>
-            <button type="submit" class="btn-primary" style="margin-top: 14px;">Lưu thay đổi hồ sơ</button>
-          </form>
-        </section>
-
-        <hr class="section-divider">
-
-        <!-- Khối F: Sao Lưu & Dữ Liệu -->
-        <section class="section-block">
-          <h2 class="section-title">Sao lưu & khôi phục dữ liệu</h2>
-          <p class="section-desc">Tải file dữ liệu JSON về máy định kỳ để không lo mất nhật ký sức khoẻ khi đổi máy</p>
-          <div class="button-row">
-            <button type="button" class="btn-secondary" onclick="downloadBackup()">
-              Tải file sao lưu (.json)
-            </button>
-            <label class="btn-secondary">
-              Khôi phục từ file
-              <input type="file" id="restore-file-input" accept=".json" style="display: none;" onchange="restoreBackup(event)">
-            </label>
-          </div>
-          <div style="margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--border-hairline); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-            <button type="button" class="btn-link" onclick="forceCheckUpdate()">Tải lại phiên bản mới nhất</button>
-            <button type="button" class="btn-danger-text" onclick="logout()">Đăng xuất khỏi thiết bị này</button>
-          </div>
-        </section>
-      </section>
-    </main>
-
-    <!-- Bottom Navigation Bar (Minimalist, solid, production-grade) -->
-    <nav class="app-navbar" role="tablist" aria-label="Điều hướng các mục chính">
-      <div class="navbar-inner">
-        <button type="button" class="nav-item active" role="tab" aria-selected="true" aria-label="Hôm nay" onclick="switchTab('today')">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-          <span class="nav-label">Hôm nay</span>
-        </button>
-        <button type="button" class="nav-item" role="tab" aria-selected="false" aria-label="Bữa ăn" onclick="switchTab('meals')">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-          <span class="nav-label">Bữa ăn</span>
-        </button>
-        <button type="button" class="nav-item" role="tab" aria-selected="false" aria-label="Cân nặng" onclick="switchTab('weight')">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-          <span class="nav-label">Cân nặng</span>
-        </button>
-        <button type="button" class="nav-item" role="tab" aria-selected="false" aria-label="Cài đặt" onclick="switchTab('settings')">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
-          <span class="nav-label">Cài đặt</span>
-        </button>
-      </div>
-    </nav>
-  </div>
+  <!-- =====================================================================
+       CÁC MODAL HỆ THỐNG
+       ===================================================================== -->
 
   <!-- MODAL: Nhập Lượng Nước Tuỳ Ý -->
   <div id="modal-water" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-water-title">
     <div class="modal-dialog">
       <div class="modal-header">
-        <h3 id="modal-water-title" class="modal-title">Nhập lượng nước lọc</h3>
-        <button type="button" class="modal-close" aria-label="Đóng cửa sổ" onclick="closeModal('modal-water')">&times;</button>
+        <h3 id="modal-water-title" class="modal-title">Ghi lượng nước lọc</h3>
+        <button type="button" class="modal-close" aria-label="Đóng" onclick="closeModal('modal-water')">&times;</button>
       </div>
       <form onsubmit="submitCustomWater(event)">
         <div class="form-group">
-          <label class="form-label" for="custom-water-ml">Số ml nước vừa uống (1 - 2.000 ml)</label>
+          <label class="form-label" for="custom-water-ml">Số ml vừa uống (1 - 2.000 ml)</label>
           <input type="number" id="custom-water-ml" class="form-input" placeholder="Ví dụ: 350" min="1" max="2000" required autofocus>
         </div>
-        <button type="submit" class="btn-primary" style="margin-top: 12px;">Xác nhận thêm</button>
+        <button type="submit" class="btn-green-pill" style="width: 100%; margin-top: 14px;">Thêm nước lọc</button>
       </form>
     </div>
   </div>
@@ -504,7 +930,7 @@
     <div class="modal-dialog">
       <div class="modal-header">
         <h3 id="modal-meal-title" class="modal-title">Ghi nhận món ăn thực tế</h3>
-        <button type="button" class="modal-close" aria-label="Đóng cửa sổ" onclick="closeModal('modal-meal-note')">&times;</button>
+        <button type="button" class="modal-close" aria-label="Đóng" onclick="closeModal('modal-meal-note')">&times;</button>
       </div>
       <form onsubmit="submitMealNote(event)">
         <input type="hidden" id="note-meal-date">
@@ -513,15 +939,15 @@
           <label class="form-label" for="note-meal-text">Mô tả món ăn thực tế đã ăn</label>
           <input type="text" id="note-meal-text" class="form-input" placeholder="Ví dụ: Ăn 1 bát bún cá + ít đậu phụ..." maxlength="300" required>
         </div>
-        <div class="field-hint" style="margin-bottom: 6px;">Đánh dấu nhanh nếu có vi phạm:</div>
+        <div class="field-hint" style="margin-bottom: 6px;">Đánh dấu nhanh vi phạm (nếu có):</div>
         <div class="chips-flex-row" style="margin-bottom: 16px;">
           <button type="button" class="btn-chip-tag" onclick="appendNoteTag('Có đồ chiên/rán')">Có chiên rán</button>
           <button type="button" class="btn-chip-tag" onclick="appendNoteTag('Có nội tạng')">Có nội tạng</button>
-          <button type="button" class="btn-chip-tag" onclick="appendNoteTag('Ăn muộn/khuya')">Ăn khuya</button>
+          <button type="button" class="btn-chip-tag" onclick="appendNoteTag('Ăn khuya')">Ăn khuya</button>
           <button type="button" class="btn-chip-tag" onclick="appendNoteTag('Ăn quá no')">Ăn quá no</button>
-          <button type="button" class="btn-chip-tag" onclick="appendNoteTag('Uống bia/rượu')">Có uống bia</button>
+          <button type="button" class="btn-chip-tag" onclick="appendNoteTag('Có uống bia')">Uống bia</button>
         </div>
-        <button type="submit" class="btn-primary">Lưu ghi chú bữa ăn</button>
+        <button type="submit" class="btn-green-pill" style="width: 100%;">Lưu ghi chú món ăn</button>
       </form>
     </div>
   </div>
@@ -531,12 +957,10 @@
     <div class="modal-dialog">
       <div class="modal-header">
         <h3 id="modal-shopping-title" class="modal-title">Danh sách đi chợ 7 ngày</h3>
-        <button type="button" class="modal-close" aria-label="Đóng danh sách đi chợ" onclick="closeModal('modal-shopping')">&times;</button>
+        <button type="button" class="modal-close" aria-label="Đóng" onclick="closeModal('modal-shopping')">&times;</button>
       </div>
-      <p class="section-desc">Tổng hợp nguyên liệu theo thực đơn tuần tới. Đánh dấu vào ô khi đã mua xong:</p>
-      <div id="shopping-list-items" class="modal-scroll-body">
-        <!-- Danh sách nguyên liệu theo nhóm -->
-      </div>
+      <p class="section-desc">Tổng hợp nguyên liệu tuần tới. Đánh dấu vào ô khi đã mua xong:</p>
+      <div id="shopping-list-items" class="modal-scroll-body"></div>
     </div>
   </div>
 
@@ -545,7 +969,7 @@
     <div class="modal-dialog">
       <div class="modal-header">
         <h3 id="modal-glucose-title" class="modal-title">Ghi chỉ số đường huyết</h3>
-        <button type="button" class="modal-close" aria-label="Đóng cửa sổ" onclick="closeModal('modal-glucose')">&times;</button>
+        <button type="button" class="modal-close" aria-label="Đóng" onclick="closeModal('modal-glucose')">&times;</button>
       </div>
       <form onsubmit="submitGlucose(event)">
         <div class="form-group">
@@ -561,7 +985,7 @@
             <option value="other">Thời điểm khác</option>
           </select>
         </div>
-        <button type="submit" class="btn-primary" style="margin-top: 12px;">Lưu số đo đường huyết</button>
+        <button type="submit" class="btn-green-pill" style="width: 100%; margin-top: 14px;">Lưu số đo</button>
       </form>
     </div>
   </div>
@@ -571,14 +995,14 @@
     <div class="modal-dialog">
       <div class="modal-header">
         <h3 id="modal-report-title" class="modal-title">Tổng hợp sức khoẻ 7 ngày</h3>
-        <button type="button" class="modal-close" aria-label="Đóng báo cáo tuần" onclick="closeModal('modal-report')">&times;</button>
+        <button type="button" class="modal-close" aria-label="Đóng" onclick="closeModal('modal-report')">&times;</button>
       </div>
-      <div id="report-content" class="modal-scroll-body">
-        Đang tính toán số liệu...
-      </div>
+      <div id="report-content" class="modal-scroll-body">Đang tính toán số liệu...</div>
     </div>
   </div>
 
-  <script src="/app.js?v=7"></script>
+  <span id="today-date-badge" style="display: none;"></span>
+
+  <script src="/app.js?v=8"></script>
 </body>
 </html>
