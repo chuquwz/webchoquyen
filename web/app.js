@@ -145,6 +145,7 @@
   };
 
   function showLoginView() {
+    document.body.classList.remove('is-logged-in');
     const loginEl = document.getElementById('login-view');
     const appEl = document.getElementById('app-view');
     const navEl = document.getElementById('app-bottom-nav');
@@ -154,6 +155,7 @@
   }
 
   function showAppView() {
+    document.body.classList.add('is-logged-in');
     const loginEl = document.getElementById('login-view');
     const appEl = document.getElementById('app-view');
     const navEl = document.getElementById('app-bottom-nav');

@@ -1838,11 +1838,8 @@ input[type="time"].form-input {
   justify-content: center;
 }
 
-/* Bảo đảm bảng điều khiển bottom-nav KHÔNG BAO GIỜ hiển thị ở màn hình đăng nhập */
-#app-bottom-nav[style*="display: none"],
-.login-view ~ .mockup-bottom-nav,
-#login-view:not([style*="display: none"]) ~ #app-bottom-nav,
-body:has(#login-view:not([style*="display: none"])) #app-bottom-nav {
+/* Ẩn thanh chuyển tab khi chưa đăng nhập */
+body:not(.is-logged-in) #app-bottom-nav {
   display: none !important;
 }
 
