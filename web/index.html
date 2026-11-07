@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=12">
+  <link rel="stylesheet" href="/style.css?v=13">
 </head>
 <body>
   <!-- Container Toast thông báo -->
@@ -836,8 +836,7 @@
                 <input type="file" id="restore-file-input" accept=".json" style="display: none;" onchange="restoreBackup(event)">
               </label>
             </div>
-            <div style="margin-top: 14px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-subtle); padding-top: 12px;">
-              <button type="button" class="btn-link-action" onclick="forceCheckUpdate()">Cập nhật ứng dụng</button>
+            <div style="margin-top: 14px; display: flex; justify-content: flex-end; align-items: center; border-top: 1px solid var(--border-subtle); padding-top: 12px;">
               <button type="button" class="btn-danger-link" onclick="logout()">Đăng xuất</button>
             </div>
           </div>
@@ -992,6 +991,6 @@
 
   <span id="today-date-badge" style="display: none;"></span>
 
-  <script src="/app.js?v=12"></script>
+  <script src="/app.js?v=13"></script>
 </body>
 </html>
