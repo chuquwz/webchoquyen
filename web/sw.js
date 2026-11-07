@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quyenhealth-v4';
+const CACHE_NAME = 'quyenhealth-v5';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

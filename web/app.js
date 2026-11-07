@@ -714,10 +714,10 @@
           <stop offset="100%" stop-color="#0284c7" />
         </linearGradient>
       </defs>
-      <line x1="${padX}" y1="${getY(80)}" x2="${500 - padX}" y2="${getY(80)}" stroke="rgba(255,255,255,0.06)" stroke-dasharray="2,2" stroke-width="1"/>
-      <line x1="${padX}" y1="${getY(90)}" x2="${500 - padX}" y2="${getY(90)}" stroke="rgba(255,255,255,0.06)" stroke-dasharray="2,2" stroke-width="1"/>
+      <line x1="${padX}" y1="${getY(80)}" x2="${500 - padX}" y2="${getY(80)}" stroke="#e2e8f0" stroke-dasharray="2,2" stroke-width="1"/>
+      <line x1="${padX}" y1="${getY(90)}" x2="${500 - padX}" y2="${getY(90)}" stroke="#e2e8f0" stroke-dasharray="2,2" stroke-width="1"/>
       <line x1="${padX}" y1="${y70}" x2="${500 - padX}" y2="${y70}" stroke="#10b981" stroke-dasharray="4,4" stroke-width="1.5"/>
-      <text x="${500 - padX + 6}" y="${y70 + 4}" fill="#10b981" font-size="11" font-weight="600">70kg</text>
+      <text x="${500 - padX + 6}" y="${y70 + 4}" fill="#059669" font-size="11" font-weight="700">70kg</text>
     `;
 
     // Vẽ các điểm và đường cân nặng thực tế
@@ -737,8 +737,8 @@
       const x = padX + i * stepX;
       const y = getY(pt.kg);
       svgContent += `
-        <circle cx="${x}" cy="${y}" r="3.5" fill="#38bdf8" stroke="#090d16" stroke-width="1.5" />
-        <text x="${x}" y="${y - 8}" fill="#94a3b8" font-size="10" font-weight="600" text-anchor="middle">${pt.kg}</text>
+        <circle cx="${x}" cy="${y}" r="4" fill="#0284c7" stroke="#ffffff" stroke-width="2" />
+        <text x="${x}" y="${y - 8}" fill="#475569" font-size="10" font-weight="700" text-anchor="middle">${pt.kg}</text>
       `;
     });
 

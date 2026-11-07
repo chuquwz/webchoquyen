@@ -1,51 +1,72 @@
 /* ==========================================================================
-   QuyenHealth - Human-Crafted Design Engineering System
-   Built against jakubkrehel/skills: better-ui, better-typography,
-   better-colors, better-layout, better-accessibility, better-writing.
+   QuyenHealth - Mediq Medical Clean Design System
+   Inspired by Mediq (Clean UI Kit for Medical App, Figma Community)
+   Built with jakubkrehel/skills: better-ui, better-typography, better-colors,
+   better-layout, better-accessibility, better-writing.
    ========================================================================== */
 
 :root {
-  /* Surface & Canvas System (Deep Obsidian Neutral) */
-  --bg-canvas: #090d16;
-  --surface-card: #111827;
-  --surface-card-subtle: #141d2e;
-  --surface-nested: #1a2438;
-  --surface-hover: #212e47;
-  --surface-active: #283754;
+  /* Mediq Clean Medical Palette */
+  --bg-canvas: #f6f8fb;             /* Clean, luminous clinical off-white */
+  --surface-card: #ffffff;          /* Pure white medical card */
+  --surface-card-subtle: #f8fafc;   /* Soft neutral secondary surface */
+  --surface-nested: #f1f5f9;        /* Input / inner chip background */
+  --surface-hover: #e2e8f0;         /* Hover state */
+  --surface-active: #cbd5e1;
+
+  /* Mediq Primary Emerald Green Ramps */
+  --accent-primary: #10b981;
+  --accent-primary-hover: #059669;
+  --accent-primary-active: #047857;
+  --accent-text: #059669;
+  --accent-subtle: #ecfdf5;         /* Soft mint tint for cards & badges */
+  --accent-border: #a7f3d0;
+
+  /* Hydration Medical Sky Blue */
+  --sky-primary: #0ea5e9;
+  --sky-hover: #0284c7;
+  --sky-text: #0284c7;
+  --sky-subtle: #f0f9ff;
+  --sky-border: #bae6fd;
+
+  /* Status Accents */
+  --emerald: #10b981;
+  --emerald-subtle: #ecfdf5;
+  --emerald-border: #a7f3d0;
+  --emerald-text: #065f46;
+
+  --amber: #f59e0b;
+  --amber-subtle: #fffbeb;
+  --amber-border: #fde68a;
+  --amber-text: #92400e;
+
+  --rose: #ef4444;
+  --rose-subtle: #fef2f2;
+  --rose-border: #fecaca;
+  --rose-text: #991b1b;
+
+  /* Typography Colors (WCAG AA & AAA compliant) */
+  --text-primary: #0f172a;          /* Deep Slate-900 */
+  --text-secondary: #475569;        /* Slate-600 */
+  --text-tertiary: #94a3b8;         /* Slate-400 */
 
   /* Borders & Dividers */
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-medium: rgba(255, 255, 255, 0.14);
-  --border-focus: #0ea5e9;
-
-  /* Typographic Contrast System */
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-tertiary: #64748b;
-
-  /* Semantic Accents */
-  --accent-primary: #0ea5e9;
-  --accent-primary-hover: #0284c7;
-  --accent-text: #38bdf8;
-  --emerald: #10b981;
-  --emerald-subtle: rgba(16, 185, 129, 0.15);
-  --amber: #f59e0b;
-  --amber-subtle: rgba(245, 158, 11, 0.15);
-  --rose: #ef4444;
-  --rose-subtle: rgba(239, 68, 68, 0.15);
+  --border-subtle: #e2e8f0;
+  --border-medium: #cbd5e1;
+  --border-focus: #10b981;
 
   /* Concentric Radius Hierarchy: R_outer = R_inner + padding */
   --radius-card: 20px;
-  --radius-inner: 12px;
+  --radius-inner: 14px;
   --radius-chip: 10px;
   --radius-pill: 9999px;
 
-  /* Layered Elevation Shadows (No tacky colored glows) */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --shadow-card: 0 6px 20px -2px rgba(0, 0, 0, 0.45), 0 2px 6px -1px rgba(0, 0, 0, 0.25);
-  --shadow-popover: 0 16px 36px -4px rgba(0, 0, 0, 0.65), 0 4px 12px -2px rgba(0, 0, 0, 0.35);
+  /* Layered Elevation Shadows (Clean medical shadows) */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-card: 0 4px 16px -2px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.03);
+  --shadow-popover: 0 20px 35px -8px rgba(15, 23, 42, 0.12), 0 4px 10px -2px rgba(15, 23, 42, 0.06);
 
-  /* Micro-motion & Springs */
+  /* Micro-motion & Transitions */
   --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-press: cubic-bezier(0.2, 0, 0, 1);
   --duration-fast: 150ms;
@@ -83,7 +104,7 @@ body {
   letter-spacing: -0.01em;
 }
 
-/* Accessibility: Visible Focus Outlines (WCAG 2.2) */
+/* Accessibility: Visible Focus Indicators */
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
@@ -93,7 +114,7 @@ a:focus-visible,
   outline-offset: 2px;
 }
 
-/* Numbers: Always tabular for metrics, weights, dates and times */
+/* Tabular Numbers */
 .tabular-nums,
 .water-cur-val,
 .weight-digits,
@@ -101,21 +122,23 @@ a:focus-visible,
 .threshold-val,
 .stat-val,
 .chip-vol,
-.stepper-btn {
+.stepper-btn,
+.time-chip-input {
   font-variant-numeric: tabular-nums;
 }
 
 /* --------------------------------------------------------------------------
-   App Header & Brand
+   App Header & Brand (Mediq Clean Header)
    -------------------------------------------------------------------------- */
 header.app-header {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(9, 13, 22, 0.85);
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border-subtle);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
 }
 
 .header-inner {
@@ -134,18 +157,18 @@ header.app-header {
 }
 
 .brand-monogram {
-  width: 36px;
-  height: 36px;
-  background: linear-gradient(145deg, #1e293b, #0f172a);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 10px;
+  width: 38px;
+  height: 38px;
+  background: var(--accent-subtle);
+  border: 1px solid var(--accent-border);
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 18px;
   font-weight: 800;
-  color: #38bdf8;
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2), var(--shadow-sm);
+  color: var(--accent-primary);
+  box-shadow: var(--shadow-sm);
 }
 
 .brand-meta {
@@ -163,7 +186,7 @@ header.app-header {
 
 .brand-tagline {
   font-size: 11px;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   font-weight: 500;
 }
 
@@ -173,7 +196,7 @@ header.app-header {
   color: var(--text-secondary);
   background: var(--surface-card-subtle);
   border: 1px solid var(--border-subtle);
-  padding: 5px 12px;
+  padding: 6px 14px;
   border-radius: var(--radius-pill);
   display: flex;
   align-items: center;
@@ -182,14 +205,14 @@ header.app-header {
 
 .header-status::before {
   content: '';
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: var(--emerald);
+  background: var(--accent-primary);
 }
 
 /* --------------------------------------------------------------------------
-   Layout & Dashboard Grid
+   Layout & Responsive Dashboard Grid
    -------------------------------------------------------------------------- */
 main.app-main {
   max-width: 860px;
@@ -204,7 +227,7 @@ main.app-main {
 
 .tab-pane.active {
   display: block;
-  animation: viewFadeIn 0.2s var(--ease-standard);
+  animation: viewFadeIn 0.22s var(--ease-standard);
 }
 
 @keyframes viewFadeIn {
@@ -212,7 +235,6 @@ main.app-main {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Responsive Dashboard Layout (Single column mobile -> 2 Columns Tablet/Desktop) */
 .dashboard-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -243,21 +265,22 @@ main.app-main {
 }
 
 /* --------------------------------------------------------------------------
-   Cards & Surfaces
+   Cards & Surfaces (Mediq Clean White Cards)
    -------------------------------------------------------------------------- */
 .card {
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-card);
-  padding: 20px;
+  padding: 22px;
   box-shadow: var(--shadow-card);
   position: relative;
-  transition: border-color var(--duration-fast) ease;
+  transition: border-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
 }
 
 @media (hover: hover) {
   .card:hover {
-    border-color: rgba(255, 255, 255, 0.12);
+    border-color: #cbd5e1;
+    box-shadow: 0 6px 20px -2px rgba(15, 23, 42, 0.07);
   }
 }
 
@@ -290,31 +313,32 @@ main.app-main {
   line-height: 1.25;
 }
 
+/* Badges (Mediq Pastel Pill Badges) */
 .badge {
   font-size: 11px;
   font-weight: 600;
   padding: 4px 10px;
   border-radius: var(--radius-pill);
-  background: var(--surface-nested);
-  color: var(--accent-text);
-  border: 1px solid rgba(56, 189, 248, 0.2);
+  background: var(--sky-subtle);
+  color: var(--sky-text);
+  border: 1px solid var(--sky-border);
   white-space: nowrap;
 }
 
 .badge-emerald {
   background: var(--emerald-subtle);
-  color: #34d399;
-  border-color: rgba(16, 185, 129, 0.3);
+  color: var(--accent-text);
+  border-color: var(--emerald-border);
 }
 
 .badge-amber {
   background: var(--amber-subtle);
-  color: #fbbf24;
-  border-color: rgba(245, 158, 11, 0.3);
+  color: var(--amber-text);
+  border-color: var(--amber-border);
 }
 
 /* --------------------------------------------------------------------------
-   Widget 1: Lượng Nước Lọc (Precision Ring Gauge)
+   Widget 1: Lượng Nước Lọc (Mediq Circular Ring)
    -------------------------------------------------------------------------- */
 .water-card {
   display: flex;
@@ -325,7 +349,7 @@ main.app-main {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin: 8px 0 18px;
+  margin: 6px 0 16px;
 }
 
 .water-ring-wrapper {
@@ -342,7 +366,7 @@ main.app-main {
 
 .water-ring-track {
   fill: none;
-  stroke: rgba(255, 255, 255, 0.06);
+  stroke: #f1f5f9;
   stroke-width: 11;
 }
 
@@ -385,14 +409,15 @@ main.app-main {
 .water-progress-sub {
   font-size: 12px;
   font-weight: 600;
-  color: var(--accent-text);
-  margin-top: 4px;
-  background: rgba(14, 165, 233, 0.12);
-  padding: 2px 8px;
+  color: var(--sky-text);
+  margin-top: 5px;
+  background: var(--sky-subtle);
+  border: 1px solid var(--sky-border);
+  padding: 2px 10px;
   border-radius: var(--radius-pill);
 }
 
-/* Ngưỡng Tối thiểu / Tối đa */
+/* Thước đo tối thiểu / tối đa */
 .water-thresholds {
   display: flex;
   align-items: center;
@@ -440,7 +465,7 @@ main.app-main {
 }
 
 .btn-water-chip {
-  background: var(--surface-nested);
+  background: var(--surface-card-subtle);
   border: 1px solid var(--border-subtle);
   color: var(--text-primary);
   padding: 10px 4px;
@@ -452,23 +477,22 @@ main.app-main {
   gap: 2px;
   min-height: 52px;
   cursor: pointer;
-  transition: transform var(--duration-fast) var(--ease-press), background-color var(--duration-fast) ease, border-color var(--duration-fast) ease;
+  transition: transform var(--duration-fast) var(--ease-press), background-color var(--duration-fast) ease, border-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
 }
 
 .btn-water-chip:hover {
-  background: var(--surface-hover);
-  border-color: rgba(56, 189, 248, 0.3);
+  background: var(--sky-subtle);
+  border-color: var(--sky-border);
 }
 
 .btn-water-chip:active {
   transform: scale(0.96);
-  background: var(--surface-active);
 }
 
 .chip-vol {
   font-size: 14px;
   font-weight: 700;
-  color: var(--accent-text);
+  color: var(--sky-text);
   line-height: 1.1;
 }
 
@@ -491,14 +515,14 @@ main.app-main {
 
 .water-count-text {
   font-size: 12px;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 /* --------------------------------------------------------------------------
-   Widget 2: Cân Nặng (Precision Stepper)
+   Widget 2: Cân Nặng (Mediq Stepper)
    -------------------------------------------------------------------------- */
 .weight-card {
   display: flex;
@@ -517,7 +541,7 @@ main.app-main {
 }
 
 .weight-digits {
-  font-size: 42px;
+  font-size: 44px;
   font-weight: 800;
   color: var(--text-primary);
   letter-spacing: -0.03em;
@@ -536,7 +560,7 @@ main.app-main {
   margin-top: 6px;
 }
 
-/* Tactile Stepper Cluster */
+/* Stepper Cluster */
 .stepper-cluster {
   display: flex;
   align-items: center;
@@ -550,7 +574,7 @@ main.app-main {
 }
 
 .stepper-btn {
-  background: var(--surface-nested);
+  background: var(--surface-card);
   border: 1px solid var(--border-subtle);
   color: var(--text-primary);
   width: 48px;
@@ -562,17 +586,17 @@ main.app-main {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  box-shadow: var(--shadow-sm);
   transition: transform var(--duration-fast) var(--ease-press), background-color var(--duration-fast) ease, border-color var(--duration-fast) ease;
 }
 
 .stepper-btn:hover {
   background: var(--surface-hover);
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: var(--border-medium);
 }
 
 .stepper-btn:active {
   transform: scale(0.96);
-  background: var(--surface-active);
 }
 
 .stepper-sep {
@@ -583,7 +607,7 @@ main.app-main {
 }
 
 /* --------------------------------------------------------------------------
-   Widget 3: Thuốc Hôm Nay (Pill Habit Card)
+   Widget 3: Thuốc Hôm Nay (Mediq Medical Habit Card)
    -------------------------------------------------------------------------- */
 .med-card {
   display: flex;
@@ -600,15 +624,15 @@ main.app-main {
 }
 
 .med-icon-box {
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   border-radius: var(--radius-inner);
-  background: var(--surface-nested);
-  border: 1px solid var(--border-subtle);
+  background: var(--accent-subtle);
+  border: 1px solid var(--accent-border);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #38bdf8;
+  color: var(--accent-primary);
   flex-shrink: 0;
 }
 
@@ -631,11 +655,11 @@ main.app-main {
 
 .med-subtitle {
   font-size: 12px;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
 }
 
 .btn-med-toggle {
-  background: var(--surface-nested);
+  background: var(--surface-card-subtle);
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
   padding: 8px 16px;
@@ -661,10 +685,11 @@ main.app-main {
 }
 
 .btn-med-toggle.taken {
-  background: var(--emerald-subtle);
-  border-color: rgba(16, 185, 129, 0.5);
-  color: #34d399;
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: #ffffff;
   font-weight: 700;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);
 }
 
 /* --------------------------------------------------------------------------
@@ -678,7 +703,7 @@ main.app-main {
   background: var(--surface-card-subtle);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-inner);
-  padding: 14px;
+  padding: 16px;
   margin-bottom: 10px;
 }
 
@@ -686,7 +711,7 @@ main.app-main {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .meal-slot-name {
@@ -700,34 +725,38 @@ main.app-main {
   font-weight: 600;
   color: var(--accent-text);
   font-variant-numeric: tabular-nums;
-  background: rgba(14, 165, 233, 0.1);
-  padding: 2px 8px;
+  background: var(--accent-subtle);
+  border: 1px solid var(--accent-border);
+  padding: 2px 10px;
   border-radius: var(--radius-pill);
 }
 
 .meal-items-list {
   list-style: none;
   font-size: 13px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .meal-item {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  padding: 3px 0;
+  padding: 2px 0;
   color: var(--text-secondary);
 }
 
 .meal-item-red {
-  color: #fca5a5;
+  color: var(--rose-text);
+  background: var(--rose-subtle);
+  padding: 2px 6px;
+  border-radius: 6px;
 }
 
 .meal-item-red-tag {
-  color: #f87171;
+  color: var(--rose);
   font-weight: 600;
   font-size: 12px;
 }
@@ -744,23 +773,24 @@ main.app-main {
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
-  padding-top: 8px;
+  padding-top: 10px;
   border-top: 1px solid var(--border-subtle);
 }
 
 .btn-slot-act {
-  background: var(--surface-nested);
+  background: var(--surface-card);
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
   font-size: 12px;
   font-weight: 600;
-  padding: 6px 12px;
+  padding: 6px 14px;
   border-radius: var(--radius-chip);
   cursor: pointer;
   min-height: 34px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  box-shadow: var(--shadow-sm);
   transition: transform var(--duration-fast) var(--ease-press), background-color var(--duration-fast) ease, border-color var(--duration-fast) ease, color var(--duration-fast) ease;
 }
 
@@ -774,31 +804,33 @@ main.app-main {
 }
 
 .btn-slot-act.active-done {
-  background: var(--emerald-subtle);
-  border-color: rgba(16, 185, 129, 0.4);
-  color: #34d399;
+  background: var(--accent-subtle);
+  border-color: var(--accent-border);
+  color: var(--accent-text);
+  font-weight: 700;
 }
 
 .btn-slot-act.active-diff {
   background: var(--amber-subtle);
-  border-color: rgba(245, 158, 11, 0.4);
-  color: #fbbf24;
+  border-color: var(--amber-border);
+  color: var(--amber-text);
+  font-weight: 700;
 }
 
 .meal-note-box {
   margin-top: 8px;
   font-size: 12px;
-  background: rgba(30, 27, 75, 0.5);
-  border: 1px solid rgba(99, 102, 241, 0.3);
-  color: #c7d2fe;
-  padding: 6px 10px;
+  background: #fdf4ff;
+  border: 1px solid #f0abfc;
+  color: #86198f;
+  padding: 8px 12px;
   border-radius: var(--radius-chip);
 }
 
 .meal-empty-state {
   text-align: center;
-  color: var(--text-tertiary);
-  padding: 20px 0;
+  color: var(--text-secondary);
+  padding: 24px 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -806,29 +838,30 @@ main.app-main {
 }
 
 /* --------------------------------------------------------------------------
-   Buttons & Interactive Elements
+   Buttons (Mediq Medical Buttons)
    -------------------------------------------------------------------------- */
 .btn-primary {
-  background: #0284c7;
+  background: var(--accent-primary);
   color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  padding: 12px 18px;
+  border: none;
+  padding: 12px 20px;
   border-radius: var(--radius-inner);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   width: 100%;
-  min-height: 44px;
-  box-shadow: var(--shadow-sm);
-  transition: transform var(--duration-fast) var(--ease-press), background-color var(--duration-fast) ease;
+  min-height: 46px;
+  box-shadow: 0 2px 10px rgba(16, 185, 129, 0.28);
+  transition: transform var(--duration-fast) var(--ease-press), background-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
 }
 
 .btn-primary:hover {
-  background: #0369a1;
+  background: var(--accent-primary-hover);
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.38);
 }
 
 .btn-primary:active {
@@ -836,7 +869,7 @@ main.app-main {
 }
 
 .btn-secondary {
-  background: var(--surface-nested);
+  background: var(--surface-card);
   color: var(--text-primary);
   border: 1px solid var(--border-subtle);
   padding: 10px 16px;
@@ -849,12 +882,13 @@ main.app-main {
   justify-content: center;
   gap: 8px;
   min-height: 42px;
+  box-shadow: var(--shadow-sm);
   transition: transform var(--duration-fast) var(--ease-press), background-color var(--duration-fast) ease, border-color var(--duration-fast) ease;
 }
 
 .btn-secondary:hover {
-  background: var(--surface-hover);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: var(--surface-card-subtle);
+  border-color: var(--border-medium);
 }
 
 .btn-secondary:active {
@@ -862,16 +896,16 @@ main.app-main {
 }
 
 .btn-sm {
-  padding: 6px 12px;
+  padding: 6px 14px;
   font-size: 12px;
-  min-height: 32px;
+  min-height: 34px;
 }
 
 .btn-link {
   background: none;
   border: none;
   color: var(--accent-text);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   padding: 4px 6px;
@@ -880,7 +914,7 @@ main.app-main {
 }
 
 .btn-link:hover {
-  color: #7dd3fc;
+  color: var(--accent-primary-hover);
   text-decoration: underline;
 }
 
@@ -926,16 +960,15 @@ main.app-main {
   display: flex;
   gap: 12px;
   align-items: flex-start;
-  background: var(--surface-card-subtle);
-  border: 1px solid var(--border-subtle);
-  border-left: 3px solid #38bdf8;
+  background: var(--accent-subtle);
+  border: 1px solid var(--accent-border);
   border-radius: var(--radius-inner);
   padding: 12px 16px;
   margin-bottom: 18px;
 }
 
 .notice-icon {
-  color: #38bdf8;
+  color: var(--accent-primary);
   flex-shrink: 0;
   margin-top: 2px;
 }
@@ -947,7 +980,7 @@ main.app-main {
 
 .notice-text {
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--emerald-text);
   line-height: 1.5;
 }
 
@@ -959,8 +992,8 @@ main.app-main {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
   border-bottom: 1px solid var(--border-subtle);
 }
 
@@ -972,50 +1005,61 @@ main.app-main {
 }
 
 /* --------------------------------------------------------------------------
-   Tab 3: Cân Nặng & Biểu Đồ
+   Tab 3: Cân Nặng & Biểu Đồ (Mediq Stat Trio)
    -------------------------------------------------------------------------- */
 .metric-trio-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  gap: 12px;
   margin-bottom: 18px;
 }
 
+/* Mediq Style Soft Pastel Stat Boxes */
 .metric-trio-card {
   background: var(--surface-card-subtle);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-inner);
-  padding: 10px;
+  padding: 12px 10px;
   text-align: center;
+}
+
+.metric-trio-card:nth-child(2) {
+  background: var(--sky-subtle);
+  border-color: var(--sky-border);
+}
+
+.metric-trio-card:nth-child(3) {
+  background: var(--accent-subtle);
+  border-color: var(--accent-border);
 }
 
 .metric-label {
   display: block;
   font-size: 11px;
-  color: var(--text-tertiary);
-  font-weight: 500;
-  margin-bottom: 2px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  margin-bottom: 3px;
 }
 
 .metric-value {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 17px;
+  font-weight: 800;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
 
 .metric-value-accent {
-  color: var(--accent-text);
+  color: var(--sky-text);
 }
 
 .metric-value-emerald {
-  color: #34d399;
+  color: var(--accent-text);
 }
 
 .chart-container {
   width: 100%;
   height: 200px;
-  margin: 8px 0;
+  margin: 12px 0 8px;
 }
 
 .chart-svg {
@@ -1028,9 +1072,9 @@ main.app-main {
 .chart-legend {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
-  color: var(--text-tertiary);
-  padding-top: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding-top: 10px;
   border-top: 1px solid var(--border-subtle);
 }
 
@@ -1088,8 +1132,8 @@ main.app-main {
 
 .guide-callout {
   margin-top: 14px;
-  background: var(--surface-card-subtle);
-  border: 1px solid var(--border-subtle);
+  background: var(--amber-subtle);
+  border: 1px solid var(--amber-border);
   border-radius: var(--radius-inner);
   padding: 12px 14px;
 }
@@ -1098,13 +1142,13 @@ main.app-main {
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  color: var(--amber);
+  color: var(--amber-text);
   margin-bottom: 4px;
 }
 
 .guide-text {
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--amber-text);
   line-height: 1.5;
 }
 
@@ -1140,7 +1184,7 @@ main.app-main {
 .reminder-group-sub {
   display: block;
   font-size: 12px;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   margin-top: 2px;
 }
 
@@ -1154,11 +1198,12 @@ main.app-main {
 .time-chip {
   display: inline-flex;
   align-items: center;
-  background: var(--surface-nested);
+  background: var(--surface-card);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-chip);
   padding: 4px 6px 4px 10px;
   gap: 6px;
+  box-shadow: var(--shadow-sm);
   transition: border-color var(--duration-fast) ease;
 }
 
@@ -1196,13 +1241,13 @@ main.app-main {
 }
 
 .btn-chip-del:hover {
-  background: rgba(239, 68, 68, 0.2);
+  background: var(--rose-subtle);
   color: var(--rose);
 }
 
 .btn-add-time {
-  background: transparent;
-  border: 1px dashed var(--border-medium);
+  background: var(--surface-card);
+  border: 1px dashed var(--accent-border);
   color: var(--accent-text);
   font-size: 12px;
   font-weight: 600;
@@ -1216,7 +1261,7 @@ main.app-main {
 }
 
 .btn-add-time:hover {
-  background: var(--surface-hover);
+  background: var(--accent-subtle);
   border-color: var(--accent-primary);
 }
 
@@ -1250,21 +1295,22 @@ main.app-main {
 
 .form-input {
   width: 100%;
-  background: var(--surface-card-subtle);
+  background: var(--surface-card);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-chip);
   padding: 10px 14px;
   color: var(--text-primary);
-  /* 16px font-size to prevent iOS Safari auto-zoom (better-typography) */
+  /* 16px on mobile to avoid iOS Safari auto-zoom */
   font-size: 16px;
   font-family: inherit;
+  box-shadow: var(--shadow-sm);
   transition: border-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
 }
 
 .form-input:focus {
   outline: none;
   border-color: var(--border-focus);
-  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
 }
 
 .card-danger-zone {
@@ -1275,7 +1321,7 @@ main.app-main {
 }
 
 /* --------------------------------------------------------------------------
-   Bottom Navigation Bar
+   Bottom Navigation Bar (Mediq Clean White Navbar)
    -------------------------------------------------------------------------- */
 nav.app-navbar {
   position: fixed;
@@ -1283,11 +1329,12 @@ nav.app-navbar {
   left: 0;
   right: 0;
   z-index: 100;
-  background: rgba(9, 13, 22, 0.9);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid var(--border-subtle);
   padding-bottom: var(--safe-bottom);
+  box-shadow: 0 -2px 10px rgba(15, 23, 42, 0.04);
 }
 
 .navbar-inner {
@@ -1340,11 +1387,11 @@ nav.app-navbar {
 }
 
 .nav-item.active {
-  color: var(--accent-text);
+  color: var(--accent-primary);
 }
 
 .nav-item.active svg {
-  stroke: var(--accent-text);
+  stroke: var(--accent-primary);
 }
 
 /* --------------------------------------------------------------------------
@@ -1354,9 +1401,9 @@ nav.app-navbar {
   position: fixed;
   inset: 0;
   z-index: 200;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -1372,14 +1419,14 @@ nav.app-navbar {
 
 .modal-content {
   background: var(--surface-card);
-  border: 1px solid var(--border-medium);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-card) var(--radius-card) 0 0;
   width: 100%;
   max-width: 580px;
   max-height: 85dvh;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 20px 24px 28px;
+  padding: 24px;
   box-shadow: var(--shadow-popover);
   transform: translateY(100%);
   transition: transform 0.25s var(--ease-standard);
@@ -1408,7 +1455,7 @@ nav.app-navbar {
 }
 
 .modal-title {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 700;
   color: var(--text-primary);
 }
@@ -1429,7 +1476,7 @@ nav.app-navbar {
 }
 
 .modal-close:hover {
-  background: var(--surface-hover);
+  background: var(--surface-card-subtle);
   color: var(--text-primary);
 }
 
@@ -1441,7 +1488,7 @@ nav.app-navbar {
 
 .quick-tags-label {
   font-size: 12px;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   margin-bottom: 8px;
 }
 
@@ -1453,18 +1500,20 @@ nav.app-navbar {
 }
 
 .btn-tag {
-  background: var(--surface-nested);
+  background: var(--surface-card-subtle);
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
   font-size: 12px;
-  padding: 6px 10px;
+  padding: 6px 12px;
   border-radius: var(--radius-chip);
   cursor: pointer;
+  transition: background-color var(--duration-fast) ease;
 }
 
 .btn-tag:hover {
-  background: var(--surface-hover);
-  color: var(--text-primary);
+  background: var(--accent-subtle);
+  color: var(--accent-text);
+  border-color: var(--accent-border);
 }
 
 .btn-tag:active {
@@ -1494,13 +1543,13 @@ nav.app-navbar {
 }
 
 .toast {
-  background: #1e293b;
+  background: #ffffff;
   border: 1px solid var(--border-medium);
-  color: #ffffff;
-  padding: 10px 16px;
+  color: var(--text-primary);
+  padding: 12px 16px;
   border-radius: var(--radius-inner);
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   box-shadow: var(--shadow-popover);
   display: flex;
   align-items: center;
@@ -1515,7 +1564,7 @@ nav.app-navbar {
 }
 
 /* --------------------------------------------------------------------------
-   Login View
+   Login View (Mediq Style)
    -------------------------------------------------------------------------- */
 .login-view {
   min-height: 90dvh;
@@ -1531,27 +1580,28 @@ nav.app-navbar {
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-card);
-  padding: 32px 24px;
+  padding: 36px 28px;
   text-align: center;
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow-popover);
 }
 
 .login-card .brand-monogram {
-  width: 48px;
-  height: 48px;
-  font-size: 24px;
+  width: 52px;
+  height: 52px;
+  font-size: 26px;
   margin: 0 auto 16px;
 }
 
 .login-title {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 800;
   margin-bottom: 4px;
+  color: var(--text-primary);
 }
 
 .login-sub {
   font-size: 13px;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   margin-bottom: 24px;
 }
 
@@ -1563,7 +1613,7 @@ nav.app-navbar {
 }
 
 /* --------------------------------------------------------------------------
-   Accessibility: 320px Viewport Resilience & Reduced Motion
+   Accessibility & Reduced Motion
    -------------------------------------------------------------------------- */
 @media (max-width: 360px) {
   .water-actions-grid {
