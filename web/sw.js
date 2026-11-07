@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quyenhealth-v1';
+const CACHE_NAME = 'quyenhealth-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -35,17 +35,15 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/healthz')) {
     return;
   }
-  // Đối với tĩnh: Cache First, fallback network
+  // Đối với tài nguyên web: Network First để luôn cập nhật giao diện mới nhất, fallback sang Cache khi offline
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      return cached || fetch(event.request).then((resp) => {
-        if (resp.status === 200 && event.request.method === 'GET') {
-          const clone = resp.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-        }
-        return resp;
-      });
-    }).catch(() => caches.match('/index.html'))
+    fetch(event.request).then((resp) => {
+      if (resp.status === 200 && event.request.method === 'GET') {
+        const clone = resp.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+      }
+      return resp;
+    }).catch(() => caches.match(event.request).then((cached) => cached || caches.match('/index.html')))
   );
 });
 
