@@ -147,15 +147,19 @@
   function showLoginView() {
     const loginEl = document.getElementById('login-view');
     const appEl = document.getElementById('app-view');
+    const navEl = document.getElementById('app-bottom-nav');
     if (loginEl) loginEl.style.display = 'flex';
     if (appEl) appEl.style.display = 'none';
+    if (navEl) navEl.style.display = 'none';
   }
 
   function showAppView() {
     const loginEl = document.getElementById('login-view');
     const appEl = document.getElementById('app-view');
+    const navEl = document.getElementById('app-bottom-nav');
     if (loginEl) loginEl.style.display = 'none';
     if (appEl) appEl.style.display = 'block';
+    if (navEl) navEl.style.display = 'flex';
   }
 
   // Xử lý Form đăng nhập
@@ -210,6 +214,7 @@
       loadGlucoseData();
     }
 
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     const scrollContainer = document.querySelector('.app-content-area');
     if (scrollContainer) {
       scrollContainer.scrollTo({ top: 0, behavior: 'smooth' });

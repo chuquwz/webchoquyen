@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=9">
+  <link rel="stylesheet" href="/style.css?v=12">
 </head>
 <body>
   <!-- Container Toast thông báo -->
@@ -22,17 +22,6 @@
   <!-- Device Presentation Canvas (Mockup Frame) -->
   <div class="device-mockup-wrapper">
     <div class="device-phone-frame">
-
-      <!-- Status Bar giả lập giống thiết bị thật trong ảnh -->
-      <div class="mockup-status-bar" aria-hidden="true">
-        <span class="status-time">18:30</span>
-        <div class="status-notch"></div>
-        <div class="status-icons">
-          <svg class="status-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M12 4C7.31 4 3.07 5.9 0 8.98L12 21 24 8.98A16.88 16.88 0 0 0 12 4z"/></svg>
-          <svg class="status-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M2 22h20V2L2 22z"/></svg>
-          <div class="battery-icon"><div class="battery-fill"></div></div>
-        </div>
-      </div>
 
       <!-- MÀN HÌNH ĐĂNG NHẬP (MÃ PIN) -->
       <div id="login-view" class="login-view" style="display: none;">
@@ -47,13 +36,13 @@
           <p class="login-subtext">Ứng dụng theo dõi sức khoẻ cá nhân của Phùng Văn Quyền</p>
           
           <form id="login-form">
-            <div class="form-group">
-              <label class="form-label" for="pin-input">Mã PIN bảo mật</label>
+            <div class="login-form-group">
+              <label class="login-form-label" for="pin-input">Mã PIN bảo mật</label>
               <div class="pin-input-wrap">
-                <input type="password" id="pin-input" class="form-input pin-input" placeholder="••••" inputmode="numeric" maxlength="8" required autofocus>
+                <input type="password" id="pin-input" class="pin-input" placeholder="••••" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="one-time-code" required autofocus>
               </div>
             </div>
-            <button type="submit" class="btn-green-pill" style="width: 100%; margin-top: 14px;">Đăng nhập ngay</button>
+            <button type="submit" class="btn-green-pill btn-login-submit">Đăng nhập ngay</button>
           </form>
         </div>
       </div>
@@ -859,7 +848,7 @@
       <!-- =====================================================================
            THANH ĐIỀU HƯỚNG ĐÁY (VỚI HIỆU ỨNG GREEN PILL ACTIVE - THUẦN TIẾNG VIỆT)
            ===================================================================== -->
-      <nav class="mockup-bottom-nav" role="tablist" aria-label="Điều hướng chính">
+      <nav class="mockup-bottom-nav" id="app-bottom-nav" style="display: none;" role="tablist" aria-label="Điều hướng chính">
         <!-- 1. Hôm nay -->
         <button type="button" class="nav-pill-btn active" id="nav-btn-today" role="tab" aria-selected="true" aria-label="Hôm nay" onclick="switchTab('today')">
           <svg class="nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -1003,6 +992,6 @@
 
   <span id="today-date-badge" style="display: none;"></span>
 
-  <script src="/app.js?v=9"></script>
+  <script src="/app.js?v=12"></script>
 </body>
 </html>

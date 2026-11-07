@@ -56,9 +56,10 @@
   --shadow-phone: 0 24px 64px rgba(0, 0, 0, 0.14), 0 4px 12px rgba(0, 0, 0, 0.06);
   --shadow-btn: 0 4px 14px rgba(164, 219, 122, 0.4);
 
-  /* Fonts */
+  /* Fonts & Safe Areas */
   --font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --safe-bottom: env(safe-area-inset-bottom, 12px);
+  --safe-top: env(safe-area-inset-top, 20px);
+  --safe-bottom: env(safe-area-inset-bottom, 16px);
 }
 
 /* --------------------------------------------------------------------------
@@ -138,10 +139,15 @@ a:focus-visible,
   overflow: hidden;
 }
 
-/* Khi xem trên điện thoại thật: lấp đầy toàn màn hình không có viền giả lập */
-@media (max-width: 480px) {
+/* Khi xem trên điện thoại thật (iPhone / Android): lấp đầy toàn màn hình không có viền giả lập */
+@media (max-width: 600px) {
+  body {
+    background-color: var(--bg-app);
+  }
   .device-mockup-wrapper {
     padding: 0;
+    min-height: 100vh;
+    min-height: 100dvh;
   }
   .device-phone-frame {
     border: none;
@@ -149,82 +155,23 @@ a:focus-visible,
     box-shadow: none;
     max-width: 100%;
     min-height: 100vh;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+  .login-view {
+    min-height: 100vh;
+    min-height: 100dvh;
   }
 }
 
-/* Status Bar Giả Lập */
-.mockup-status-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 22px 6px;
-  background-color: var(--bg-app);
-  font-size: 13px;
-  font-weight: 700;
-  color: #1C1F1B;
-  letter-spacing: -0.2px;
-  user-select: none;
-  z-index: 20;
-}
-
-.status-notch {
-  width: 90px;
-  height: 4px;
-  background-color: #E2E8DF;
-  border-radius: 9999px;
-}
-
-.status-icons {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.status-icon {
-  width: 15px;
-  height: 15px;
-  fill: #1C1F1B;
-}
-
-.battery-icon {
-  width: 22px;
-  height: 11px;
-  border: 1.8px solid #1C1F1B;
-  border-radius: 3.5px;
-  padding: 1px;
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.battery-icon::after {
-  content: '';
-  position: absolute;
-  right: -3.5px;
-  top: 2px;
-  width: 2px;
-  height: 4px;
-  background-color: #1C1F1B;
-  border-radius: 0 1px 1px 0;
-}
-
-.battery-fill {
-  width: 100%;
-  height: 100%;
-  background-color: #1C1F1B;
-  border-radius: 1px;
-}
-
 /* --------------------------------------------------------------------------
-   App Content Scrollable Area
+   App Content Area
    -------------------------------------------------------------------------- */
 .app-content-area {
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 12px 20px 24px;
-  scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch;
+  width: 100%;
+  padding: max(16px, var(--safe-top)) 20px calc(88px + var(--safe-bottom));
+  box-sizing: border-box;
 }
 
 .tab-pane {
@@ -1626,20 +1573,35 @@ a:focus-visible,
    (Transforming Green Capsule Active Pill matching mockup 100%)
    -------------------------------------------------------------------------- */
 .mockup-bottom-nav {
-  position: sticky;
+  position: fixed;
   bottom: 0;
-  left: 0;
-  right: 0;
-  background-color: #FFFFFF;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 414px;
+  background-color: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border-top-left-radius: 28px;
   border-top-right-radius: 28px;
-  box-shadow: var(--shadow-nav);
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.08);
   padding: 10px 14px calc(10px + var(--safe-bottom));
   display: flex;
   justify-content: space-around;
   align-items: center;
-  z-index: 50;
-  border-top: 1px solid rgba(0, 0, 0, 0.03);
+  z-index: 100;
+  border-top: 1px solid rgba(0, 0, 0, 0.04);
+  box-sizing: border-box;
+}
+
+@media (max-width: 600px) {
+  .mockup-bottom-nav {
+    left: 0;
+    transform: none;
+    max-width: 100%;
+    border-top-left-radius: 24px;
+    border-top-right-radius: 24px;
+  }
 }
 
 .nav-pill-btn {
@@ -1698,6 +1660,7 @@ a:focus-visible,
   align-items: center;
   justify-content: center;
   padding: 24px;
+  flex: 1;
 }
 
 .login-container {
@@ -1709,6 +1672,10 @@ a:focus-visible,
   padding: 32px 24px;
   box-shadow: var(--shadow-card);
   border: 1px solid var(--border-card);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
 }
 
 .login-brand-icon {
@@ -1733,18 +1700,115 @@ a:focus-visible,
   font-size: 13px;
   color: var(--text-sub);
   margin-bottom: 24px;
+  line-height: 1.4;
+}
+
+#login-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.login-form-group {
+  width: 100%;
+  margin-bottom: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.login-form-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-sub);
+  margin-bottom: 8px;
+  display: block;
+  text-align: center;
 }
 
 .pin-input-wrap {
-  margin-top: 6px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
 }
 
 .pin-input {
-  text-align: center;
-  font-size: 26px;
-  letter-spacing: 12px;
-  font-weight: 800;
+  width: 100%;
   height: 52px;
+  background-color: #F8FAF7;
+  border: 1.5px solid #E2EBDD;
+  border-radius: 16px;
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--text-main);
+  text-align: center;
+  letter-spacing: 14px;
+  text-indent: 14px; /* Triệt tiêu khoảng trống letter-spacing cuối để căn giữa 100% trên iPhone/Safari */
+  padding: 0 !important;
+  margin: 0;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.pin-input:focus {
+  border-color: var(--color-pill-green);
+  background-color: #FFFFFF;
+  box-shadow: 0 0 0 3px rgba(164, 219, 122, 0.25);
+}
+
+.pin-input::-webkit-input-placeholder {
+  color: #B4BCB0;
+  letter-spacing: 14px;
+  text-indent: 14px;
+  opacity: 1;
+  text-align: center;
+}
+
+.pin-input::placeholder {
+  color: #B4BCB0;
+  letter-spacing: 14px;
+  text-indent: 14px;
+  opacity: 1;
+  text-align: center;
+}
+
+/* Triệt tiêu nút autofill ẩn của WebKit trên iOS gây lệch tâm */
+.pin-input::-webkit-contacts-auto-fill-button,
+.pin-input::-webkit-credentials-auto-fill-button {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  position: absolute !important;
+  right: 0 !important;
+}
+
+.pin-input::-ms-clear,
+.pin-input::-ms-reveal {
+  display: none;
+}
+
+.btn-login-submit {
+  width: 100%;
+  height: 48px;
+  margin-top: 14px;
+  font-size: 14.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Bảo đảm bảng điều khiển bottom-nav KHÔNG BAO GIỜ hiển thị ở màn hình đăng nhập */
+#app-bottom-nav[style*="display: none"],
+.login-view ~ .mockup-bottom-nav,
+#login-view:not([style*="display: none"]) ~ #app-bottom-nav,
+body:has(#login-view:not([style*="display: none"])) #app-bottom-nav {
+  display: none !important;
 }
 
 /* --------------------------------------------------------------------------
