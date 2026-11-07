@@ -191,8 +191,9 @@
     showLoginView();
   };
 
-  // Quản lý Tab: hôm nay, tổng quan, ai, hồ sơ, cài đặt
+  // Quản lý Tab: hôm nay, thực đơn, chỉ số, cài đặt
   window.switchTab = function (tabId) {
+    if (tabId === 'records') tabId = 'meals';
     state.activeTab = tabId;
     document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.nav-pill-btn').forEach(el => {
@@ -210,7 +211,7 @@
     }
 
     if (tabId === 'overview') loadWeightData();
-    if (tabId === 'records') loadMeals();
+    if (tabId === 'meals') loadMeals();
     if (tabId === 'settings') {
       loadSettingsData();
       loadGlucoseData();
@@ -225,7 +226,7 @@
 
   function setupRouting() {
     const hash = window.location.hash.replace('#', '');
-    if (['today', 'overview', 'ai', 'records', 'settings'].includes(hash)) {
+    if (['today', 'meals', 'overview', 'settings'].includes(hash)) {
       switchTab(hash);
     }
   }
@@ -319,10 +320,20 @@
       ringCircle.style.strokeDashoffset = offset;
     }
 
-    // Cập nhật thẻ tóm tắt nước uống ở mục Hôm Nay
+    // Cập nhật các thẻ tóm tắt ở mục Hôm Nay
     const waterSummary = document.getElementById('summary-water-display');
     if (waterSummary) {
       waterSummary.textContent = (state.waterTotal / 1000).toFixed(1);
+    }
+    const weightSummary = document.getElementById('summary-weight-display');
+    if (weightSummary) {
+      const curW = state.todayWeight !== null ? state.todayWeight : state.currentWeight;
+      weightSummary.textContent = curW.toFixed(1);
+    }
+    const medSummary = document.getElementById('summary-med-display');
+    if (medSummary) {
+      medSummary.textContent = state.medTaken ? 'Đã uống' : 'Chưa uống';
+      medSummary.style.color = state.medTaken ? '#2B5719' : '#C2410C';
     }
   }
 
@@ -598,17 +609,8 @@
     showToast('Chọn ngày để xem dữ liệu');
   };
 
-  window.openOverviewMenu = function () {
-    showToast('Tuỳ chọn: Xuất báo cáo, Tải CSV, Lọc số đo');
-  };
-
   window.openNotificationsModal = function () {
-    showToast('Hôm nay bạn không có cảnh báo sức khoẻ nào bất thường!');
-  };
-
-  window.openSymptomChecker = function () {
-    switchTab('ai');
-    sendQuickPrompt('Tôi muốn kiểm tra một vài triệu chứng sức khoẻ...');
+    showToast('Tất cả chỉ số sức khoẻ hôm nay đang được theo dõi ổn định!');
   };
 
   // ================= 2. BỮA ĂN (7 NGÀY) =================
@@ -847,6 +849,38 @@
       state.weights = data.rows || [];
       renderWeightChart();
       renderWeightHistory();
+
+      // Cập nhật các thẻ chỉ số thực tế trên màn hình Tổng quan
+      const cur = state.weights.length > 0 ? state.weights[state.weights.length - 1].kg : state.currentWeight;
+      const rem = Math.max(0, cur - 70.0);
+      const wVal = document.getElementById('overview-weight-val');
+      if (wVal) wVal.textContent = cur.toFixed(1);
+      const wBadge = document.getElementById('overview-weight-badge');
+      if (wBadge) wBadge.textContent = `Còn ${rem.toFixed(1)} kg`;
+
+      const kcalVal = document.getElementById('overview-kcal-val');
+      if (kcalVal) kcalVal.textContent = (state.targetKcal || 1800).toLocaleString('vi-VN');
+
+      const waterVal = document.getElementById('overview-water-val');
+      if (waterVal) {
+        const minW = parseInt(state.settings.water_min || 2500);
+        waterVal.textContent = state.waterTotal.toLocaleString('vi-VN');
+        const waterPct = document.getElementById('overview-water-pct');
+        if (waterPct) {
+          const pct = Math.min(100, Math.round((state.waterTotal / minW) * 100));
+          waterPct.textContent = `${pct}%`;
+        }
+      }
+
+      // Nạp thêm dữ liệu đường huyết nếu có
+      if (state.glucose && state.glucose.length > 0) {
+        const g = state.glucose[0];
+        const gVal = document.getElementById('overview-glucose-val');
+        if (gVal) gVal.textContent = g.mmol.toFixed(1);
+        const gBadge = document.getElementById('overview-glucose-badge');
+        const ctxLabels = { fasting: 'Sáng đói', after: 'Sau ăn', bedtime: 'Trước ngủ', other: 'Khác' };
+        if (gBadge) gBadge.textContent = ctxLabels[g.ctx] || 'Đã ghi';
+      }
     } catch (e) { }
   }
 
@@ -1314,202 +1348,13 @@
     e.target.value = '';
   };
 
-  // ================= 5. TRỢ LÝ SỨC KHOẺ AI TƯƠNG TÁC THUẦN TIẾNG VIỆT =================
-  window.submitAiMessage = function () {
-    const input = document.getElementById('ai-input-field');
-    if (!input) return;
-    const msg = input.value.trim();
-    if (!msg) return;
-    input.value = '';
-    sendAiMessage(msg);
-  };
-
-  window.handleAiKeydown = function (e) {
-    if (e.key === 'Enter') {
-      submitAiMessage();
-    }
-  };
-
-  window.sendQuickPrompt = function (promptText) {
-    switchTab('ai');
-    sendAiMessage(promptText);
-  };
-
-  function sendAiMessage(msg) {
-    const stream = document.getElementById('ai-chat-messages');
-    if (!stream) return;
-
-    // 1. Thêm bong bóng của người dùng (màu xanh lá bên phải)
-    const userRow = document.createElement('div');
-    userRow.className = 'chat-row user-row';
-    userRow.innerHTML = `<div class="chat-bubble user-bubble">${escapeHtml(msg)}</div>`;
-    stream.appendChild(userRow);
-
-    // 2. Thêm chỉ báo AI đang xử lý
-    const aiRow = document.createElement('div');
-    aiRow.className = 'chat-row ai-row';
-    aiRow.innerHTML = `
-      <div class="ai-sparkle-avatar">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"/></svg>
-      </div>
-      <div class="chat-bubble ai-bubble">
-        <div style="display: flex; gap: 4px; align-items: center; padding: 6px 0;">
-          <span style="font-size: 13px; color: var(--text-muted);">Đang phân tích dữ liệu sức khoẻ của bạn...</span>
-        </div>
-      </div>
-    `;
-    stream.appendChild(aiRow);
-
-    const scrollContainer = document.querySelector('.app-content-area');
-    if (scrollContainer) scrollContainer.scrollTo({ top: scrollContainer.scrollHeight, behavior: 'smooth' });
-
-    // 3. Tạo câu trả lời thông minh thuần Tiếng Việt dựa trên dữ liệu sức khoẻ
-    setTimeout(() => {
-      let adviceText = '';
-      let recs = [];
-      const lower = msg.toLowerCase();
-
-      if (lower.includes('đau đầu') || lower.includes('mệt') || lower.includes('ốm') || lower.includes('chóng mặt')) {
-        adviceText = "Chào Quyền, tôi rất tiếc khi biết bạn đang cảm thấy mệt mỏi và đau đầu. Đối với người đang theo dõi men gan và điều chỉnh cân nặng, triệu chứng này thường do thiếu nước, căng thẳng hoặc thiếu ngủ. Dưới đây là các khuyến nghị:";
-        recs = [
-          "Nghỉ ngơi và đi ngủ sớm trước 22:30 đêm nay (mục tiêu 7 - 8 tiếng)",
-          `Uống ngay 1 ca nước lọc ấm (hôm nay bạn đã uống ${state.waterTotal}ml / 2.500ml)`,
-          "Hạn chế nhìn màn hình điện thoại trước khi ngủ ít nhất 30 phút",
-          "Uống thuốc hạ men gan theo đúng đơn sau bữa ăn, nếu đau kéo dài hãy đi khám bác sĩ"
-        ];
-      } else if (lower.includes('thực đơn') || lower.includes('ăn') || lower.includes('đói') || lower.includes('món')) {
-        adviceText = "Kế hoạch dinh dưỡng hôm nay của Quyền được thiết kế ~1.800 kcal, tập trung vào thực phẩm làng quê quen thuộc ít dầu mỡ để bảo vệ gan:";
-        recs = [
-          "Ưu tiên món luộc, hấp thanh đạm: ức gà luộc, trứng luộc, nạc heo luộc, cá đồng nấu ngót",
-          "Tuyệt đối không ăn nội tạng động vật và không chiên rán nhiều mỡ",
-          "Bổ sung nhiều rau xanh lá để tăng cường chất xơ đào thải độc tố",
-          "Bấm tab 'Hồ sơ' bên dưới để xem chi tiết thực đơn 7 ngày và danh sách đi chợ"
-        ];
-      } else if (lower.includes('nước') || lower.includes('uống')) {
-        adviceText = `Hôm nay bạn đã uống ${state.waterTotal.toLocaleString('vi-VN')} ml nước lọc:`;
-        recs = [
-          "Mục tiêu tối thiểu là 2.500 ml để thận và gan lọc mỡ thừa hiệu quả",
-          "Uống từng ngụm nhỏ, chia đều 4 - 5 lần trong ngày thay vì uống dồn 1 lúc",
-          "Không tính nước ngọt có ga, trà quá đặc hay bia rượu vào lượng nước lọc này"
-        ];
-      } else if (lower.includes('cân') || lower.includes('giảm') || lower.includes('mục tiêu')) {
-        const diff = Math.max(0, state.currentWeight - 70.0).toFixed(1);
-        adviceText = `Cân nặng hiện tại: ${state.currentWeight.toFixed(1)} kg. Bạn đang trên hành trình tiến về mốc 70.0 kg (cần giảm ${diff} kg):`;
-        recs = [
-          "Bước lên cân mỗi buổi sáng sau khi đi vệ sinh và trước khi ăn sáng",
-          "Tốc độ giảm an toàn và bền vững cho gan là 0.5 - 1.0 kg mỗi tuần",
-          "Kết hợp đi bộ nhẹ nhàng 30 - 45 phút mỗi chiều tối sau giờ làm",
-          "Uống đều đặn thuốc điều trị theo chỉ định của bác sĩ"
-        ];
-      } else {
-        adviceText = "Chào Quyền! Tôi luôn sẵn sàng đồng hành cùng bạn trên hành trình chăm sóc sức khoẻ. Dưới đây là những lời khuyên phù hợp nhất lúc này:";
-        recs = [
-          `Duy trì uống đủ nước lọc (mục tiêu 2.500 ml/ngày)`,
-          "Ăn đúng bữa theo thực đơn làng quê thanh đạm, tránh hoàn toàn rượu bia",
-          "Uống thuốc bảo vệ gan đều đặn sau bữa ăn",
-          "Giữ tinh thần thoải mái và đi ngủ trước 22:30"
-        ];
-      }
-
-      const recsHtml = recs.map(r => `
-        <li>
-          <span class="rec-check-icon">✔</span>
-          <span>${r}</span>
-        </li>
-      `).join('');
-
-      const bubbleEl = aiRow.querySelector('.ai-bubble');
-      if (bubbleEl) {
-        bubbleEl.innerHTML = `
-          <p class="ai-bubble-intro">${adviceText}</p>
-          <ul class="ai-recs-list">${recsHtml}</ul>
-          <div class="ai-feedback-toolbar">
-            <button type="button" class="btn-feedback" title="Sao chép nội dung" onclick="copyAiResponse(this)">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-            </button>
-            <button type="button" class="btn-feedback" title="Hữu ích" onclick="rateAiResponse(this, 'up')">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
-            </button>
-            <button type="button" class="btn-feedback" title="Chưa chuẩn" onclick="rateAiResponse(this, 'down')">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3"/></svg>
-            </button>
-          </div>
-        `;
-      }
-
-      if (scrollContainer) scrollContainer.scrollTo({ top: scrollContainer.scrollHeight, behavior: 'smooth' });
-    }, 600);
-  }
-
-  window.copyAiResponse = function (btn) {
-    const bubble = btn.closest('.ai-bubble');
-    if (bubble) {
-      navigator.clipboard.writeText(bubble.innerText);
-      showToast('Đã sao chép nội dung tư vấn');
-    }
-  };
-
-  window.rateAiResponse = function (btn, type) {
-    showToast(type === 'up' ? 'Cảm ơn bạn đã đánh giá tốt!' : 'Cảm ơn, AI sẽ cải thiện câu trả lời');
-  };
-
-  window.showAiHistory = function () {
-    showToast('Lịch sử trò chuyện gần nhất được lưu trên máy');
-  };
-
-  window.openAttachOptions = function () {
-    showToast('Đính kèm ảnh kết quả xét nghiệm hoặc đơn thuốc');
-  };
-
-  window.startVoiceInput = function () {
-    showToast('Bấm và nói câu hỏi sức khoẻ của bạn');
-  };
-
   function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
   }
 
-  // ================= 6. LỌC HỒ SƠ Y TẾ =================
-  window.filterRecords = function (cat, btn) {
-    document.querySelectorAll('.filter-pill').forEach(b => b.classList.remove('active'));
-    if (btn) btn.classList.add('active');
-
-    const cards = document.querySelectorAll('.record-card-item');
-    cards.forEach(card => {
-      if (cat === 'all') {
-        card.style.display = 'flex';
-      } else if (cat === 'lab') {
-        card.style.display = card.classList.contains('record-cat-lab') ? 'flex' : 'none';
-      } else if (cat === 'prescription') {
-        card.style.display = card.classList.contains('record-cat-prescription') ? 'flex' : 'none';
-      } else if (cat === 'report') {
-        card.style.display = card.classList.contains('record-cat-report') ? 'flex' : 'none';
-      } else if (cat === 'meal') {
-        card.style.display = 'none';
-      }
-    });
-
-    if (cat === 'meal') {
-      const mealSec = document.getElementById('meals-list-container');
-      if (mealSec) mealSec.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
-  window.viewRecordDetail = function (type) {
-    if (type === 'blood') {
-      showToast('Xét nghiệm máu & men gan: AST 42 U/L, ALT 55 U/L (Đang hạ dần tốt)');
-    } else if (type === 'xray') {
-      showToast('Chụp X-quang tim phổi: Phổi sáng, bóng tim bình thường');
-    } else if (type === 'vitamind') {
-      showToast('Nồng độ Vitamin D: 18 ng/mL (Hơi thấp - Nên phơi nắng sớm 15 phút)');
-    } else if (type === 'ecg') {
-      showToast('Điện tâm đồ ECG: Nhịp xoang 78 chu kỳ/phút đều, bình thường');
-    }
-  };
-
-  // ================= 7. MODAL HELPERS =================
+  // ================= 5. MODAL HELPERS =================
   window.openModal = function (id) {
     const el = document.getElementById(id);
     if (el) {
