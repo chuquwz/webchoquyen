@@ -231,9 +231,19 @@
     const pct = Math.min(100, Math.round((cur / min) * 100));
     document.getElementById('water-percent-text').textContent = pct + '%';
 
-    // Điều chỉnh độ cao sóng nước trong cốc (tối đa 100%)
-    const fillHeight = Math.min(100, (cur / max) * 100);
-    document.getElementById('water-fill').style.height = `${fillHeight}%`;
+    // Cập nhật SVG Progress Ring nếu có
+    const ring = document.getElementById('water-ring-progress');
+    if (ring) {
+      const ringPct = Math.min(100, (cur / min) * 100);
+      const offset = 465 - (465 * ringPct / 100);
+      ring.style.strokeDashoffset = offset;
+    }
+
+    const fillEl = document.getElementById('water-fill');
+    if (fillEl) {
+      const fillHeight = Math.min(100, (cur / max) * 100);
+      fillEl.style.height = `${fillHeight}%`;
+    }
 
     const badge = document.getElementById('water-badge');
     const undoBtn = document.getElementById('btn-undo-water');
@@ -241,17 +251,14 @@
 
     if (cur >= min && cur <= max) {
       badge.textContent = 'Đã đạt mục tiêu';
-      badge.style.background = 'rgba(16, 185, 129, 0.2)';
-      badge.style.color = '#34d399';
+      badge.className = 'badge badge-emerald';
     } else if (cur > max) {
       badge.textContent = 'Đã vượt 3.000ml';
-      badge.style.background = 'rgba(245, 158, 11, 0.2)';
-      badge.style.color = '#fbbf24';
+      badge.className = 'badge badge-amber';
     } else {
       const remain = min - cur;
       badge.textContent = `Thiếu ${remain.toLocaleString('vi-VN')}ml`;
-      badge.style.background = 'rgba(14, 165, 233, 0.2)';
-      badge.style.color = '#38bdf8';
+      badge.className = 'badge';
     }
 
     if (state.waterEntries.length > 0) {
@@ -318,10 +325,10 @@
   function renderMedWidget() {
     const btn = document.getElementById('btn-today-med');
     if (state.medTaken) {
-      btn.className = 'btn-check-med taken';
+      btn.className = 'btn-med-toggle taken';
       btn.innerHTML = '<span>Đã uống thuốc</span>';
     } else {
-      btn.className = 'btn-check-med';
+      btn.className = 'btn-med-toggle';
       btn.innerHTML = '<span>Chưa uống</span>';
     }
   }
@@ -350,12 +357,12 @@
     const btnSave = document.getElementById('btn-save-weight');
     const sub = document.getElementById('weight-status-sub');
     if (state.todayWeight !== null) {
-      btnSave.textContent = 'Đã lưu hôm nay (' + state.todayWeight.toFixed(1) + ' kg) - Bấm để cập nhật lại';
-      btnSave.style.background = 'var(--surface-hover)';
+      btnSave.textContent = 'Đã lưu hôm nay (' + state.todayWeight.toFixed(1) + ' kg) - Bấm để sửa';
+      btnSave.className = 'btn-secondary';
       sub.textContent = 'Hôm nay Quyền đã ghi nhận cân nặng!';
     } else {
       btnSave.textContent = 'Lưu cân nặng hôm nay';
-      btnSave.style.background = 'linear-gradient(135deg, #0ea5e9, #0284c7)';
+      btnSave.className = 'btn-primary';
       sub.textContent = 'Nhớ cân vào sáng sớm sau khi vệ sinh, trước khi ăn sáng.';
     }
   }
@@ -488,13 +495,13 @@
       const totalKcal = dayMeals.reduce((s, m) => s + m.kcal, 0);
 
       html += `
-        <div class="card meal-day-card" style="${isToday ? 'border-color: #0ea5e9; box-shadow: 0 0 16px rgba(14, 165, 233, 0.2);' : ''}">
+        <div class="card meal-day-card" style="${isToday ? 'border-color: rgba(56, 189, 248, 0.4);' : ''}">
           <div class="meal-day-header">
-            <div>
-              <strong style="font-size: 15px;">${getDayOfWeekVN(date)} (${formatVNDate(date)})</strong>
-              ${isToday ? '<span class="card-badge" style="background:#0ea5e9; color:#fff; margin-left:6px;">HÔM NAY</span>' : ''}
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <strong style="font-size: 15px; font-weight: 700;">${getDayOfWeekVN(date)} (${formatVNDate(date)})</strong>
+              ${isToday ? '<span class="badge badge-emerald">HÔM NAY</span>' : ''}
             </div>
-            <span style="font-size: 13px; color: var(--text-muted); font-weight: 600;">${totalKcal} kcal</span>
+            <span style="font-size: 13px; color: var(--text-tertiary); font-weight: 600; font-variant-numeric: tabular-nums;">${totalKcal} kcal</span>
           </div>`;
 
       dayMeals.forEach(slotMeal => {
@@ -684,7 +691,7 @@
 
     const wList = state.weights;
     if (wList.length === 0) {
-      svg.innerHTML = '<text x="250" y="100" fill="#94a3b8" text-anchor="middle" font-size="14">Chưa có đủ dữ liệu để vẽ biểu đồ</text>';
+      svg.innerHTML = '<text x="250" y="100" fill="#64748b" text-anchor="middle" font-size="13">Chưa có đủ dữ liệu để vẽ biểu đồ</text>';
       return;
     }
 
@@ -692,7 +699,7 @@
     const minKg = 65;
     const maxKg = 100;
     const padX = 40;
-    const padY = 20;
+    const padY = 24;
     const w = 500 - padX * 2;
     const h = 200 - padY * 2;
 
@@ -701,8 +708,16 @@
     // Đường mốc 70kg (xanh lá)
     const y70 = getY(70);
     let svgContent = `
-      <line x1="${padX}" y1="${y70}" x2="${500 - padX}" y2="${y70}" stroke="#10b981" stroke-dasharray="4,4" stroke-width="2"/>
-      <text x="${500 - padX + 5}" y="${y70 + 4}" fill="#10b981" font-size="11" font-weight="bold">70kg</text>
+      <defs>
+        <linearGradient id="chartLineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#38bdf8" />
+          <stop offset="100%" stop-color="#0284c7" />
+        </linearGradient>
+      </defs>
+      <line x1="${padX}" y1="${getY(80)}" x2="${500 - padX}" y2="${getY(80)}" stroke="rgba(255,255,255,0.06)" stroke-dasharray="2,2" stroke-width="1"/>
+      <line x1="${padX}" y1="${getY(90)}" x2="${500 - padX}" y2="${getY(90)}" stroke="rgba(255,255,255,0.06)" stroke-dasharray="2,2" stroke-width="1"/>
+      <line x1="${padX}" y1="${y70}" x2="${500 - padX}" y2="${y70}" stroke="#10b981" stroke-dasharray="4,4" stroke-width="1.5"/>
+      <text x="${500 - padX + 6}" y="${y70 + 4}" fill="#10b981" font-size="11" font-weight="600">70kg</text>
     `;
 
     // Vẽ các điểm và đường cân nặng thực tế
@@ -715,15 +730,15 @@
     });
 
     svgContent += `
-      <polyline fill="none" stroke="#0ea5e9" stroke-width="3" points="${pts.join(' ')}" />
+      <polyline fill="none" stroke="url(#chartLineGrad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="${pts.join(' ')}" />
     `;
 
     wList.forEach((pt, i) => {
       const x = padX + i * stepX;
       const y = getY(pt.kg);
       svgContent += `
-        <circle cx="${x}" cy="${y}" r="4" fill="#38bdf8" />
-        <text x="${x}" y="${y - 8}" fill="#f1f5f9" font-size="10" text-anchor="middle">${pt.kg}</text>
+        <circle cx="${x}" cy="${y}" r="3.5" fill="#38bdf8" stroke="#090d16" stroke-width="1.5" />
+        <text x="${x}" y="${y - 8}" fill="#94a3b8" font-size="10" font-weight="600" text-anchor="middle">${pt.kg}</text>
       `;
     });
 
@@ -733,11 +748,11 @@
   function renderWeightHistory() {
     const container = document.getElementById('weight-history-list');
     if (state.weights.length === 0) {
-      container.innerHTML = '<div style="color: var(--text-muted); padding: 10px 0;">Chưa có ngày đo nào.</div>';
+      container.innerHTML = '<div style="color: var(--text-tertiary); padding: 12px 0; font-size: 13px;">Chưa có ngày đo nào.</div>';
       return;
     }
     let html = '<table style="width: 100%; font-size: 13px; border-collapse: collapse;">';
-    html += '<tr style="color: var(--text-muted); border-bottom: 1px solid var(--border); text-align: left;"><th style="padding: 6px;">Ngày</th><th style="padding: 6px;">Cân nặng</th><th style="padding: 6px; text-align: right;">Thay đổi</th></tr>';
+    html += '<tr style="color: var(--text-tertiary); border-bottom: 1px solid var(--border-subtle); text-align: left;"><th style="padding: 8px 6px; font-weight: 500;">Ngày</th><th style="padding: 8px 6px; font-weight: 500;">Cân nặng</th><th style="padding: 8px 6px; text-align: right; font-weight: 500;">Thay đổi</th></tr>';
 
     for (let i = state.weights.length - 1; i >= 0; i--) {
       const item = state.weights[i];
@@ -745,15 +760,15 @@
       if (i > 0) {
         const prev = state.weights[i - 1];
         const diff = item.kg - prev.kg;
-        if (diff > 0) diffStr = `<span style="color:#ef4444;">+${diff.toFixed(1)}kg</span>`;
-        else if (diff < 0) diffStr = `<span style="color:#10b981;">${diff.toFixed(1)}kg</span>`;
-        else diffStr = '<span style="color:#94a3b8;">0.0kg</span>';
+        if (diff > 0) diffStr = `<span style="color: var(--rose); font-weight: 600;">+${diff.toFixed(1)}kg</span>`;
+        else if (diff < 0) diffStr = `<span style="color: var(--emerald); font-weight: 600;">${diff.toFixed(1)}kg</span>`;
+        else diffStr = '<span style="color: var(--text-tertiary);">0.0kg</span>';
       }
       html += `
-        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-          <td style="padding: 8px 6px;">${formatVNDate(item.date)}</td>
-          <td style="padding: 8px 6px; font-weight: 700; color: #38bdf8;">${item.kg.toFixed(1)} kg</td>
-          <td style="padding: 8px 6px; text-align: right;">${diffStr}</td>
+        <tr style="border-bottom: 1px solid var(--border-subtle);">
+          <td style="padding: 10px 6px; color: var(--text-secondary);">${formatVNDate(item.date)}</td>
+          <td style="padding: 10px 6px; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums;">${item.kg.toFixed(1)} kg</td>
+          <td style="padding: 10px 6px; text-align: right; font-variant-numeric: tabular-nums;">${diffStr}</td>
         </tr>`;
     }
     html += '</table>';
@@ -873,29 +888,29 @@
   function renderGlucoseHistory() {
     const container = document.getElementById('glucose-history-list');
     if (state.glucose.length === 0) {
-      container.innerHTML = '<div style="color: var(--text-muted); padding: 6px 0;">Chưa ghi số đo nào gần đây.</div>';
+      container.innerHTML = '<div style="color: var(--text-tertiary); padding: 8px 0; font-size: 13px;">Chưa ghi số đo nào gần đây.</div>';
       return;
     }
     const ctxLabels = { fasting: 'Sáng đói', after: 'Sau ăn', bedtime: 'Trước ngủ', other: 'Khác' };
     let html = '';
     state.glucose.slice(0, 5).forEach(g => {
-      let color = '#10b981'; // an toàn (< 5.6)
+      let color = 'var(--emerald)';
       let tag = 'Bình thường';
       if (g.mmol >= 7.0) {
-        color = '#ef4444';
+        color = 'var(--rose)';
         tag = 'Cao (ngưỡng tiểu đường)';
       } else if (g.mmol >= 5.6) {
-        color = '#f59e0b';
+        color = 'var(--amber)';
         tag = 'Cận ngưỡng';
       }
       const timeStr = new Date(g.ts * 1000).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
       html += `
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border-subtle);">
           <div>
-            <strong style="color: ${color}; font-size: 15px;">${g.mmol.toFixed(1)} mmol/L</strong>
-            <span style="font-size: 12px; color: var(--text-muted); margin-left: 6px;">(${ctxLabels[g.ctx] || g.ctx})</span>
+            <strong style="color: ${color}; font-size: 15px; font-variant-numeric: tabular-nums;">${g.mmol.toFixed(1)} mmol/L</strong>
+            <span style="font-size: 12px; color: var(--text-tertiary); margin-left: 6px;">(${ctxLabels[g.ctx] || g.ctx})</span>
           </div>
-          <div style="font-size: 12px; color: var(--text-muted);">${timeStr} · <span style="color:${color}">${tag}</span></div>
+          <div style="font-size: 12px; color: var(--text-tertiary);">${timeStr} · <span style="color:${color}; font-weight:600;">${tag}</span></div>
         </div>`;
     });
     container.innerHTML = html;

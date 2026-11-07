@@ -4,31 +4,31 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>QuyenHealth - Theo Dõi Sức Khoẻ</title>
-  <meta name="theme-color" content="#0b1329">
+  <meta name="theme-color" content="#090d16">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="QuyenHealth">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
-  <link rel="stylesheet" href="/style.css?v=2">
+  <link rel="stylesheet" href="/style.css?v=3">
 </head>
 <body>
   <!-- Toast Thông báo -->
-  <div id="toast-container" class="toast-container"></div>
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
   <!-- Màn hình Đăng nhập (PIN) -->
-  <div id="login-view" style="display: none; min-height: 90vh; display: flex; align-items: center; justify-content: center; padding: 20px;">
-    <div class="card" style="width: 100%; max-width: 360px; text-align: center; padding: 30px 24px;">
-      <div class="brand-icon" style="width: 52px; height: 52px; font-size: 26px; margin: 0 auto 16px;">Q</div>
-      <h2 style="font-size: 20px; font-weight: 800; margin-bottom: 6px;">QuyenHealth</h2>
-      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 24px;">Đồng hành cùng Phùng Văn Quyền giảm về 70Kg</p>
+  <div id="login-view" class="login-view" style="display: none;">
+    <div class="login-card">
+      <div class="brand-monogram">Q</div>
+      <h1 class="login-title">QuyenHealth</h1>
+      <p class="login-sub">Đồng hành cùng Phùng Văn Quyền giảm về 70Kg</p>
       
       <form id="login-form">
-        <div class="form-group" style="text-align: left;">
-          <label class="form-label">Mã PIN bảo mật</label>
-          <input type="password" id="pin-input" class="form-input" placeholder="Nhập mã PIN..." inputmode="numeric" style="text-align: center; font-size: 22px; letter-spacing: 6px;" required autofocus>
+        <div class="form-group">
+          <label class="form-label" for="pin-input">Mã PIN bảo mật</label>
+          <input type="password" id="pin-input" class="form-input pin-input" placeholder="••••" inputmode="numeric" maxlength="8" required autofocus>
         </div>
-        <button type="submit" class="btn-primary" style="margin-top: 10px;">Đăng nhập</button>
+        <button type="submit" class="btn-primary">Đăng nhập</button>
       </form>
     </div>
   </div>
@@ -37,126 +37,165 @@
   <div id="app-view" style="display: none;">
     <!-- Header -->
     <header class="app-header">
-      <div class="brand">
-        <div class="brand-icon">Q</div>
-        <div>
-          <div class="brand-title">QuyenHealth</div>
+      <div class="header-inner">
+        <div class="brand">
+          <div class="brand-monogram" aria-hidden="true">Q</div>
+          <div class="brand-meta">
+            <span class="brand-title">QuyenHealth</span>
+            <span class="brand-tagline">Chăm sóc & Giảm cân</span>
+          </div>
         </div>
+        <div id="today-date-badge" class="header-status">Hôm nay</div>
       </div>
-      <div id="today-date-badge" class="header-status">Hôm nay</div>
     </header>
 
     <main class="app-main">
       <!-- 1. TAB: HÔM NAY -->
       <section id="tab-today" class="tab-pane active">
-        <!-- Thẻ Uống Nước -->
-        <div class="card water-widget">
-          <div class="card-header">
-            <span class="card-title">Lượng Nước Lọc</span>
-            <span id="water-badge" class="card-badge" style="background: rgba(14, 165, 233, 0.2); color: #38bdf8;">Đang tải</span>
-          </div>
-
-          <!-- Hoạt hoạ sóng nước -->
-          <div class="water-visual">
-            <div id="water-fill" class="water-fill" style="height: 0%;">
-              <div class="water-wave"></div>
+        <div class="dashboard-grid">
+          <!-- Hero Widget: Lượng Nước Lọc -->
+          <div class="card card-hero water-card">
+            <div class="card-header">
+              <div class="card-header-titles">
+                <span class="card-category">Hydrat hoá cơ thể</span>
+                <h2 class="card-title">Lượng Nước Lọc</h2>
+              </div>
+              <span id="water-badge" class="badge">Đang tải</span>
             </div>
-            <div class="water-visual-text">
-              <div id="water-cur" class="water-percent">0</div>
-              <div class="water-sub">ml nước lọc</div>
+
+            <!-- Precision Circular Progress Ring -->
+            <div class="water-ring-container">
+              <div class="water-ring-wrapper">
+                <svg class="water-ring-svg" viewBox="0 0 180 180" aria-hidden="true">
+                  <defs>
+                    <linearGradient id="waterRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#38bdf8"/>
+                      <stop offset="100%" stop-color="#0284c7"/>
+                    </linearGradient>
+                  </defs>
+                  <circle cx="90" cy="90" r="74" class="water-ring-track"/>
+                  <circle id="water-ring-progress" cx="90" cy="90" r="74" class="water-ring-indicator" stroke="url(#waterRingGrad)" stroke-dasharray="465" stroke-dashoffset="465" transform="rotate(-90 90 90)"/>
+                </svg>
+                <div class="water-ring-center">
+                  <div class="water-number-row">
+                    <span id="water-cur" class="water-cur-val">0</span>
+                    <span class="water-unit-val">ml</span>
+                  </div>
+                  <div class="water-progress-sub">
+                    tiến độ <span id="water-percent-text">0%</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Thước đo tối thiểu / tối đa -->
+              <div class="water-thresholds">
+                <div class="threshold-col">
+                  <span class="threshold-label">Tối thiểu</span>
+                  <span id="water-min-text" class="threshold-val">2.500 ml</span>
+                </div>
+                <div class="threshold-sep" aria-hidden="true"></div>
+                <div class="threshold-col">
+                  <span class="threshold-label">Tối đa</span>
+                  <span id="water-max-text" class="threshold-val">3.000 ml</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Nút bấm thêm nước nhanh -->
+            <div class="water-actions-grid" role="group" aria-label="Ghi nhanh lượng nước uống">
+              <button class="btn-water-chip" aria-label="Uống 1 ca 300 ml nước lọc" onclick="addWater(300)">
+                <span class="chip-vol">+300</span>
+                <span class="chip-label">Ca</span>
+              </button>
+              <button class="btn-water-chip" aria-label="Uống 1 chai 500 ml nước lọc" onclick="addWater(500)">
+                <span class="chip-vol">+500</span>
+                <span class="chip-label">Chai</span>
+              </button>
+              <button class="btn-water-chip" aria-label="Uống 1 bình 1000 ml nước lọc" onclick="addWater(1000)">
+                <span class="chip-vol">+1.000</span>
+                <span class="chip-label">Bình 1L</span>
+              </button>
+              <button class="btn-water-chip btn-water-custom" aria-label="Tự nhập số ml nước vừa uống" onclick="openCustomWaterModal()">
+                <span class="chip-vol">Tự gõ</span>
+                <span class="chip-label">Tuỳ chọn</span>
+              </button>
+            </div>
+
+            <div class="water-meta-footer">
+              <span id="water-entries-count" class="water-count-text">Chưa có lần uống nào hôm nay</span>
+              <button id="btn-undo-water" class="btn-link" style="display: none;" onclick="undoLastWater()">Hoàn tác</button>
+            </div>
+
+            <!-- Phần tử ẩn giữ tính tương thích logic cũ nếu có script đọc -->
+            <div id="water-fill" style="display: none;" aria-hidden="true"></div>
+          </div>
+
+          <!-- Cột Chỉ Số & Thói Quen (Vitals Column) -->
+          <div class="dashboard-side">
+            <!-- Thẻ Cân Nặng Hôm Nay -->
+            <div class="card weight-card">
+              <div class="card-header">
+                <div class="card-header-titles">
+                  <span class="card-category">Sinh trắc học</span>
+                  <h3 class="card-title">Cân Nặng Hôm Nay</h3>
+                </div>
+                <span id="weight-diff-badge" class="badge badge-emerald">Mục tiêu: 70 kg</span>
+              </div>
+
+              <div class="weight-display-center">
+                <div class="weight-number-wrap">
+                  <span id="weight-val" class="weight-digits">97.0</span>
+                  <span class="weight-unit">kg</span>
+                </div>
+                <div id="weight-status-sub" class="weight-hint-text">
+                  Nhớ cân vào sáng sớm sau khi vệ sinh, trước khi ăn sáng.
+                </div>
+              </div>
+
+              <!-- Bộ Stepper bấm nhanh -->
+              <div class="stepper-cluster" role="group" aria-label="Chỉnh nhanh cân nặng">
+                <button class="stepper-btn" aria-label="Giảm 0.5 kg" onclick="adjustWeight(-0.5)">-0.5</button>
+                <button class="stepper-btn" aria-label="Giảm 0.1 kg" onclick="adjustWeight(-0.1)">-0.1</button>
+                <div class="stepper-sep" aria-hidden="true"></div>
+                <button class="stepper-btn" aria-label="Tăng 0.1 kg" onclick="adjustWeight(0.1)">+0.1</button>
+                <button class="stepper-btn" aria-label="Tăng 0.5 kg" onclick="adjustWeight(0.5)">+0.5</button>
+              </div>
+
+              <button id="btn-save-weight" class="btn-primary" onclick="saveWeight()">
+                Lưu cân nặng hôm nay
+              </button>
+            </div>
+
+            <!-- Thẻ Thuốc Hôm Nay -->
+            <div class="card med-card">
+              <div class="med-info-group">
+                <div class="med-icon-box" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.5 20.5l10-10a4.95 4.95 0 10-7-7l-10 10a4.95 4.95 0 107 7z"/><path d="M8.5 8.5l7 7"/></svg>
+                </div>
+                <div class="med-text-meta">
+                  <div class="med-title">Thuốc Hôm Nay</div>
+                  <div class="med-subtitle">Uống đều đặn theo chỉ định bác sĩ</div>
+                </div>
+              </div>
+              <button id="btn-today-med" class="btn-med-toggle" onclick="toggleMed()">
+                <span>Chưa uống</span>
+              </button>
             </div>
           </div>
 
-          <div class="water-stats">
-            <div class="stat-item">
-              <div class="stat-label">Tối thiểu</div>
-              <div id="water-min-text" class="stat-val">2.500 ml</div>
+          <!-- Thẻ Bữa Ăn Tiếp Theo (Trải rộng phía dưới) -->
+          <div class="card card-span-full next-meal-card">
+            <div class="card-header">
+              <div class="card-header-titles">
+                <span class="card-category">Thực đơn dinh dưỡng</span>
+                <h3 class="card-title">Bữa Tiếp Theo Cần Ăn</h3>
+              </div>
+              <button class="btn-link" onclick="switchTab('meals')">Xem cả tuần &rarr;</button>
             </div>
-            <div class="stat-item">
-              <div class="stat-label">Tiến độ</div>
-              <div id="water-percent-text" class="stat-val" style="color: #38bdf8;">0%</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-label">Tối đa</div>
-              <div id="water-max-text" class="stat-val">3.000 ml</div>
-            </div>
-          </div>
-
-          <!-- Các nút bấm nhanh -->
-          <div class="water-actions">
-            <button class="btn-water" aria-label="Uống 1 ca 300 ml nước lọc" onclick="addWater(300)">
-              <span>Ca</span>
-              <span class="vol">+300ml</span>
-            </button>
-            <button class="btn-water" aria-label="Uống 1 chai 500 ml nước lọc" onclick="addWater(500)">
-              <span>Chai</span>
-              <span class="vol">+500ml</span>
-            </button>
-            <button class="btn-water" aria-label="Uống 1 bình 1000 ml nước lọc" onclick="addWater(1000)">
-              <span>Bình</span>
-              <span class="vol">+1.000ml</span>
-            </button>
-            <button class="btn-water" aria-label="Tự nhập số ml nước vừa uống" onclick="openCustomWaterModal()">
-              <span>Nhập</span>
-              <span class="vol">Tự gõ</span>
-            </button>
-          </div>
-
-          <div class="water-undo-bar">
-            <span id="water-entries-count">Chưa có lần uống nào</span>
-            <button id="btn-undo-water" class="btn-chip" style="display: none;" onclick="undoLastWater()">Hoàn tác vừa bấm</button>
-          </div>
-        </div>
-
-        <!-- Thẻ Nhắc Uống Thuốc -->
-        <div class="card med-card">
-          <div>
-            <div style="font-weight: 700; font-size: 15px;">Thuốc hôm nay</div>
-            <div style="font-size: 12px; color: var(--text-muted);">Uống đều đặn theo chỉ định bác sĩ</div>
-          </div>
-          <button id="btn-today-med" class="btn-check-med" onclick="toggleMed()">
-            <span>Chưa uống</span>
-          </button>
-        </div>
-
-        <!-- Thẻ Cân Nặng Hôm Nay -->
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">Cân Nặng Hôm Nay</span>
-            <span id="weight-diff-badge" class="card-badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399;">Mục tiêu: 70 kg</span>
-          </div>
-
-          <div class="weight-stepper">
-            <button class="stepper-btn" aria-label="Giảm 0.5 kg" onclick="adjustWeight(-0.5)">-0.5</button>
-            <button class="stepper-btn" aria-label="Giảm 0.1 kg" onclick="adjustWeight(-0.1)">-0.1</button>
-            <div class="stepper-display">
-              <span id="weight-val">97.0</span> <span>kg</span>
-            </div>
-            <button class="stepper-btn" aria-label="Tăng 0.1 kg" onclick="adjustWeight(0.1)">+0.1</button>
-            <button class="stepper-btn" aria-label="Tăng 0.5 kg" onclick="adjustWeight(0.5)">+0.5</button>
-          </div>
-
-          <div class="stepper-quick-row">
-            <button id="btn-save-weight" class="btn-primary" style="padding: 10px;" onclick="saveWeight()">
-              Lưu cân nặng hôm nay
-            </button>
-          </div>
-          <div id="weight-status-sub" style="text-align: center; font-size: 12px; color: var(--text-muted);">
-            Nhớ cân vào sáng sớm sau khi vệ sinh, trước khi ăn sáng.
-          </div>
-        </div>
-
-        <!-- Thẻ Bữa Ăn Tiếp Theo -->
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">Bữa Tiếp Theo Cần Ăn</span>
-            <button class="btn-chip" onclick="switchTab('meals')">Xem cả tuần &rarr;</button>
-          </div>
-          <div id="today-next-meal-content">
-            <div style="text-align: center; color: var(--text-muted); padding: 12px 0;">
-              Chưa có lịch bữa ăn cho hôm nay.
-              <div style="margin-top: 10px;">
-                <button class="btn-primary" style="padding: 8px 16px; font-size: 13px;" onclick="switchTab('meals')">Đến trang Bữa ăn để tạo lịch</button>
+            <div id="today-next-meal-content">
+              <div class="meal-empty-state">
+                <span>Chưa có lịch bữa ăn cho hôm nay.</span>
+                <button class="btn-primary btn-sm" onclick="switchTab('meals')">Đến trang Bữa ăn để tạo lịch</button>
               </div>
             </div>
           </div>
@@ -165,23 +204,27 @@
 
       <!-- 2. TAB: BỮA ĂN (7 NGÀY) -->
       <section id="tab-meals" class="tab-pane">
-        <div class="card" style="display: flex; gap: 8px; flex-wrap: wrap;">
-          <button class="btn-primary" style="flex: 2; min-width: 180px;" onclick="generateMealPlan()">
+        <div class="meals-toolbar">
+          <button class="btn-primary" onclick="generateMealPlan()">
             Tạo Lịch Bữa Ăn 7 Ngày Mới
           </button>
-          <button class="btn-secondary" style="flex: 1; min-width: 120px;" onclick="openShoppingModal()">
-            Đi chợ
+          <button class="btn-secondary" onclick="openShoppingModal()">
+            Danh Sách Đi Chợ
           </button>
         </div>
 
-        <div style="margin-bottom: 12px; font-size: 12px; color: var(--text-muted); background: rgba(0,0,0,0.2); padding: 10px 14px; border-radius: 12px; border-left: 3px solid #38bdf8;">
-          Thực đơn chỉ gồm món dễ mua ở làng quê Việt Nam (ức gà, trứng, nạc heo, cá đồng, khoai lang, ngô, rau xanh...). Tuyệt đối không chiên rán, không nội tạng.
+        <div class="notice-callout">
+          <div class="notice-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+          </div>
+          <div class="notice-text">
+            <strong>Tiêu chuẩn dinh dưỡng:</strong> Thực đơn ưu tiên thực phẩm làng quê quen thuộc (ức gà, trứng, nạc heo, cá đồng, khoai lang, ngô, rau xanh...). Tuyệt đối không chiên rán, không dùng nội tạng động vật.
+          </div>
         </div>
 
         <div id="meals-list-container">
-          <!-- Render danh sách ngày & bữa ăn ở đây -->
-          <div style="text-align: center; padding: 40px 0; color: var(--text-muted);">
-            Đang tải thực đơn...
+          <div class="loading-state">
+            Đang tải thực đơn 7 ngày...
           </div>
         </div>
       </section>
@@ -190,41 +233,47 @@
       <section id="tab-weight" class="tab-pane">
         <div class="card">
           <div class="card-header">
-            <span class="card-title">Biểu Đồ Giảm Cân</span>
-            <span id="weight-progress-tag" class="card-badge" style="background: rgba(14, 165, 233, 0.2); color: #38bdf8;">97kg &rarr; 70kg</span>
+            <div class="card-header-titles">
+              <span class="card-category">Mục tiêu tiến trình</span>
+              <h2 class="card-title">Biểu Đồ Giảm Cân</h2>
+            </div>
+            <span id="weight-progress-tag" class="badge">97kg &rarr; 70kg</span>
           </div>
           
-          <div class="water-stats" style="margin-bottom: 12px;">
-            <div class="stat-item">
-              <div class="stat-label">Bắt đầu</div>
-              <div class="stat-val">97.0 kg</div>
+          <div class="metric-trio-grid">
+            <div class="metric-trio-card">
+              <span class="metric-label">Bắt đầu</span>
+              <span class="metric-value">97.0 kg</span>
             </div>
-            <div class="stat-item">
-              <div class="stat-label">Hiện tại</div>
-              <div id="weight-chart-current" class="stat-val" style="color: #38bdf8;">97.0 kg</div>
+            <div class="metric-trio-card">
+              <span class="metric-label">Hiện tại</span>
+              <span id="weight-chart-current" class="metric-value metric-value-accent">97.0 kg</span>
             </div>
-            <div class="stat-item">
-              <div class="stat-label">Còn lại</div>
-              <div id="weight-chart-rem" class="stat-val" style="color: #34d399;">27.0 kg</div>
+            <div class="metric-trio-card">
+              <span class="metric-label">Còn lại</span>
+              <span id="weight-chart-rem" class="metric-value metric-value-emerald">27.0 kg</span>
             </div>
           </div>
 
           <div class="chart-container">
-            <svg id="weight-svg" class="chart-svg" viewBox="0 0 500 200">
+            <svg id="weight-svg" class="chart-svg" viewBox="0 0 500 200" aria-label="Biểu đồ tiến độ cân nặng theo thời gian">
               <!-- Vẽ biểu đồ tiến độ SVG -->
             </svg>
           </div>
-          <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted);">
-            <span>Đường xanh lá: Mốc mục tiêu 70kg</span>
-            <span>Đường xanh dương: Cân nặng thực tế</span>
+          <div class="chart-legend">
+            <span class="legend-item"><span class="legend-dash legend-dash-green"></span> Mục tiêu 70kg</span>
+            <span class="legend-item"><span class="legend-line legend-line-blue"></span> Cân nặng thực tế</span>
           </div>
         </div>
 
         <div class="card">
           <div class="card-header">
-            <span class="card-title">Lịch Sử Ghi Cân</span>
+            <div class="card-header-titles">
+              <span class="card-category">Nhật ký dữ liệu</span>
+              <h3 class="card-title">Lịch Sử Ghi Cân</h3>
+            </div>
           </div>
-          <div id="weight-history-list" style="max-height: 250px; overflow-y: auto;">
+          <div id="weight-history-list" class="history-table-container">
             <!-- Bảng lịch sử cân nặng -->
           </div>
         </div>
@@ -232,126 +281,144 @@
 
       <!-- 4. TAB: THÊM & CÀI ĐẶT -->
       <section id="tab-settings" class="tab-pane">
-        <!-- Thông báo Web Push iPhone & Android -->
+        <!-- Thông báo Web Push -->
         <div class="card">
           <div class="card-header">
-            <span class="card-title">Thông Báo Nhắc Nhở</span>
+            <div class="card-header-titles">
+              <span class="card-category">Nhắc nhở tự động</span>
+              <h3 class="card-title">Thông Báo Trên Thiết Bị</h3>
+            </div>
           </div>
-          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
-            Nhận thông báo tự động trên iPhone/máy tính để không quên uống nước, uống thuốc, đo cân và đi ngủ sớm.
+          <p class="section-desc">
+            Nhận thông báo nhắc nhở uống nước, uống thuốc, đo cân nặng sáng sớm và đi ngủ đúng giờ.
           </p>
-          <div style="display: flex; gap: 8px;">
-            <button id="btn-enable-push" class="btn-primary" style="flex: 2;" onclick="enablePushNotifications()">
+          <div class="actions-split-row">
+            <button id="btn-enable-push" class="btn-primary" onclick="enablePushNotifications()">
               Bật Nhắc Nhở Trên Thiết Bị
             </button>
-            <button class="btn-secondary" style="flex: 1;" onclick="sendTestPush()">
+            <button class="btn-secondary" onclick="sendTestPush()">
               Thử chuông
             </button>
           </div>
-          <div id="ios-guide-box" style="margin-top: 12px; font-size: 12px; background: rgba(0,0,0,0.25); padding: 10px; border-radius: 10px; border-left: 3px solid #f59e0b;">
-            <strong>Dành cho iPhone:</strong> Mở Safari &rarr; bấm nút Chia sẻ (hình vuông có mũi tên lên) &rarr; chọn <strong>"Thêm vào Màn hình chính"</strong> để nhận được thông báo nhé Quyền!
+          <div id="ios-guide-box" class="guide-callout">
+            <div class="guide-badge">iPhone / iPad</div>
+            <div class="guide-text">
+              Mở Safari &rarr; bấm nút Chia sẻ (hình vuông mũi tên lên) &rarr; chọn <strong>"Thêm vào Màn hình chính"</strong> để nhận thông báo push chuẩn xác nhé Quyền!
+            </div>
           </div>
         </div>
 
-        <!-- Đo Đường Huyết Nhanh -->
+        <!-- Đo Đường Huyết -->
         <div class="card">
           <div class="card-header">
-            <span class="card-title">Nhật Ký Đường Huyết</span>
-            <button class="btn-chip" onclick="openGlucoseModal()">+ Ghi số đo</button>
+            <div class="card-header-titles">
+              <span class="card-category">Chỉ số phòng ngừa</span>
+              <h3 class="card-title">Nhật Ký Đường Huyết</h3>
+            </div>
+            <button class="btn-secondary btn-sm" onclick="openGlucoseModal()">+ Ghi số đo</button>
           </div>
-          <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
-            Bác sĩ lưu ý tiểu đường 5.6/7.0 (sát ngưỡng). Vùng an toàn lúc đói: dưới 5.6 mmol/L.
-          </div>
-          <div id="glucose-history-list" style="font-size: 13px;">
-            <!-- Danh sách các lần đo đường huyết -->
+          <p class="section-desc">
+            Bác sĩ lưu ý tiểu đường 5.6 / 7.0 (sát ngưỡng). Vùng an toàn khi đói: dưới 5.6 mmol/L.
+          </p>
+          <div id="glucose-history-list" class="glucose-list-wrap">
+            <!-- Danh sách đo đường huyết -->
           </div>
         </div>
 
-        <!-- Báo Cáo Sức Khoẻ Tuần -->
+        <!-- Báo Cáo Tuần Cho Bác Sĩ -->
         <div class="card">
           <div class="card-header">
-            <span class="card-title">Báo Cáo Tuần (Gửi Bác Sĩ)</span>
-            <button class="btn-chip" onclick="viewWeeklyReport()">Xem tổng hợp</button>
+            <div class="card-header-titles">
+              <span class="card-category">Hồ sơ y tế</span>
+              <h3 class="card-title">Báo Cáo Sức Khoẻ Tuần</h3>
+            </div>
+            <button class="btn-secondary btn-sm" onclick="viewWeeklyReport()">Xem tổng hợp</button>
           </div>
-          <p style="font-size: 13px; color: var(--text-muted);">
-            Tổng hợp lượng nước uống, tỉ lệ ăn đúng thực đơn, sự tuân thủ uống thuốc và tiến độ cân nặng 7 ngày qua.
+          <p class="section-desc">
+            Tổng hợp lượng nước uống, tỉ lệ ăn đúng thực đơn, sự tuân thủ uống thuốc và tiến độ cân nặng 7 ngày qua để gửi bác sĩ tái khám.
           </p>
         </div>
 
         <!-- Cấu Hình Cá Nhân -->
         <div class="card">
           <div class="card-header">
-            <span class="card-title">Cài Đặt Cá Nhân</span>
+            <div class="card-header-titles">
+              <span class="card-category">Thông số cá nhân</span>
+              <h3 class="card-title">Cài Đặt Hồ Sơ</h3>
+            </div>
           </div>
           <form id="settings-form" onsubmit="saveSettings(event)">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="form-grid-2">
               <div class="form-group">
-                <label class="form-label">Tên</label>
+                <label class="form-label" for="set-name">Họ và tên</label>
                 <input type="text" id="set-name" class="form-input" required>
               </div>
               <div class="form-group">
-                <label class="form-label">Tuổi</label>
+                <label class="form-label" for="set-age">Tuổi</label>
                 <input type="number" id="set-age" class="form-input" required>
               </div>
               <div class="form-group">
-                <label class="form-label">Chiều cao (cm)</label>
+                <label class="form-label" for="set-height">Chiều cao (cm)</label>
                 <input type="number" id="set-height" class="form-input" required>
               </div>
               <div class="form-group">
-                <label class="form-label">Mục tiêu (kg)</label>
+                <label class="form-label" for="set-goal">Mục tiêu cân nặng (kg)</label>
                 <input type="number" step="0.1" id="set-goal" class="form-input" required>
               </div>
               <div class="form-group">
-                <label class="form-label">Nước tối thiểu (ml)</label>
+                <label class="form-label" for="set-water-min">Nước lọc tối thiểu (ml)</label>
                 <input type="number" id="set-water-min" class="form-input" required>
               </div>
               <div class="form-group">
-                <label class="form-label">Nước tối đa (ml)</label>
+                <label class="form-label" for="set-water-max">Nước lọc tối đa (ml)</label>
                 <input type="number" id="set-water-max" class="form-input" required>
               </div>
               <div class="form-group">
-                <label class="form-label">Giờ nhắc cân</label>
+                <label class="form-label" for="set-t-weight">Giờ nhắc cân sáng</label>
                 <input type="time" id="set-t-weight" class="form-input" required>
               </div>
               <div class="form-group">
-                <label class="form-label">Giờ nhắc thuốc</label>
+                <label class="form-label" for="set-t-med">Giờ nhắc thuốc</label>
                 <input type="time" id="set-t-med" class="form-input" required>
               </div>
               <div class="form-group">
-                <label class="form-label">Giờ đi ngủ</label>
+                <label class="form-label" for="set-t-sleep">Giờ đi ngủ</label>
                 <input type="time" id="set-t-sleep" class="form-input" required>
               </div>
               <div class="form-group">
-                <label class="form-label">Bữa phụ</label>
+                <label class="form-label" for="set-snack">Chế độ bữa phụ</label>
                 <select id="set-snack" class="form-input">
-                  <option value="1">Có bữa phụ (trái cây)</option>
+                  <option value="1">Có bữa phụ (trái cây nhẹ)</option>
                   <option value="0">Không có bữa phụ</option>
                 </select>
               </div>
             </div>
-            <button type="submit" class="btn-primary" style="margin-top: 10px;">Lưu Thay Đổi</button>
+            <button type="submit" class="btn-primary" style="margin-top: 14px;">Lưu Thay Đổi</button>
           </form>
         </div>
 
-        <!-- Sao Lưu & Khôi Phục Dữ Liệu -->
+        <!-- Sao Lưu & Dữ Liệu -->
         <div class="card">
           <div class="card-header">
-            <span class="card-title">Dữ Liệu & Sao Lưu</span>
+            <div class="card-header-titles">
+              <span class="card-category">An toàn thông tin</span>
+              <h3 class="card-title">Sao Lưu & Dữ Liệu</h3>
+            </div>
           </div>
-          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
-            Tải file dữ liệu JSON về máy định kỳ để không lo mất dữ liệu sức khoẻ.
+          <p class="section-desc">
+            Tải file dữ liệu JSON về máy định kỳ để không lo mất nhật ký sức khoẻ khi đổi máy hoặc xoá trình duyệt.
           </p>
-          <div style="display: flex; gap: 8px;">
-            <button class="btn-secondary" style="flex: 1;" onclick="downloadBackup()">
+          <div class="actions-split-row">
+            <button class="btn-secondary" onclick="downloadBackup()">
               Tải File Sao Lưu
             </button>
-            <label class="btn-secondary" style="flex: 1; text-align: center; cursor: pointer;">
+            <label class="btn-secondary btn-file-label">
               Khôi Phục File
               <input type="file" id="restore-file-input" accept=".json" style="display: none;" onchange="restoreBackup(event)">
             </label>
           </div>
-          <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); text-align: center;">
-            <button class="btn-chip" style="color: #ef4444;" onclick="logout()">Đăng xuất khỏi thiết bị</button>
+          <div class="card-danger-zone">
+            <button class="btn-danger-link" onclick="logout()">Đăng xuất khỏi thiết bị</button>
           </div>
         </div>
       </section>
@@ -359,35 +426,37 @@
 
     <!-- Bottom Navigation Bar -->
     <nav class="app-navbar" role="tablist" aria-label="Điều hướng các mục chính">
-      <button class="nav-item active" role="tab" aria-selected="true" aria-label="Hôm nay" onclick="switchTab('today')">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-        <span>Hôm nay</span>
-      </button>
-      <button class="nav-item" role="tab" aria-selected="false" aria-label="Bữa ăn" onclick="switchTab('meals')">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-        <span>Bữa ăn</span>
-      </button>
-      <button class="nav-item" role="tab" aria-selected="false" aria-label="Cân nặng" onclick="switchTab('weight')">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-        <span>Cân nặng</span>
-      </button>
-      <button class="nav-item" role="tab" aria-selected="false" aria-label="Cài đặt" onclick="switchTab('settings')">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
-        <span>Cài đặt</span>
-      </button>
+      <div class="navbar-inner">
+        <button class="nav-item active" role="tab" aria-selected="true" aria-label="Hôm nay" onclick="switchTab('today')">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+          <span class="nav-label">Hôm nay</span>
+        </button>
+        <button class="nav-item" role="tab" aria-selected="false" aria-label="Bữa ăn" onclick="switchTab('meals')">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+          <span class="nav-label">Bữa ăn</span>
+        </button>
+        <button class="nav-item" role="tab" aria-selected="false" aria-label="Cân nặng" onclick="switchTab('weight')">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          <span class="nav-label">Cân nặng</span>
+        </button>
+        <button class="nav-item" role="tab" aria-selected="false" aria-label="Cài đặt" onclick="switchTab('settings')">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+          <span class="nav-label">Cài đặt</span>
+        </button>
+      </div>
     </nav>
   </div>
 
   <!-- MODAL: Nhập Lượng Nước Tuỳ Ý -->
-  <div id="modal-water" class="modal-overlay">
+  <div id="modal-water" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-water-title">
     <div class="modal-content">
       <div class="modal-header">
-        <span class="modal-title">Nhập Lượng Nước Lọc</span>
-        <button class="modal-close" aria-label="Đóng cửa sổ nhập nước" onclick="closeModal('modal-water')">&times;</button>
+        <h3 id="modal-water-title" class="modal-title">Nhập Lượng Nước Lọc</h3>
+        <button class="modal-close" aria-label="Đóng cửa sổ" onclick="closeModal('modal-water')">&times;</button>
       </div>
       <form onsubmit="submitCustomWater(event)">
         <div class="form-group">
-          <label class="form-label" for="custom-water-ml">Số ml nước lọc vừa uống (1 - 2000 ml)</label>
+          <label class="form-label" for="custom-water-ml">Số ml nước vừa uống (1 - 2.000 ml)</label>
           <input type="number" id="custom-water-ml" class="form-input" placeholder="Ví dụ: 350" min="1" max="2000" required autofocus>
         </div>
         <button type="submit" class="btn-primary" style="margin-top: 10px;">Xác nhận thêm</button>
@@ -396,11 +465,11 @@
   </div>
 
   <!-- MODAL: Ghi Chú Ăn Món Khác -->
-  <div id="modal-meal-note" class="modal-overlay">
+  <div id="modal-meal-note" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-meal-title">
     <div class="modal-content">
       <div class="modal-header">
-        <span class="modal-title">Bữa Này Ăn Món Khác</span>
-        <button class="modal-close" aria-label="Đóng cửa sổ ghi chú" onclick="closeModal('modal-meal-note')">&times;</button>
+        <h3 id="modal-meal-title" class="modal-title">Bữa Này Ăn Món Khác</h3>
+        <button class="modal-close" aria-label="Đóng cửa sổ" onclick="closeModal('modal-meal-note')">&times;</button>
       </div>
       <form onsubmit="submitMealNote(event)">
         <input type="hidden" id="note-meal-date">
@@ -409,13 +478,13 @@
           <label class="form-label" for="note-meal-text">Quyền ơi, bữa này thực tế đã ăn món gì?</label>
           <input type="text" id="note-meal-text" class="form-input" placeholder="Ví dụ: Ăn bát bún cá + ít đậu phụ..." maxlength="300" required>
         </div>
-        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">Gợi ý đánh dấu nhanh:</div>
-        <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px;">
-          <button type="button" class="btn-chip" onclick="appendNoteTag('Có đồ chiên/rán')">Có chiên rán</button>
-          <button type="button" class="btn-chip" onclick="appendNoteTag('Có nội tạng')">Có nội tạng</button>
-          <button type="button" class="btn-chip" onclick="appendNoteTag('Ăn muộn/khuya')">Ăn khuya</button>
-          <button type="button" class="btn-chip" onclick="appendNoteTag('Ăn quá no')">Ăn quá no</button>
-          <button type="button" class="btn-chip" onclick="appendNoteTag('Uống bia/rượu')">Có uống bia</button>
+        <div class="quick-tags-label">Gợi ý đánh dấu nhanh:</div>
+        <div class="quick-tags-cluster">
+          <button type="button" class="btn-tag" onclick="appendNoteTag('Có đồ chiên/rán')">Có chiên rán</button>
+          <button type="button" class="btn-tag" onclick="appendNoteTag('Có nội tạng')">Có nội tạng</button>
+          <button type="button" class="btn-tag" onclick="appendNoteTag('Ăn muộn/khuya')">Ăn khuya</button>
+          <button type="button" class="btn-tag" onclick="appendNoteTag('Ăn quá no')">Ăn quá no</button>
+          <button type="button" class="btn-tag" onclick="appendNoteTag('Uống bia/rượu')">Có uống bia</button>
         </div>
         <button type="submit" class="btn-primary">Lưu Ghi Chú Bữa Ăn</button>
       </form>
@@ -423,27 +492,27 @@
   </div>
 
   <!-- MODAL: Danh Sách Đi Chợ -->
-  <div id="modal-shopping" class="modal-overlay">
+  <div id="modal-shopping" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-shopping-title">
     <div class="modal-content">
       <div class="modal-header">
-        <span class="modal-title">Danh Sách Đi Chợ 7 Ngày</span>
+        <h3 id="modal-shopping-title" class="modal-title">Danh Sách Đi Chợ 7 Ngày</h3>
         <button class="modal-close" aria-label="Đóng danh sách đi chợ" onclick="closeModal('modal-shopping')">&times;</button>
       </div>
-      <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">
-        Đã tự động gộp tất cả nguyên liệu quê cần mua cho các bữa ăn chưa tick. Tick vào ô khi đã mua xong:
-      </div>
-      <div id="shopping-list-items" style="max-height: 55vh; overflow-y: auto;">
+      <p class="modal-desc">
+        Đã tự động tổng hợp nguyên liệu cho các bữa ăn chưa đánh dấu xong trong 7 ngày tới:
+      </p>
+      <div id="shopping-list-items" class="shopping-scroll-area">
         <!-- Danh sách nguyên liệu theo nhóm -->
       </div>
     </div>
   </div>
 
   <!-- MODAL: Ghi Đường Huyết -->
-  <div id="modal-glucose" class="modal-overlay">
+  <div id="modal-glucose" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-glucose-title">
     <div class="modal-content">
       <div class="modal-header">
-        <span class="modal-title">Ghi Chỉ Số Đường Huyết</span>
-        <button class="modal-close" aria-label="Đóng cửa sổ ghi đường huyết" onclick="closeModal('modal-glucose')">&times;</button>
+        <h3 id="modal-glucose-title" class="modal-title">Ghi Chỉ Số Đường Huyết</h3>
+        <button class="modal-close" aria-label="Đóng cửa sổ" onclick="closeModal('modal-glucose')">&times;</button>
       </div>
       <form onsubmit="submitGlucose(event)">
         <div class="form-group">
@@ -465,19 +534,18 @@
   </div>
 
   <!-- MODAL: Báo Cáo Tuần -->
-  <div id="modal-report" class="modal-overlay">
+  <div id="modal-report" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-report-title">
     <div class="modal-content">
       <div class="modal-header">
-        <span class="modal-title">Tổng Hợp Sức Khoẻ 7 Ngày</span>
+        <h3 id="modal-report-title" class="modal-title">Tổng Hợp Sức Khoẻ 7 Ngày</h3>
         <button class="modal-close" aria-label="Đóng báo cáo tuần" onclick="closeModal('modal-report')">&times;</button>
       </div>
-      <div id="report-content" style="font-size: 13px; line-height: 1.6;">
+      <div id="report-content" class="report-container">
         Đang tải báo cáo...
       </div>
     </div>
   </div>
 
-  <script src="/app.js?v=2"></script>
+  <script src="/app.js?v=3"></script>
 </body>
 </html>
-
