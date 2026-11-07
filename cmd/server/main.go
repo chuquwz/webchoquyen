@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -43,7 +44,13 @@ func main() {
 	}
 	defer db.Close()
 
-	srv, err := app.New(cfg, db, web.Files)
+	var staticFS fs.FS = web.Files
+	if _, err := os.Stat("./web/index.html"); err == nil {
+		log.Printf("📁 Phát hiện thư mục ./web cục bộ, nạp giao diện trực tiếp từ ổ cứng")
+		staticFS = os.DirFS("./web")
+	}
+
+	srv, err := app.New(cfg, db, staticFS)
 	if err != nil {
 		log.Fatalf("Lỗi tạo server: %v", err)
 	}

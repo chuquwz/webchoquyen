@@ -73,9 +73,33 @@
   }
 
   function registerServiceWorker() {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(() => { });
-    }
+    if (!('serviceWorker' in navigator)) return;
+
+    navigator.serviceWorker.register('/sw.js').then((reg) => {
+      // 1. Kiểm tra bản cập nhật mới ngay khi nạp trang
+      reg.update().catch(() => {});
+
+      // 2. Tự động kiểm tra cập nhật mỗi khi người dùng quay lại tab web
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          reg.update().catch(() => {});
+        }
+      });
+
+      // 3. Định kỳ kiểm tra mỗi 60 giây
+      setInterval(() => {
+        reg.update().catch(() => {});
+      }, 60000);
+    }).catch(() => {});
+
+    // Khi Service Worker mới kích hoạt thành công -> tự động nạp lại trang để dùng ngay phiên bản mới
+    let isRefreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!isRefreshing) {
+        isRefreshing = true;
+        window.location.reload();
+      }
+    });
   }
 
   function showLoginView() {
@@ -101,7 +125,7 @@
       if (res.ok) {
         showAppView();
         await loadToday();
-        showToast('Chào Quyền! Chúc một ngày nhiều sức khoẻ 💪');
+        showToast('Chào Quyền! Chúc một ngày nhiều sức khoẻ');
       }
     } catch (err) { }
   });
@@ -216,11 +240,11 @@
     const entriesCount = document.getElementById('water-entries-count');
 
     if (cur >= min && cur <= max) {
-      badge.textContent = '🎉 Đã đạt mục tiêu';
+      badge.textContent = 'Đã đạt mục tiêu';
       badge.style.background = 'rgba(16, 185, 129, 0.2)';
       badge.style.color = '#34d399';
     } else if (cur > max) {
-      badge.textContent = '⚠️ Đã vượt 3.000ml';
+      badge.textContent = 'Đã vượt 3.000ml';
       badge.style.background = 'rgba(245, 158, 11, 0.2)';
       badge.style.color = '#fbbf24';
     } else {
@@ -255,7 +279,7 @@
       state.waterTotal = res.total;
       state.waterEntries = res.entries || [];
       renderWaterWidget();
-      showToast(`+${ml}ml nước lọc 💧`);
+      showToast(`+${ml}ml nước lọc`);
     } catch (e) {
       state.waterTotal -= ml;
       renderWaterWidget();
@@ -295,10 +319,10 @@
     const btn = document.getElementById('btn-today-med');
     if (state.medTaken) {
       btn.className = 'btn-check-med taken';
-      btn.innerHTML = '<span>✅ Đã uống thuốc</span>';
+      btn.innerHTML = '<span>Đã uống thuốc</span>';
     } else {
       btn.className = 'btn-check-med';
-      btn.innerHTML = '<span>⭕ Chưa uống</span>';
+      btn.innerHTML = '<span>Chưa uống</span>';
     }
   }
 
@@ -311,7 +335,7 @@
         method: 'PUT',
         body: JSON.stringify({ date: state.today, taken: next })
       });
-      showToast(next ? 'Đã tick uống thuốc hôm nay! 💊' : 'Đã bỏ tick uống thuốc');
+      showToast(next ? 'Đã ghi nhận uống thuốc hôm nay' : 'Đã bỏ ghi nhận uống thuốc');
     } catch (e) {
       state.medTaken = !next;
       renderMedWidget();
@@ -326,11 +350,11 @@
     const btnSave = document.getElementById('btn-save-weight');
     const sub = document.getElementById('weight-status-sub');
     if (state.todayWeight !== null) {
-      btnSave.textContent = '✅ Đã lưu hôm nay (' + state.todayWeight.toFixed(1) + ' kg) - Bấm để cập nhật lại';
+      btnSave.textContent = 'Đã lưu hôm nay (' + state.todayWeight.toFixed(1) + ' kg) - Bấm để cập nhật lại';
       btnSave.style.background = 'var(--surface-hover)';
       sub.textContent = 'Hôm nay Quyền đã ghi nhận cân nặng!';
     } else {
-      btnSave.textContent = '💾 Lưu cân nặng hôm nay';
+      btnSave.textContent = 'Lưu cân nặng hôm nay';
       btnSave.style.background = 'linear-gradient(135deg, #0ea5e9, #0284c7)';
       sub.textContent = 'Nhớ cân vào sáng sớm sau khi vệ sinh, trước khi ăn sáng.';
     }
@@ -354,7 +378,7 @@
       state.todayWeight = kg;
       state.currentWeight = kg;
       renderWeightStepper();
-      showToast(`Đã lưu cân nặng hôm nay: ${kg.toFixed(1)} kg! 🎉`);
+      showToast(`Đã lưu cân nặng hôm nay: ${kg.toFixed(1)} kg`);
     } catch (e) { }
   };
 
@@ -366,7 +390,7 @@
         <div style="text-align: center; color: var(--text-muted); padding: 12px 0;">
           Chưa có lịch bữa ăn cho hôm nay.
           <div style="margin-top: 10px;">
-            <button class="btn-primary" style="padding: 8px 16px; font-size: 13px;" onclick="switchTab('meals')">👉 Đến trang Bữa ăn để tạo lịch</button>
+            <button class="btn-primary" style="padding: 8px 16px; font-size: 13px;" onclick="switchTab('meals')">Đến trang Bữa ăn để tạo lịch</button>
           </div>
         </div>`;
       return;
@@ -379,10 +403,10 @@
       nextMeal = mealsList[mealsList.length - 1]; // Đã ăn hết -> hiện bữa cuối
     }
 
-    const slotNames = { breakfast: 'Bữa Sáng 🌅', lunch: 'Bữa Trưa ☀️', dinner: 'Bữa Tối 🌙', snack: 'Bữa Phụ 🍎' };
+    const slotNames = { breakfast: 'Bữa Sáng', lunch: 'Bữa Trưa', dinner: 'Bữa Tối', snack: 'Bữa Phụ' };
     let itemsHtml = nextMeal.items.map(it => `
       <li class="meal-item ${it.red ? 'meal-item-red' : ''}">
-        <span>${it.red ? '🔴 ' : ''}${it.name}</span>
+        <span>${it.red ? '<span class="meal-item-red-tag">[Chú ý] </span>' : ''}${it.name}</span>
         <span class="meal-item-qty">${it.qty || ''}</span>
       </li>`).join('');
 
@@ -395,10 +419,10 @@
         <ul class="meal-items-list">${itemsHtml}</ul>
         <div class="meal-slot-actions">
           <button class="btn-slot-act ${nextMeal.status === 'done' ? 'active-done' : ''}" onclick="checkMeal('${nextMeal.date}', '${nextMeal.slot}', 'done')">
-            ✅ Ăn đúng món này
+            Ăn đúng món này
           </button>
           <button class="btn-slot-act ${nextMeal.status === 'swapped' ? 'active-diff' : ''}" onclick="openMealNoteModal('${nextMeal.date}', '${nextMeal.slot}', '${nextMeal.note || ''}')">
-            ✍️ Bữa này ăn món khác
+            Bữa này ăn món khác
           </button>
           ${nextMeal.status !== 'pending' ? `<button class="btn-slot-act" onclick="checkMeal('${nextMeal.date}', '${nextMeal.slot}', 'pending')">Đặt lại</button>` : ''}
         </div>
@@ -430,7 +454,7 @@
       const data = await api('/api/meals/generate', { method: 'POST' });
       state.mealPlan = data.rows || [];
       renderMealPlanList();
-      showToast('Đã tạo lịch bữa ăn 7 ngày thành công! 🎉');
+      showToast('Đã tạo lịch bữa ăn 7 ngày thành công');
     } catch (e) { }
   };
 
@@ -439,7 +463,6 @@
     if (!state.mealPlan || state.mealPlan.length === 0) {
       container.innerHTML = `
         <div class="card" style="text-align: center; padding: 40px 20px;">
-          <div style="font-size: 40px; margin-bottom: 12px;">🥗</div>
           <h3 style="margin-bottom: 8px;">Chưa có lịch ăn 7 ngày</h3>
           <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">
             Hệ thống sẽ tự động cân đối kcal (~1.800 kcal/ngày), đủ rau xanh, thực phẩm đỏ, hạn chế đạm purin cao cho Quyền.
@@ -456,7 +479,7 @@
       daysMap[m.date].push(m);
     });
 
-    const slotNames = { breakfast: '🌅 Sáng', lunch: '☀️ Trưa', dinner: '🌙 Tối', snack: '🍎 Phụ' };
+    const slotNames = { breakfast: 'Sáng', lunch: 'Trưa', dinner: 'Tối', snack: 'Phụ' };
     let html = '';
 
     Object.keys(daysMap).sort().forEach(date => {
@@ -477,7 +500,7 @@
       dayMeals.forEach(slotMeal => {
         let itemsHtml = slotMeal.items.map(it => `
           <li class="meal-item ${it.red ? 'meal-item-red' : ''}">
-            <span>${it.red ? '🔴 ' : ''}${it.name}</span>
+            <span>${it.red ? '<span class="meal-item-red-tag">[Chú ý] </span>' : ''}${it.name}</span>
             <span class="meal-item-qty">${it.qty || ''}</span>
           </li>`).join('');
 
@@ -487,16 +510,16 @@
               <span class="meal-slot-name">${slotNames[slotMeal.slot] || slotMeal.slot}</span>
               <div style="display: flex; gap: 8px; align-items: center;">
                 <span class="meal-slot-kcal">${slotMeal.kcal} kcal</span>
-                ${slotMeal.status === 'pending' ? `<button class="btn-chip" style="padding: 2px 8px; font-size: 11px;" onclick="swapMeal('${date}', '${slotMeal.slot}')">🔄 Đổi món</button>` : ''}
+                ${slotMeal.status === 'pending' ? `<button class="btn-chip" style="padding: 2px 8px; font-size: 11px;" onclick="swapMeal('${date}', '${slotMeal.slot}')">Đổi món</button>` : ''}
               </div>
             </div>
             <ul class="meal-items-list">${itemsHtml}</ul>
             <div class="meal-slot-actions">
               <button class="btn-slot-act ${slotMeal.status === 'done' ? 'active-done' : ''}" onclick="checkMeal('${date}', '${slotMeal.slot}', 'done')">
-                ✅ Ăn đúng
+                Ăn đúng
               </button>
               <button class="btn-slot-act ${slotMeal.status === 'swapped' ? 'active-diff' : ''}" onclick="openMealNoteModal('${date}', '${slotMeal.slot}', '${slotMeal.note || ''}')">
-                ✍️ Ăn khác
+                Ăn khác
               </button>
               ${slotMeal.status !== 'pending' ? `<button class="btn-slot-act" onclick="checkMeal('${date}', '${slotMeal.slot}', 'pending')">Đặt lại</button>` : ''}
             </div>
@@ -539,7 +562,7 @@
       }
       renderMealPlanList();
       if (date === state.today) loadToday();
-      showToast(status === 'done' ? 'Đã tick ăn đúng thực đơn! 👍' : 'Đã cập nhật trạng thái');
+      showToast(status === 'done' ? 'Đã ghi nhận ăn đúng thực đơn' : 'Đã cập nhật trạng thái');
     } catch (e) { }
   };
 
@@ -579,11 +602,11 @@
       }
       renderMealPlanList();
       if (date === state.today) loadToday();
-      showToast('Đã ghi nhận món ăn thực tế ✍️');
+      showToast('Đã ghi nhận món ăn thực tế');
     } catch (e) { }
   };
 
-  // --- 🛒 DANH SÁCH ĐI CHỢ ---
+  // --- DANH SÁCH ĐI CHỢ ---
   window.openShoppingModal = async function () {
     openModal('modal-shopping');
     const container = document.getElementById('shopping-list-items');
@@ -777,7 +800,7 @@
       });
       state.settings = res.settings;
       state.targetKcal = res.target_kcal;
-      showToast('Đã lưu cấu hình cá nhân thành công! 🎉');
+      showToast('Đã lưu cấu hình cá nhân thành công');
     } catch (e) { }
   };
 
@@ -821,7 +844,7 @@
         method: 'POST',
         body: JSON.stringify(sub)
       });
-      showToast('Đã bật thông báo nhắc nhở thành công! 🔔');
+      showToast('Đã bật thông báo nhắc nhở thành công');
     } catch (err) {
       showToast('Lỗi kích hoạt thông báo: ' + err.message, true);
     }
@@ -895,7 +918,7 @@
       });
       closeModal('modal-glucose');
       await loadGlucoseData();
-      showToast('Đã ghi chỉ số đường huyết! 🩸');
+      showToast('Đã ghi chỉ số đường huyết thành công');
     } catch (e) { }
   };
 
@@ -934,10 +957,10 @@
       container.innerHTML = `
         <div style="background: rgba(0,0,0,0.2); padding: 14px; border-radius: 12px; margin-bottom: 14px;">
           <div style="font-size: 15px; font-weight: 700; margin-bottom: 8px; color: #38bdf8;">Tóm tắt tuân thủ 7 ngày</div>
-          <div>💧 <strong>Nước lọc trung bình:</strong> ${avgWater.toLocaleString('vi-VN')} ml / ngày (mục tiêu 2500ml)</div>
-          <div>🍽️ <strong>Ăn đúng thực đơn:</strong> ${mealRate}% các bữa chính</div>
-          <div>💊 <strong>Uống thuốc đều:</strong> ${medRate}% số ngày (${medCount}/7 ngày)</div>
-          <div>⚖️ <strong>Cân nặng thay đổi:</strong> <strong>${weightChange}</strong></div>
+          <div><strong>Nước lọc trung bình:</strong> ${avgWater.toLocaleString('vi-VN')} ml / ngày (mục tiêu 2500ml)</div>
+          <div><strong>Ăn đúng thực đơn:</strong> ${mealRate}% các bữa chính</div>
+          <div><strong>Uống thuốc đều:</strong> ${medRate}% số ngày (${medCount}/7 ngày)</div>
+          <div><strong>Cân nặng thay đổi:</strong> <strong>${weightChange}</strong></div>
         </div>
         <div style="color: var(--text-muted); font-size: 12px; margin-bottom: 12px;">
           * Bác sĩ có thể chụp màn hình này trong mỗi lần tái khám để đánh giá mức độ cải thiện gan nhiễm mỡ và phòng ngừa tiểu đường/gút.

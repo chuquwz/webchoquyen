@@ -81,6 +81,13 @@ func (st *assetStore) serve(w http.ResponseWriter, r *http.Request) {
 	h.Set("X-Content-Type-Options", "nosniff")
 	if p == "/sw.js" {
 		h.Set("Service-Worker-Allowed", "/")
+		h.Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		h.Set("Pragma", "no-cache")
+		h.Set("Expires", "0")
+	} else if p == "/index.html" {
+		h.Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		h.Set("Pragma", "no-cache")
+		h.Set("Expires", "0")
 	}
 	if r.Header.Get("If-None-Match") == a.etag {
 		w.WriteHeader(http.StatusNotModified)
