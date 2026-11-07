@@ -1,0 +1,18 @@
+# Binaries
+quyenhealth
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Data directory
+/data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# OS
+.DS_Store
+Thumbs.db
