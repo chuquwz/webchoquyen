@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=8">
+  <link rel="stylesheet" href="/style.css?v=9">
 </head>
 <body>
   <!-- Container Toast thông báo -->
@@ -62,21 +62,21 @@
       <div id="app-view" class="app-content-area" style="display: none;">
 
         <!-- =====================================================================
-             SCREEN 1: HOME DASHBOARD (Ảnh 1)
+             MÀN HÌNH 1: HÔM NAY (TRANG CHỦ)
              ===================================================================== -->
-        <section id="tab-today" class="tab-pane active" role="tabpanel" aria-label="Trang chủ">
-          <!-- Top Header: Avatar + Welcome back Alex + Bell button -->
+        <section id="tab-today" class="tab-pane active" role="tabpanel" aria-label="Hôm nay">
+          <!-- Top Header: Avatar + Chào Quyền + Nút chuông thông báo -->
           <div class="home-top-bar">
             <div class="user-greeting-group">
-              <div class="user-avatar-circle" onclick="switchTab('settings')" title="Xem cài đặt hồ sơ">
+              <div class="user-avatar-circle" onclick="switchTab('settings')" title="Xem hồ sơ & cài đặt">
                 <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#2B5719" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
               </div>
               <div class="user-name-stack">
-                <span class="greeting-sub">Welcome Back,</span>
-                <span class="greeting-name" id="user-display-name">Alex! 👋</span>
+                <span class="greeting-sub">Xin chào,</span>
+                <span class="greeting-name" id="user-display-name">Quyền! 👋</span>
               </div>
             </div>
-            <button type="button" class="btn-circle-action" aria-label="Thông báo" onclick="openNotificationsModal()">
+            <button type="button" class="btn-circle-action" aria-label="Thông báo sức khoẻ" onclick="openNotificationsModal()">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#1C1F1B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
                 <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
@@ -84,18 +84,18 @@
             </button>
           </div>
 
-          <!-- Hero Headline -->
+          <!-- Tiêu đề cảm xúc hôm nay -->
           <h1 class="hero-feeling-title">
-            How are you feeling<br>right now today?
+            Hôm nay bạn cảm thấy<br>thế nào?
           </h1>
 
-          <!-- Search / AI Ask Input Bar with Mic button -->
+          <!-- Thanh tìm kiếm / hỏi AI với nút micro xanh lá -->
           <div class="search-ai-bar" onclick="switchTab('ai')">
             <div class="search-inner-left">
               <svg class="search-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#8A9185" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
               </svg>
-              <span class="search-placeholder">Ask anything about your health</span>
+              <span class="search-placeholder">Hỏi bất cứ điều gì về sức khoẻ của bạn...</span>
             </div>
             <button type="button" class="btn-mic-circle" aria-label="Hỏi bằng giọng nói" onclick="event.stopPropagation(); switchTab('ai')">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#1E3B13" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -104,23 +104,23 @@
             </button>
           </div>
 
-          <!-- Daily Health Score Card (White Card with Circular Progress Gauge) -->
+          <!-- Thẻ Điểm Sức Khoẻ Hàng Ngày (Thẻ trắng bo tròn với Vòng Tròn Gauge) -->
           <div class="daily-score-card">
             <div class="daily-score-info">
               <div class="score-title-row">
-                <span class="score-label">Daily Health Score</span>
-                <span class="score-info-icon" title="Điểm sức khoẻ tổng hợp từ mức nước, cân nặng và thuốc">ⓘ</span>
+                <span class="score-label">Điểm sức khoẻ hôm nay</span>
+                <span class="score-info-icon" title="Điểm tổng hợp từ mức nước, cân nặng và thuốc">ⓘ</span>
               </div>
               <div class="score-number-row">
                 <span id="daily-score-val" class="score-huge-val">85/100</span>
               </div>
               <div class="score-status-row">
                 <span class="dot-green"></span>
-                <span id="daily-score-badge" class="score-status-text">Good</span>
+                <span id="daily-score-badge" class="score-status-text">Tốt</span>
               </div>
             </div>
 
-            <!-- SVG Circular Gauge Ring with Heart & ECG Pulse -->
+            <!-- Vòng tròn Gauge SVG kèm biểu tượng nhịp tim ECG -->
             <div class="daily-score-gauge-wrap">
               <svg class="daily-score-svg" viewBox="0 0 100 100" width="92" height="92">
                 <circle class="score-track" cx="50" cy="50" r="40" stroke="#E2F0D6" stroke-width="8" fill="none" />
@@ -135,34 +135,34 @@
             </div>
           </div>
 
-          <!-- Quick Action Section (4 Squircle Tiles Grid) -->
+          <!-- Mục Thao Tác Nhanh (Lưới 4 ô Squircle) -->
           <div class="section-container">
             <div class="section-title-header">
-              <h2 class="section-heading">Quick Action</h2>
-              <button type="button" class="btn-see-all" onclick="switchTab('overview')">See All</button>
+              <h2 class="section-heading">Thao tác nhanh</h2>
+              <button type="button" class="btn-see-all" onclick="switchTab('overview')">Xem tất cả</button>
             </div>
             <div class="quick-action-grid">
-              <!-- Tile 1: Symptom Checker -->
+              <!-- Ô 1: Kiểm tra triệu chứng -->
               <button type="button" class="quick-action-tile" onclick="openSymptomChecker()">
                 <div class="tile-icon-box">
                   <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#254516" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/>
                   </svg>
                 </div>
-                <span class="tile-label">Symptom<br>Checker</span>
+                <span class="tile-label">Kiểm tra<br>triệu chứng</span>
               </button>
 
-              <!-- Tile 2: AI Chat -->
+              <!-- Ô 2: Trợ lý AI -->
               <button type="button" class="quick-action-tile" onclick="switchTab('ai')">
                 <div class="tile-icon-box">
                   <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#254516" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="8" y1="10" x2="8.01" y2="10"/><line x1="12" y1="10" x2="12.01" y2="10"/><line x1="16" y1="10" x2="16.01" y2="10"/>
                   </svg>
                 </div>
-                <span class="tile-label">AI Chat</span>
+                <span class="tile-label">Trợ lý<br>AI</span>
               </button>
 
-              <!-- Tile 3: Scan & Analyze -->
+              <!-- Ô 3: Đo chỉ số & quét -->
               <button type="button" class="quick-action-tile" onclick="openGlucoseModal()">
                 <div class="tile-icon-box">
                   <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#254516" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -170,62 +170,62 @@
                     <circle cx="12" cy="12" r="3"/>
                   </svg>
                 </div>
-                <span class="tile-label">Scan &<br>Analyze</span>
+                <span class="tile-label">Đo chỉ số<br>& quét</span>
               </button>
 
-              <!-- Tile 4: Health Record -->
+              <!-- Ô 4: Hồ sơ y tế -->
               <button type="button" class="quick-action-tile" onclick="switchTab('records')">
                 <div class="tile-icon-box">
                   <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#254516" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/>
                   </svg>
                 </div>
-                <span class="tile-label">Health<br>Record</span>
+                <span class="tile-label">Hồ sơ<br>y tế</span>
               </button>
             </div>
           </div>
 
-          <!-- Today's Summary Section (Row of 3 Metric Cards) -->
+          <!-- Mục Tổng Quan Hôm Nay (Hàng 3 Thẻ Số Liệu) -->
           <div class="section-container">
             <div class="section-title-header">
-              <h2 class="section-heading">Today's Summary</h2>
-              <button type="button" class="btn-see-all" onclick="switchTab('overview')">See All</button>
+              <h2 class="section-heading">Tổng quan hôm nay</h2>
+              <button type="button" class="btn-see-all" onclick="switchTab('overview')">Xem tất cả</button>
             </div>
             <div class="today-summary-grid">
-              <!-- Summary Card 1: Heart Rate / Cân nặng -->
+              <!-- Thẻ Tóm Tắt 1: Nhịp tim / Cân nặng -->
               <div class="summary-stat-card card-pink-tint" onclick="switchTab('overview')">
                 <div class="summary-card-header">
                   <div class="summary-icon-circle icon-pink">
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="#E55B6C" stroke="#E55B6C"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
                   </div>
-                  <span class="summary-card-label">Heart Rate</span>
+                  <span class="summary-card-label">Nhịp tim</span>
                 </div>
                 <div class="summary-val-row">
                   <span class="summary-val-num">89</span>
-                  <span class="summary-val-unit">bpm</span>
+                  <span class="summary-val-unit">nhịp/p</span>
                 </div>
               </div>
 
-              <!-- Summary Card 2: Sleep / Thuốc -->
+              <!-- Thẻ Tóm Tắt 2: Giấc ngủ -->
               <div class="summary-stat-card card-green-tint" onclick="switchTab('overview')">
                 <div class="summary-card-header">
                   <div class="summary-icon-circle icon-green">
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="#5E9447" stroke="#5E9447"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
                   </div>
-                  <span class="summary-card-label">Sleep</span>
+                  <span class="summary-card-label">Giấc ngủ</span>
                 </div>
                 <div class="summary-val-row">
-                  <span class="summary-val-num">7<span class="summary-val-unit">h</span> 28<span class="summary-val-unit">m</span></span>
+                  <span class="summary-val-num">7<span class="summary-val-unit">h</span> 28<span class="summary-val-unit">p</span></span>
                 </div>
               </div>
 
-              <!-- Summary Card 3: Water -->
+              <!-- Thẻ Tóm Tắt 3: Nước lọc -->
               <div class="summary-stat-card card-blue-tint" onclick="openCustomWaterModal()">
                 <div class="summary-card-header">
                   <div class="summary-icon-circle icon-blue">
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="#38A3A5" stroke="#38A3A5"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
                   </div>
-                  <span class="summary-card-label">Water</span>
+                  <span class="summary-card-label">Nước lọc</span>
                 </div>
                 <div class="summary-val-row">
                   <span id="summary-water-display" class="summary-val-num">1.8</span>
@@ -235,7 +235,7 @@
             </div>
           </div>
 
-          <!-- Rapid Daily Logging Card: Nước lọc & Cân nặng & Thuốc -->
+          <!-- Thẻ Ghi Nhanh Hàng Ngày: Nước lọc, Cân nặng, Thuốc -->
           <div class="section-container" style="margin-top: 22px;">
             <div class="quick-log-card">
               <div class="log-card-header">
@@ -249,7 +249,7 @@
                 <span id="water-badge" class="badge-status-pill">Đang tải</span>
               </div>
 
-              <!-- Linear Progress Bar -->
+              <!-- Thanh tiến độ tuyến tính -->
               <div class="log-progress-track">
                 <div id="water-fill" class="log-progress-fill" style="width: 0%;"></div>
               </div>
@@ -283,9 +283,9 @@
                   <span>Chưa uống thuốc</span>
                 </button>
               </div>
-              <p id="weight-status-sub" class="footer-caption" style="margin: 8px 0 12px;">Cân vào sáng sớm sau khi vệ sinh, trước ăn sáng.</p>
+              <p id="weight-status-sub" class="footer-caption" style="margin: 8px 0 12px;">Cân vào sáng sớm sau khi vệ sinh cá nhân, trước khi ăn sáng.</p>
 
-              <!-- Stepper -->
+              <!-- Bộ nút Stepper điều chỉnh cân nặng -->
               <div class="weight-stepper-row">
                 <button type="button" class="btn-stepper-pill" onclick="adjustWeight(-0.5)">-0.5</button>
                 <button type="button" class="btn-stepper-pill" onclick="adjustWeight(-0.1)">-0.1</button>
@@ -295,85 +295,85 @@
               </div>
             </div>
 
-            <!-- Bữa ăn tiếp theo preview -->
+            <!-- Xem trước bữa ăn tiếp theo -->
             <div class="quick-log-card" style="margin-top: 14px;">
               <div class="log-card-header">
                 <div>
                   <h3 class="log-card-title">Bữa ăn tiếp theo</h3>
-                  <div class="log-card-subtitle" style="font-size: 13px; color: var(--text-sub);">Thực đơn ít dầu mỡ, bảo vệ gan</div>
+                  <div class="log-card-subtitle" style="font-size: 13px; color: var(--text-sub);">Thực đơn ít dầu mỡ, bảo vệ tế bào gan</div>
                 </div>
-                <button type="button" class="btn-link-action" onclick="switchTab('records')">Xem 7 ngày &rarr;</button>
+                <button type="button" class="btn-link-action" onclick="switchTab('records')">Xem cả tuần &rarr;</button>
               </div>
               <div id="today-next-meal-content" style="margin-top: 10px;">
-                <div style="font-size: 13px; color: var(--text-sub); text-align: center; padding: 12px 0;">Đang tải thực đơn...</div>
+                <div style="font-size: 13px; color: var(--text-sub); text-align: center; padding: 12px 0;">Đang nạp thực đơn...</div>
               </div>
             </div>
           </div>
         </section>
 
         <!-- =====================================================================
-             SCREEN 2: HEALTH OVERVIEW (Ảnh 2)
+             MÀN HÌNH 2: TỔNG QUAN CHỈ SỐ
              ===================================================================== -->
         <section id="tab-overview" class="tab-pane" role="tabpanel" aria-label="Tổng quan sức khoẻ">
-          <!-- Header with Back Button + Title + 3 dots -->
+          <!-- Header với Nút Quay lại + Tiêu đề + 3 chấm -->
           <div class="screen-nav-header">
             <button type="button" class="btn-circle-action" aria-label="Quay lại" onclick="switchTab('today')">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#1C1F1B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M15 18l-6-6 6-6"/>
               </svg>
             </button>
-            <h1 class="screen-nav-title">Health Overview</h1>
-            <button type="button" class="btn-circle-action" aria-label="Tùy chọn khác" onclick="openOverviewMenu()">
+            <h1 class="screen-nav-title">Tổng quan sức khoẻ</h1>
+            <button type="button" class="btn-circle-action" aria-label="Tuỳ chọn khác" onclick="openOverviewMenu()">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#1C1F1B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="19" r="1.5"/>
               </svg>
             </button>
           </div>
 
-          <!-- Date Selector Row: Month Dropdown -->
+          <!-- Bộ chọn Tháng -->
           <div class="date-selector-row">
             <div class="month-pill-btn" onclick="openCalendarPicker()">
-              <span id="current-month-display">August, 2027</span>
+              <span id="current-month-display">Tháng 11, 2026</span>
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
             </div>
           </div>
 
-          <!-- Horizontal Days Picker Strip -->
+          <!-- Hàng con nhộng chọn ngày ngang (T2, T3, T4, T5, T6) -->
           <div class="calendar-days-strip" id="calendar-days-container">
             <div class="day-capsule" onclick="selectCalendarDay(this, 16)">
-              <span class="day-name">Mon</span>
+              <span class="day-name">T2</span>
               <span class="day-num">16</span>
             </div>
             <div class="day-capsule" onclick="selectCalendarDay(this, 17)">
-              <span class="day-name">Tue</span>
+              <span class="day-name">T3</span>
               <span class="day-num">17</span>
             </div>
             <div class="day-capsule active" onclick="selectCalendarDay(this, 18)">
-              <span class="day-name">Wed</span>
+              <span class="day-name">T4</span>
               <span class="day-num">18</span>
             </div>
             <div class="day-capsule" onclick="selectCalendarDay(this, 19)">
-              <span class="day-name">Thu</span>
+              <span class="day-name">T5</span>
               <span class="day-num">19</span>
             </div>
             <div class="day-capsule" onclick="selectCalendarDay(this, 20)">
-              <span class="day-name">Fri</span>
+              <span class="day-name">T6</span>
               <span class="day-num">20</span>
             </div>
           </div>
 
-          <!-- Overview Section Title -->
+          <!-- Tiêu đề mục Chỉ số chi tiết -->
           <div class="section-container" style="margin-top: 24px;">
             <div class="section-title-header">
-              <h2 class="section-heading">Overview</h2>
-              <button type="button" class="btn-see-all" onclick="loadWeightData()">See All</button>
+              <h2 class="section-heading">Chỉ số chi tiết</h2>
+              <button type="button" class="btn-see-all" onclick="loadWeightData()">Xem tất cả</button>
             </div>
 
-            <!-- List of 4 Metric Cards with Sparklines & Badges -->
+            <!-- Danh sách 4 Thẻ Chỉ Số với Sparkline & Badge -->
             <div class="metric-cards-list">
 
-              <!-- Metric Card 1: Heart Rate -->
+              <!-- Thẻ Chỉ Số 1: Nhịp tim -->
               <div class="overview-metric-card">
                 <div class="metric-card-left">
                   <div class="metric-icon-circle icon-pink">
@@ -382,17 +382,17 @@
                     </svg>
                   </div>
                   <div class="metric-info-col">
-                    <span class="metric-title-text">Heart Rate</span>
+                    <span class="metric-title-text">Nhịp tim</span>
                     <div class="metric-main-value">
                       <span class="metric-num">89</span>
-                      <span class="metric-unit">bpm</span>
+                      <span class="metric-unit">nhịp/p</span>
                     </div>
                   </div>
                 </div>
                 <div class="metric-card-right">
-                  <span class="badge-status-pill badge-normal">Normal</span>
+                  <span class="badge-status-pill badge-normal">Bình thường</span>
                   <div class="sparkline-wrap">
-                    <!-- Smooth Pink ECG Sparkline -->
+                    <!-- Sóng điện tim ECG màu hồng -->
                     <svg viewBox="0 0 100 36" width="90" height="32" fill="none">
                       <path d="M0 20 L25 20 L32 20 L36 8 L42 28 L46 14 L50 20 L60 20 L68 12 L74 24 L80 20 L100 20" stroke="#E55B6C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
@@ -400,7 +400,7 @@
                 </div>
               </div>
 
-              <!-- Metric Card 2: Blood Pressure -->
+              <!-- Thẻ Chỉ Số 2: Huyết áp -->
               <div class="overview-metric-card">
                 <div class="metric-card-left">
                   <div class="metric-icon-circle icon-blue">
@@ -409,7 +409,7 @@
                     </svg>
                   </div>
                   <div class="metric-info-col">
-                    <span class="metric-title-text">Blood Pressure</span>
+                    <span class="metric-title-text">Huyết áp</span>
                     <div class="metric-main-value">
                       <span class="metric-num">110/80</span>
                       <span class="metric-unit">mmHg</span>
@@ -417,9 +417,9 @@
                   </div>
                 </div>
                 <div class="metric-card-right">
-                  <span class="badge-status-pill badge-normal">Normal</span>
+                  <span class="badge-status-pill badge-normal">Bình thường</span>
                   <div class="sparkline-wrap">
-                    <!-- Smooth Blue Wave Sparkline -->
+                    <!-- Sóng uốn lượn màu xanh biển -->
                     <svg viewBox="0 0 100 36" width="90" height="32" fill="none">
                       <path d="M0 22 C 20 6, 25 32, 45 18 C 65 6, 75 30, 100 16" stroke="#38A3A5" stroke-width="1.8" stroke-linecap="round"/>
                     </svg>
@@ -427,7 +427,7 @@
                 </div>
               </div>
 
-              <!-- Metric Card 3: Respiration Rate -->
+              <!-- Thẻ Chỉ Số 3: Nhịp thở -->
               <div class="overview-metric-card">
                 <div class="metric-card-left">
                   <div class="metric-icon-circle icon-green">
@@ -436,17 +436,17 @@
                     </svg>
                   </div>
                   <div class="metric-info-col">
-                    <span class="metric-title-text">Respiration Rate</span>
+                    <span class="metric-title-text">Nhịp thở</span>
                     <div class="metric-main-value">
                       <span class="metric-num">16</span>
-                      <span class="metric-unit">br/min</span>
+                      <span class="metric-unit">lần/phút</span>
                     </div>
                   </div>
                 </div>
                 <div class="metric-card-right">
-                  <span class="badge-status-pill badge-normal">Normal</span>
+                  <span class="badge-status-pill badge-normal">Bình thường</span>
                   <div class="sparkline-wrap">
-                    <!-- Green Mountain Filled Area Sparkline -->
+                    <!-- Đỉnh sóng phủ màu xanh lá -->
                     <svg viewBox="0 0 100 36" width="90" height="32" fill="none">
                       <defs>
                         <linearGradient id="greenAreaGrad" x1="0" y1="0" x2="0" y2="1">
@@ -461,7 +461,7 @@
                 </div>
               </div>
 
-              <!-- Metric Card 4: Calories Burn -->
+              <!-- Thẻ Chỉ Số 4: Calo tiêu hao -->
               <div class="overview-metric-card">
                 <div class="metric-card-left">
                   <div class="metric-icon-circle icon-pink">
@@ -470,7 +470,7 @@
                     </svg>
                   </div>
                   <div class="metric-info-col">
-                    <span class="metric-title-text">Calories Burn</span>
+                    <span class="metric-title-text">Calo tiêu hao</span>
                     <div class="metric-main-value">
                       <span class="metric-num">1013</span>
                       <span class="metric-unit">Kcal</span>
@@ -478,9 +478,9 @@
                   </div>
                 </div>
                 <div class="metric-card-right">
-                  <span class="badge-status-pill badge-good">Good</span>
+                  <span class="badge-status-pill badge-good">Tốt</span>
                   <div class="sparkline-wrap" style="display: flex; justify-content: flex-end; align-items: center;">
-                    <!-- Mini Red Circular Gauge (75%) -->
+                    <!-- Vòng tròn Donut mini đỏ (75%) -->
                     <div class="mini-donut-wrap">
                       <svg viewBox="0 0 40 40" width="34" height="34">
                         <circle cx="20" cy="20" r="15" stroke="#FDEEF0" stroke-width="4" fill="none"/>
@@ -494,12 +494,12 @@
 
             </div>
 
-            <!-- Weight Progress Chart Block -->
+            <!-- Khối Biểu đồ tiến độ cân nặng -->
             <div class="chart-container-card" style="margin-top: 20px;">
               <div class="log-card-header">
                 <div>
-                  <h3 class="log-card-title">Tiến độ cân nặng</h3>
-                  <div class="log-card-subtitle">Mục tiêu giảm từ 97.0 kg về 70.0 kg</div>
+                  <h3 class="log-card-title">Tiến độ giảm cân</h3>
+                  <div class="log-card-subtitle">Hành trình từ 97.0 kg về mốc 70.0 kg</div>
                 </div>
                 <div style="text-align: right;">
                   <span id="weight-chart-current" class="score-huge-val font-tabular" style="font-size: 20px;">97.0 kg</span>
@@ -516,35 +516,35 @@
         </section>
 
         <!-- =====================================================================
-             SCREEN 3: AI ASSISTANT (Ảnh 3)
+             MÀN HÌNH 3: TRỢ LÝ SỨC KHOẺ AI
              ===================================================================== -->
         <section id="tab-ai" class="tab-pane" role="tabpanel" aria-label="Trợ lý AI">
-          <!-- Header with Back Button + AI Assistant + History Clock button -->
+          <!-- Header với Nút Quay lại + Trợ lý AI + Nút Lịch sử -->
           <div class="screen-nav-header">
             <button type="button" class="btn-circle-action btn-header-green" aria-label="Quay lại" onclick="switchTab('today')">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#254516" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M15 18l-6-6 6-6"/>
               </svg>
             </button>
-            <h1 class="screen-nav-title">AI Assistant</h1>
-            <button type="button" class="btn-circle-action btn-header-green" aria-label="Lịch sử trò chuyện" onclick="showAiHistory()">
+            <h1 class="screen-nav-title">Trợ lý sức khoẻ AI</h1>
+            <button type="button" class="btn-circle-action btn-header-green" aria-label="Lịch sử hội thoại" onclick="showAiHistory()">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#254516" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/>
               </svg>
             </button>
           </div>
 
-          <!-- Chat Stream Messages -->
+          <!-- Luồng tin nhắn chat -->
           <div class="ai-chat-stream" id="ai-chat-messages">
 
-            <!-- Bubble 1: User message (Green Capsule on Right) -->
+            <!-- Bong bóng 1: Tin nhắn người dùng (Con nhộng xanh lá bên phải) -->
             <div class="chat-row user-row">
               <div class="chat-bubble user-bubble">
-                I have a headache and feel tired for 2 days
+                Tôi bị đau đầu và thấy người mệt mỏi 2 ngày nay
               </div>
             </div>
 
-            <!-- Bubble 2: AI assistant response (White Card with Sparkle Icon on Left) -->
+            <!-- Bong bóng 2: Phản hồi của Trợ lý AI (Thẻ trắng có icon lấp lánh bên trái) -->
             <div class="chat-row ai-row">
               <div class="ai-sparkle-avatar">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
@@ -553,28 +553,28 @@
               </div>
               <div class="chat-bubble ai-bubble">
                 <p class="ai-bubble-intro">
-                  I'm sorry to hear that, Alex. Based on your symptoms, it could be related to stress or lack of sleep. Here are some recommendations:
+                  Chào Quyền, tôi rất tiếc khi biết bạn đang mệt mỏi và đau đầu. Dựa trên triệu chứng và các chỉ số hôm nay, tình trạng này có thể liên quan đến căng thẳng, mất nước hoặc thiếu ngủ. Dưới đây là các khuyến nghị dành riêng cho bạn:
                 </p>
                 <ul class="ai-recs-list">
                   <li>
                     <span class="rec-check-icon">✔</span>
-                    <span>Get enough rest and sleep</span>
+                    <span>Nghỉ ngơi và đi ngủ sớm (mục tiêu 7 - 8 tiếng đêm nay)</span>
                   </li>
                   <li>
                     <span class="rec-check-icon">✔</span>
-                    <span>Stay hydrated</span>
+                    <span>Uống đủ nước lọc (hôm nay bạn đã uống 1.800ml / 2.500ml)</span>
                   </li>
                   <li>
                     <span class="rec-check-icon">✔</span>
-                    <span>Avoid screen time before bed</span>
+                    <span>Hạn chế nhìn màn hình điện thoại trước khi đi ngủ ít nhất 30 phút</span>
                   </li>
                   <li>
                     <span class="rec-check-icon">✔</span>
-                    <span>If it continues, consult a doctor</span>
+                    <span>Uống thuốc đúng giờ sau ăn, nếu triệu chứng kéo dài hãy đi khám bác sĩ</span>
                   </li>
                 </ul>
                 <div class="ai-feedback-toolbar">
-                  <button type="button" class="btn-feedback" title="Sao chép" onclick="copyAiResponse(this)">
+                  <button type="button" class="btn-feedback" title="Sao chép nội dung" onclick="copyAiResponse(this)">
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                   </button>
                   <button type="button" class="btn-feedback" title="Hữu ích" onclick="rateAiResponse(this, 'up')">
@@ -589,20 +589,20 @@
 
           </div>
 
-          <!-- Quick Suggestion Prompt Chips -->
+          <!-- Hàng gợi ý câu hỏi nhanh -->
           <div class="ai-prompt-chips-row">
             <button type="button" class="prompt-chip" onclick="sendQuickPrompt('Tư vấn thực đơn dinh dưỡng hôm nay cho người giảm cân?')">Thực đơn hôm nay</button>
-            <button type="button" class="prompt-chip" onclick="sendQuickPrompt('Tôi nên uống nước như thế nào để tốt cho gan?')">Uống nước chuẩn</button>
-            <button type="button" class="prompt-chip" onclick="sendQuickPrompt('Các lưu ý vận động khi giảm cân từ 97kg?')">Lời khuyên tập luyện</button>
+            <button type="button" class="prompt-chip" onclick="sendQuickPrompt('Tôi nên uống nước như thế nào để tốt cho tế bào gan?')">Uống nước chuẩn</button>
+            <button type="button" class="prompt-chip" onclick="sendQuickPrompt('Các lưu ý vận động khi giảm cân từ mốc 97kg?')">Lời khuyên tập luyện</button>
           </div>
 
-          <!-- Chat Input Bar at Bottom (Plus button + Pill input + Mic + Send button) -->
+          <!-- Thanh nhập câu hỏi dưới đáy (Nút cộng + Ô nhập pill + Micro + Nút gửi xanh lá) -->
           <div class="ai-input-dock">
             <button type="button" class="btn-circle-action btn-green-circle" aria-label="Thêm đính kèm" onclick="openAttachOptions()">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#1E3B13" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             </button>
             <div class="ai-input-pill">
-              <input type="text" id="ai-input-field" class="ai-input-text" placeholder="Ask me Anything..." onkeydown="handleAiKeydown(event)">
+              <input type="text" id="ai-input-field" class="ai-input-text" placeholder="Hỏi bất cứ điều gì về sức khoẻ..." onkeydown="handleAiKeydown(event)">
               <button type="button" class="btn-input-mic" aria-label="Ghi âm giọng nói" onclick="startVoiceInput()">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#1C1F1B" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
               </button>
@@ -614,87 +614,87 @@
         </section>
 
         <!-- =====================================================================
-             SCREEN 4: HEALTH RECORDS (Ảnh 4)
+             MÀN HÌNH 4: HỒ SƠ Y TẾ & BÁO CÁO
              ===================================================================== -->
         <section id="tab-records" class="tab-pane" role="tabpanel" aria-label="Hồ sơ sức khoẻ">
-          <!-- Header with Back Button + Health Records + Upload/Export button -->
+          <!-- Header với Nút Quay lại + Hồ sơ y tế + Nút Xuất báo cáo -->
           <div class="screen-nav-header">
             <button type="button" class="btn-circle-action" aria-label="Quay lại" onclick="switchTab('today')">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#1C1F1B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M15 18l-6-6 6-6"/>
               </svg>
             </button>
-            <h1 class="screen-nav-title">Health Records</h1>
-            <button type="button" class="btn-circle-action" aria-label="Xuất báo cáo" onclick="viewWeeklyReport()">
+            <h1 class="screen-nav-title">Hồ sơ y tế</h1>
+            <button type="button" class="btn-circle-action" aria-label="Xuất báo cáo tuần" onclick="viewWeeklyReport()">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#1C1F1B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
               </svg>
             </button>
           </div>
 
-          <!-- Category Filter Tabs (Pill Row: All, Lab Result, Prescription, Report, Meal Plan) -->
+          <!-- Các nút lọc danh mục dạng con nhộng: Tất cả, Xét nghiệm, Đơn thuốc, Báo cáo, Thực đơn -->
           <div class="records-filter-pills" id="records-filter-bar">
-            <button type="button" class="filter-pill active" onclick="filterRecords('all', this)">All</button>
-            <button type="button" class="filter-pill" onclick="filterRecords('lab', this)">Lab Result</button>
-            <button type="button" class="filter-pill" onclick="filterRecords('prescription', this)">Prescription</button>
-            <button type="button" class="filter-pill" onclick="filterRecords('report', this)">Report</button>
-            <button type="button" class="filter-pill" onclick="filterRecords('meal', this)">Meal Plan</button>
+            <button type="button" class="filter-pill active" onclick="filterRecords('all', this)">Tất cả</button>
+            <button type="button" class="filter-pill" onclick="filterRecords('lab', this)">Xét nghiệm</button>
+            <button type="button" class="filter-pill" onclick="filterRecords('prescription', this)">Đơn thuốc</button>
+            <button type="button" class="filter-pill" onclick="filterRecords('report', this)">Báo cáo</button>
+            <button type="button" class="filter-pill" onclick="filterRecords('meal', this)">Thực đơn</button>
           </div>
 
-          <!-- List of Health Record Cards -->
+          <!-- Danh sách Thẻ Hồ Sơ Y Tế -->
           <div class="records-cards-list" id="records-list-container">
 
-            <!-- Card 1: Blood Test Report -->
+            <!-- Thẻ 1: Xét nghiệm máu & men gan -->
             <div class="record-card-item record-cat-lab" onclick="viewRecordDetail('blood')">
               <div class="record-icon-circle icon-pink">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#E55B6C" stroke-width="2"><circle cx="9" cy="12" r="5"/><circle cx="15" cy="12" r="5"/></svg>
               </div>
               <div class="record-text-col">
-                <strong class="record-title">Blood Test Report</strong>
-                <span class="record-date-sub">• 19 may 2027 • 2:30 PM</span>
+                <strong class="record-title">Xét nghiệm máu & men gan</strong>
+                <span class="record-date-sub">• 19 Tháng 5, 2026 • 14:30</span>
               </div>
-              <span class="badge-status-pill badge-normal">Normal</span>
+              <span class="badge-status-pill badge-normal">Bình thường</span>
             </div>
 
-            <!-- Card 2: X-ray Chest -->
+            <!-- Thẻ 2: Chụp X-quang tim phổi -->
             <div class="record-card-item record-cat-lab" onclick="viewRecordDetail('xray')">
               <div class="record-icon-circle icon-blue">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#38A3A5" stroke-width="2"><path d="M6.5 12a4.5 4.5 0 0 0 4.5 4.5h.5V7a4.5 4.5 0 0 0-5 5z"/><path d="M17.5 12a4.5 4.5 0 0 1-4.5 4.5h-.5V7a4.5 4.5 0 0 1 5 5z"/></svg>
               </div>
               <div class="record-text-col">
-                <strong class="record-title">X-ray Chest</strong>
-                <span class="record-date-sub">• 24 may 2027 • 1:30 PM</span>
+                <strong class="record-title">Chụp X-quang tim phổi</strong>
+                <span class="record-date-sub">• 24 Tháng 5, 2026 • 13:30</span>
               </div>
-              <span class="badge-status-pill badge-normal">Normal</span>
+              <span class="badge-status-pill badge-normal">Bình thường</span>
             </div>
 
-            <!-- Card 3: Vitamin D Test -->
+            <!-- Thẻ 3: Đo nồng độ Vitamin D -->
             <div class="record-card-item record-cat-lab" onclick="viewRecordDetail('vitamind')">
               <div class="record-icon-circle icon-green">
                 <span style="font-weight: 700; font-size: 14px; color: #5E9447;">D</span>
               </div>
               <div class="record-text-col">
-                <strong class="record-title">Vitamin D Test</strong>
-                <span class="record-date-sub">• 29 may 2027 • 3:30 PM</span>
+                <strong class="record-title">Đo nồng độ Vitamin D</strong>
+                <span class="record-date-sub">• 29 Tháng 5, 2026 • 15:30</span>
               </div>
-              <span class="badge-status-pill badge-low">Low</span>
+              <span class="badge-status-pill badge-low">Hơi thấp</span>
             </div>
 
-            <!-- Card 4: ECG Report -->
+            <!-- Thẻ 4: Điện tâm đồ ECG -->
             <div class="record-card-item record-cat-report" onclick="viewRecordDetail('ecg')">
               <div class="record-icon-circle icon-pink">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#E55B6C" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/><path d="M3.5 12h3l2-3 3 6 2-3h5"/></svg>
               </div>
               <div class="record-text-col">
-                <strong class="record-title">ECG Report</strong>
-                <span class="record-date-sub">• 29 may 2027 • 3:30 PM</span>
+                <strong class="record-title">Điện tâm đồ ECG</strong>
+                <span class="record-date-sub">• 29 Tháng 5, 2026 • 15:30</span>
               </div>
-              <span class="badge-status-pill badge-normal">Normal</span>
+              <span class="badge-status-pill badge-normal">Bình thường</span>
             </div>
 
           </div>
 
-          <!-- Section: 7-Day Meal Plan & Shopping List Integration -->
+          <!-- Mục Thực Đơn 7 Ngày & Danh Sách Đi Chợ -->
           <div class="section-container" style="margin-top: 24px;">
             <div class="section-title-header">
               <h2 class="section-heading">Thực đơn 7 ngày (~1.800 kcal)</h2>
@@ -710,14 +710,14 @@
         </section>
 
         <!-- =====================================================================
-             SCREEN 5: PROFILE & SETTINGS (Cài đặt)
+             MÀN HÌNH 5: HỒ SƠ & CÀI ĐẶT
              ===================================================================== -->
         <section id="tab-settings" class="tab-pane" role="tabpanel" aria-label="Hồ sơ và Cài đặt">
           <div class="screen-nav-header">
             <button type="button" class="btn-circle-action" aria-label="Quay lại" onclick="switchTab('today')">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#1C1F1B" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg>
             </button>
-            <h1 class="screen-nav-title">Profile & Settings</h1>
+            <h1 class="screen-nav-title">Hồ sơ & Cài đặt</h1>
             <div style="width: 40px;"></div>
           </div>
 
@@ -733,15 +733,15 @@
 
           <!-- Cài đặt thông báo & Nhắc nhở -->
           <div class="settings-card-block">
-            <h3 class="settings-block-title">Thông báo thiết bị</h3>
-            <p class="settings-block-desc">Nhận chuông nhắc nhở uống nước, uống thuốc đúng giờ</p>
+            <h3 class="settings-block-title">Thông báo trên thiết bị</h3>
+            <p class="settings-block-desc">Nhận chuông nhắc nhở uống nước, uống thuốc đúng giờ trên điện thoại</p>
             <div class="settings-btn-row">
               <button type="button" id="btn-enable-push" class="btn-green-pill btn-sm" onclick="enablePushNotifications()">Bật thông báo</button>
               <button type="button" class="btn-secondary-pill btn-sm" onclick="sendTestPush()">Thử chuông</button>
             </div>
           </div>
 
-          <!-- Lịch nhắc nhở -->
+          <!-- Lịch nhắc nhở tự do -->
           <div class="settings-card-block">
             <div class="section-title-header">
               <h3 class="settings-block-title">Lịch nhắc nhở tự do</h3>
@@ -775,7 +775,7 @@
             </div>
           </div>
 
-          <!-- Đường huyết đói -->
+          <!-- Nhật ký đường huyết -->
           <div class="settings-card-block">
             <div class="section-title-header">
               <h3 class="settings-block-title">Nhật ký đường huyết</h3>
@@ -857,47 +857,47 @@
       </div>
 
       <!-- =====================================================================
-           BOTTOM NAVIGATION BAR (Với hiệu ứng Green Pill Active như trong ảnh)
+           THANH ĐIỀU HƯỚNG ĐÁY (VỚI HIỆU ỨNG GREEN PILL ACTIVE - THUẦN TIẾNG VIỆT)
            ===================================================================== -->
       <nav class="mockup-bottom-nav" role="tablist" aria-label="Điều hướng chính">
-        <!-- 1. Home -->
-        <button type="button" class="nav-pill-btn active" id="nav-btn-today" role="tab" aria-selected="true" aria-label="Home" onclick="switchTab('today')">
+        <!-- 1. Hôm nay -->
+        <button type="button" class="nav-pill-btn active" id="nav-btn-today" role="tab" aria-selected="true" aria-label="Hôm nay" onclick="switchTab('today')">
           <svg class="nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1V9.5z"/>
           </svg>
-          <span class="nav-label">Home</span>
+          <span class="nav-label">Hôm nay</span>
         </button>
 
-        <!-- 2. Overview -->
-        <button type="button" class="nav-pill-btn" id="nav-btn-overview" role="tab" aria-selected="false" aria-label="Overview" onclick="switchTab('overview')">
+        <!-- 2. Tổng quan -->
+        <button type="button" class="nav-pill-btn" id="nav-btn-overview" role="tab" aria-selected="false" aria-label="Tổng quan" onclick="switchTab('overview')">
           <svg class="nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/>
           </svg>
-          <span class="nav-label">Overview</span>
+          <span class="nav-label">Tổng quan</span>
         </button>
 
-        <!-- 3. AI Assistant -->
-        <button type="button" class="nav-pill-btn" id="nav-btn-ai" role="tab" aria-selected="false" aria-label="AI Chat" onclick="switchTab('ai')">
+        <!-- 3. Trợ lý AI -->
+        <button type="button" class="nav-pill-btn" id="nav-btn-ai" role="tab" aria-selected="false" aria-label="Trợ lý AI" onclick="switchTab('ai')">
           <svg class="nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
           </svg>
-          <span class="nav-label">AI Chat</span>
+          <span class="nav-label">Trợ lý AI</span>
         </button>
 
-        <!-- 4. Records -->
-        <button type="button" class="nav-pill-btn" id="nav-btn-records" role="tab" aria-selected="false" aria-label="Records" onclick="switchTab('records')">
+        <!-- 4. Hồ sơ -->
+        <button type="button" class="nav-pill-btn" id="nav-btn-records" role="tab" aria-selected="false" aria-label="Hồ sơ" onclick="switchTab('records')">
           <svg class="nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
           </svg>
-          <span class="nav-label">Records</span>
+          <span class="nav-label">Hồ sơ</span>
         </button>
 
-        <!-- 5. Profile -->
-        <button type="button" class="nav-pill-btn" id="nav-btn-settings" role="tab" aria-selected="false" aria-label="Profile" onclick="switchTab('settings')">
+        <!-- 5. Cài đặt -->
+        <button type="button" class="nav-pill-btn" id="nav-btn-settings" role="tab" aria-selected="false" aria-label="Cài đặt" onclick="switchTab('settings')">
           <svg class="nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
           </svg>
-          <span class="nav-label">Profile</span>
+          <span class="nav-label">Cài đặt</span>
         </button>
       </nav>
 
@@ -1003,6 +1003,6 @@
 
   <span id="today-date-badge" style="display: none;"></span>
 
-  <script src="/app.js?v=8"></script>
+  <script src="/app.js?v=9"></script>
 </body>
 </html>
