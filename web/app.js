@@ -776,6 +776,13 @@
   }
 
   // ================= 4. THÊM & CÀI ĐẶT =================
+  let reminderState = {
+    weight: ['06:30'],
+    med: ['08:00', '12:00'],
+    water: ['10:00', '14:00', '17:00', '20:00'],
+    sleep: ['22:30']
+  };
+
   async function loadSettingsData() {
     try {
       const data = await api('/api/settings');
@@ -791,8 +798,130 @@
       document.getElementById('set-t-med').value = s.t_med || '08:00';
       document.getElementById('set-t-sleep').value = s.t_sleep || '22:30';
       document.getElementById('set-snack').value = s.snack || '1';
+
+      // Nạp mốc nhắc nhở tự do
+      if (s.remind_weight_times !== undefined) {
+        reminderState.weight = s.remind_weight_times ? s.remind_weight_times.split(',').map(t => t.trim()).filter(Boolean) : [];
+      } else if (s.t_weight) {
+        reminderState.weight = [s.t_weight];
+      }
+
+      if (s.remind_med_times !== undefined) {
+        reminderState.med = s.remind_med_times ? s.remind_med_times.split(',').map(t => t.trim()).filter(Boolean) : [];
+      } else {
+        reminderState.med = [s.t_med || '08:00', s.t_med2 || '12:00'].filter(Boolean);
+      }
+
+      if (s.remind_water_times !== undefined) {
+        reminderState.water = s.remind_water_times ? s.remind_water_times.split(',').map(t => t.trim()).filter(Boolean) : [];
+      } else {
+        reminderState.water = ['10:00', '14:00', '17:00', '20:00'];
+      }
+
+      if (s.remind_sleep_times !== undefined) {
+        reminderState.sleep = s.remind_sleep_times ? s.remind_sleep_times.split(',').map(t => t.trim()).filter(Boolean) : [];
+      } else if (s.t_sleep) {
+        reminderState.sleep = [s.t_sleep];
+      }
+
+      renderReminderSection();
     } catch (e) { }
   }
+
+  function renderReminderChips(cat) {
+    const container = document.getElementById('remind-' + cat + '-chips');
+    const badge = document.getElementById('badge-count-' + cat);
+    if (!container) return;
+
+    const list = reminderState[cat] || [];
+    if (badge) {
+      if (list.length === 0) {
+        badge.textContent = 'Đang tắt';
+        badge.className = 'badge';
+      } else {
+        badge.textContent = `${list.length} mốc/ngày`;
+        badge.className = 'badge badge-emerald';
+      }
+    }
+
+    if (list.length === 0) {
+      container.innerHTML = '<span style="font-size:12px; color:var(--text-tertiary); padding:4px 0;">Chưa có mốc nào (bấm nút bên dưới để thêm)</span>';
+      return;
+    }
+
+    container.innerHTML = list.map((timeStr, idx) => `
+      <div class="time-chip">
+        <input type="time" class="time-chip-input" value="${timeStr}" aria-label="Mốc giờ nhắc" onchange="updateReminderTime('${cat}', ${idx}, this.value)">
+        <button type="button" class="btn-chip-del" aria-label="Xoá mốc ${timeStr}" onclick="removeReminderTime('${cat}', ${idx})">&times;</button>
+      </div>
+    `).join('');
+  }
+
+  function renderReminderSection() {
+    ['weight', 'med', 'water', 'sleep'].forEach(renderReminderChips);
+  }
+
+  window.addReminderTime = function (cat, defaultVal) {
+    if (!reminderState[cat]) reminderState[cat] = [];
+    if (reminderState[cat].length >= 10) {
+      showToast('Tối đa 10 mốc giờ cho mỗi mục', true);
+      return;
+    }
+    let newTime = defaultVal || '08:00';
+    if (reminderState[cat].length > 0) {
+      const last = reminderState[cat][reminderState[cat].length - 1];
+      const parts = last.split(':').map(Number);
+      const nextH = (parts[0] + 2) % 24;
+      newTime = `${String(nextH).padStart(2, '0')}:${String(parts[1]).padStart(2, '0')}`;
+    }
+    reminderState[cat].push(newTime);
+    reminderState[cat].sort();
+    renderReminderChips(cat);
+  };
+
+  window.removeReminderTime = function (cat, idx) {
+    if (!reminderState[cat]) return;
+    reminderState[cat].splice(idx, 1);
+    renderReminderChips(cat);
+  };
+
+  window.updateReminderTime = function (cat, idx, val) {
+    if (!reminderState[cat] || !val) return;
+    reminderState[cat][idx] = val;
+    reminderState[cat].sort();
+    renderReminderChips(cat);
+  };
+
+  window.saveReminderSchedule = async function () {
+    const payload = {
+      remind_weight_times: (reminderState.weight || []).join(','),
+      remind_med_times: (reminderState.med || []).join(','),
+      remind_water_times: (reminderState.water || []).join(','),
+      remind_sleep_times: (reminderState.sleep || []).join(','),
+      t_weight: (reminderState.weight && reminderState.weight[0]) || '06:30',
+      t_med: (reminderState.med && reminderState.med[0]) || '08:00',
+      t_med2: (reminderState.med && reminderState.med[1]) || '',
+      t_sleep: (reminderState.sleep && reminderState.sleep[0]) || '22:30'
+    };
+
+    try {
+      const res = await api('/api/settings', {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      });
+      state.settings = res.settings;
+      if (document.getElementById('set-t-weight')) {
+        document.getElementById('set-t-weight').value = payload.t_weight;
+      }
+      if (document.getElementById('set-t-med')) {
+        document.getElementById('set-t-med').value = payload.t_med;
+      }
+      if (document.getElementById('set-t-sleep')) {
+        document.getElementById('set-t-sleep').value = payload.t_sleep;
+      }
+      showToast('Đã lưu lịch & số lần nhắc nhở thành công!');
+    } catch (e) { }
+  };
 
   window.saveSettings = async function (e) {
     e.preventDefault();
@@ -806,7 +935,11 @@
       t_weight: document.getElementById('set-t-weight').value,
       t_med: document.getElementById('set-t-med').value,
       t_sleep: document.getElementById('set-t-sleep').value,
-      snack: document.getElementById('set-snack').value
+      snack: document.getElementById('set-snack').value,
+      remind_weight_times: (reminderState.weight || []).join(','),
+      remind_med_times: (reminderState.med || []).join(','),
+      remind_water_times: (reminderState.water || []).join(','),
+      remind_sleep_times: (reminderState.sleep || []).join(',')
     };
     try {
       const res = await api('/api/settings', {

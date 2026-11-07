@@ -10,7 +10,7 @@
   <meta name="apple-mobile-web-app-title" content="QuyenHealth">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
-  <link rel="stylesheet" href="/style.css?v=3">
+  <link rel="stylesheet" href="/style.css?v=4">
 </head>
 <body>
   <!-- Toast Thông báo -->
@@ -308,6 +308,78 @@
           </div>
         </div>
 
+        <!-- Cài Đặt Giờ & Số Lần Nhắc Nhở -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-header-titles">
+              <span class="card-category">Cá nhân hoá thời gian</span>
+              <h3 class="card-title">Lịch & Số Lần Nhắc Nhở</h3>
+            </div>
+            <button class="btn-secondary btn-sm" onclick="saveReminderSchedule()">Lưu Lịch Nhắc</button>
+          </div>
+          <p class="section-desc">
+            Quyền có thể tự do chỉnh sửa mốc giờ, thêm nhiều lần nhắc trong ngày hoặc bấm dấu x để tắt bất kỳ mốc nào:
+          </p>
+
+          <div class="reminders-settings-list">
+            <!-- 1. Cân nặng -->
+            <div class="reminder-group-box">
+              <div class="reminder-group-header">
+                <div>
+                  <strong class="reminder-group-title">Đo Cân Buổi Sáng</strong>
+                  <span class="reminder-group-sub">Nhắc đo cân sau khi vệ sinh cá nhân, trước ăn sáng</span>
+                </div>
+                <span id="badge-count-weight" class="badge">1 mốc/ngày</span>
+              </div>
+              <div id="remind-weight-chips" class="reminder-chips-wrap"></div>
+              <button type="button" class="btn-add-time" onclick="addReminderTime('weight', '06:30')">+ Thêm mốc giờ cân</button>
+            </div>
+
+            <!-- 2. Thuốc -->
+            <div class="reminder-group-box">
+              <div class="reminder-group-header">
+                <div>
+                  <strong class="reminder-group-title">Uống Thuốc Đều Đặn</strong>
+                  <span class="reminder-group-sub">Theo chỉ định bác sĩ (tự dừng khi đã bấm Đã uống)</span>
+                </div>
+                <span id="badge-count-med" class="badge">2 mốc/ngày</span>
+              </div>
+              <div id="remind-med-chips" class="reminder-chips-wrap"></div>
+              <button type="button" class="btn-add-time" onclick="addReminderTime('med', '12:00')">+ Thêm mốc giờ uống thuốc</button>
+            </div>
+
+            <!-- 3. Nước lọc -->
+            <div class="reminder-group-box">
+              <div class="reminder-group-header">
+                <div>
+                  <strong class="reminder-group-title">Uống Nước Lọc</strong>
+                  <span class="reminder-group-sub">Nhắc theo tiến độ (tự bỏ qua nếu đã uống đủ mức)</span>
+                </div>
+                <span id="badge-count-water" class="badge">4 mốc/ngày</span>
+              </div>
+              <div id="remind-water-chips" class="reminder-chips-wrap"></div>
+              <button type="button" class="btn-add-time" onclick="addReminderTime('water', '15:00')">+ Thêm mốc giờ uống nước</button>
+            </div>
+
+            <!-- 4. Đi ngủ -->
+            <div class="reminder-group-box">
+              <div class="reminder-group-header">
+                <div>
+                  <strong class="reminder-group-title">Giờ Nghỉ Ngơi & Đi Ngủ</strong>
+                  <span class="reminder-group-sub">Hạn chế thức khuya để bảo vệ tế bào gan</span>
+                </div>
+                <span id="badge-count-sleep" class="badge">1 mốc/ngày</span>
+              </div>
+              <div id="remind-sleep-chips" class="reminder-chips-wrap"></div>
+              <button type="button" class="btn-add-time" onclick="addReminderTime('sleep', '22:30')">+ Thêm mốc giờ đi ngủ</button>
+            </div>
+          </div>
+
+          <button type="button" class="btn-primary" style="margin-top: 16px;" onclick="saveReminderSchedule()">
+            Lưu Toàn Bộ Lịch Nhắc Nhở
+          </button>
+        </div>
+
         <!-- Đo Đường Huyết -->
         <div class="card">
           <div class="card-header">
@@ -546,6 +618,6 @@
     </div>
   </div>
 
-  <script src="/app.js?v=3"></script>
+  <script src="/app.js?v=4"></script>
 </body>
 </html>

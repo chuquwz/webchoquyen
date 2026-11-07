@@ -1108,6 +1108,122 @@ main.app-main {
   line-height: 1.5;
 }
 
+/* Lịch & Số Lần Nhắc Nhở Tự Do */
+.reminders-settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.reminder-group-box {
+  background: var(--surface-card-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-inner);
+  padding: 14px;
+}
+
+.reminder-group-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  gap: 8px;
+}
+
+.reminder-group-title {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.reminder-group-sub {
+  display: block;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+.reminder-chips-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.time-chip {
+  display: inline-flex;
+  align-items: center;
+  background: var(--surface-nested);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-chip);
+  padding: 4px 6px 4px 10px;
+  gap: 6px;
+  transition: border-color var(--duration-fast) ease;
+}
+
+.time-chip:focus-within {
+  border-color: var(--border-focus);
+}
+
+.time-chip-input {
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  padding: 2px 0;
+  cursor: pointer;
+}
+
+.btn-chip-del {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  font-size: 16px;
+  line-height: 1;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--duration-fast) ease, color var(--duration-fast) ease;
+}
+
+.btn-chip-del:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: var(--rose);
+}
+
+.btn-add-time {
+  background: transparent;
+  border: 1px dashed var(--border-medium);
+  color: var(--accent-text);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius-chip);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: background-color var(--duration-fast) ease, border-color var(--duration-fast) ease, transform var(--duration-fast) var(--ease-press);
+}
+
+.btn-add-time:hover {
+  background: var(--surface-hover);
+  border-color: var(--accent-primary);
+}
+
+.btn-add-time:active {
+  transform: scale(0.96);
+}
+
 .form-grid-2 {
   display: grid;
   grid-template-columns: 1fr;

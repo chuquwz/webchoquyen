@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/SherClockHolmes/webpush-go"
@@ -286,7 +288,7 @@ func (s *Server) handlePushSubscribe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handlePushTest(w http.ResponseWriter, r *http.Request) {
-	sent, err := s.sendPush("QuyenHealth 🔔", "Thông báo thử thành công! Nhắc nhở đã hoạt động.", "/")
+	sent, err := s.sendPush("QuyenHealth", "Thông báo thử thành công! Nhắc nhở đã hoạt động chuẩn xác.", "/")
 	if err != nil {
 		serverErr(w, err)
 		return
@@ -385,6 +387,28 @@ func reachedHM(nowVN time.Time, hm string) bool {
 	return cur >= due && cur <= due+90
 }
 
+func parseHMList(raw, fallback string) []string {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		s = strings.TrimSpace(fallback)
+	}
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	var out []string
+	seen := map[string]bool{}
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if validHM(p) && !seen[p] {
+			seen[p] = true
+			out = append(out, p)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
 func (s *Server) tick(now time.Time) []string {
 	set := s.settings()
 	if set["remind_on"] != "1" {
@@ -397,68 +421,86 @@ func (s *Server) tick(now time.Time) []string {
 	// Dọn notif_log cũ hơn 7 ngày
 	_, _ = s.db.Exec(`DELETE FROM notif_log WHERE ts < ?`, now.Add(-7*24*time.Hour).Unix())
 
-	// 1. Nhắc đo cân nặng buổi sáng
-	if reachedHM(nowVN, set["t_weight"]) {
-		var kg float64
-		if err := s.db.QueryRow(`SELECT kg FROM weight_log WHERE date=?`, date).Scan(&kg); err != nil {
-			key := date + "|weight"
-			if s.markNotified(key, now) {
-				_, _ = s.sendPush("⚖️ Đo cân buổi sáng", "Quyền ơi, nhớ bước lên cân trước khi ăn sáng nhé!", "/#weight")
-				fired = append(fired, key)
+	// 1. Nhắc đo cân nặng buổi sáng (hỗ trợ nhiều mốc tự chọn)
+	weightTimes := parseHMList(set["remind_weight_times"], set["t_weight"])
+	for i, hm := range weightTimes {
+		if reachedHM(nowVN, hm) {
+			var kg float64
+			if err := s.db.QueryRow(`SELECT kg FROM weight_log WHERE date=?`, date).Scan(&kg); err != nil {
+				key := fmt.Sprintf("%s|weight_%s", date, hm)
+				if s.markNotified(key, now) {
+					msg := "Quyền ơi, nhớ bước lên cân trước khi ăn sáng nhé!"
+					if i > 0 {
+						msg = fmt.Sprintf("Mốc nhắc %s: Quyền chưa ghi nhận cân nặng hôm nay, nhớ cân và lưu nhé!", hm)
+					}
+					_, _ = s.sendPush("Đo cân buổi sáng", msg, "/#weight")
+					fired = append(fired, key)
+				}
 			}
 		}
 	}
 
-	// 2. Nhắc uống thuốc lần 1 & lần 2
+	// 2. Nhắc uống thuốc (hỗ trợ nhiều mốc tự chọn)
+	fallbackMed := set["t_med"]
+	if set["t_med2"] != "" {
+		fallbackMed += "," + set["t_med2"]
+	}
+	medTimes := parseHMList(set["remind_med_times"], fallbackMed)
 	if !s.medTaken(date) {
-		if reachedHM(nowVN, set["t_med"]) {
-			key := date + "|med1"
-			if s.markNotified(key, now) {
-				_, _ = s.sendPush("💊 Nhắc uống thuốc", "Đến giờ uống thuốc hôm nay rồi Quyền ơi!", "/")
-				fired = append(fired, key)
-			}
-		} else if reachedHM(nowVN, set["t_med2"]) {
-			key := date + "|med2"
-			if s.markNotified(key, now) {
-				_, _ = s.sendPush("💊 Chưa tích uống thuốc", "Hôm nay Quyền đã uống thuốc chưa? Nhớ bấm xác nhận nhé.", "/")
-				fired = append(fired, key)
+		for i, hm := range medTimes {
+			if reachedHM(nowVN, hm) {
+				key := fmt.Sprintf("%s|med_%s", date, hm)
+				if s.markNotified(key, now) {
+					msg := "Đến giờ uống thuốc hôm nay rồi Quyền ơi!"
+					if i > 0 {
+						msg = fmt.Sprintf("Mốc nhắc %s: Quyền đã uống thuốc chưa? Nhớ bấm xác nhận nhé.", hm)
+					}
+					_, _ = s.sendPush("Nhắc uống thuốc", msg, "/")
+					fired = append(fired, key)
+				}
 			}
 		}
 	}
 
-	// 3. Nhắc uống nước theo mốc giờ trong ngày (10h, 14h, 17h, 20h)
+	// 3. Nhắc uống nước theo các mốc giờ tự chọn
+	waterTimes := parseHMList(set["remind_water_times"], "10:00,14:00,17:00,20:00")
 	_, waterTotal := s.waterEntries(date)
 	waterMin := int(fnum(set, "water_min"))
 	if waterMin <= 0 {
 		waterMin = 2500
 	}
-	waterChecks := []struct {
-		hm    string
-		ratio float64
-	}{
-		{"10:00", 0.25},
-		{"14:00", 0.50},
-		{"17:00", 0.75},
-		{"20:00", 0.92},
-	}
-	for _, wc := range waterChecks {
-		need := int(float64(waterMin) * wc.ratio)
-		if reachedHM(nowVN, wc.hm) && waterTotal < need {
-			key := fmt.Sprintf("%s|water_%s", date, wc.hm)
-			if s.markNotified(key, now) {
-				msg := fmt.Sprintf("Mới uống %d/%dml hôm nay. Làm thêm 1 cốc nước lọc nhé!", waterTotal, waterMin)
-				_, _ = s.sendPush("💧 Uống thêm nước lọc", msg, "/")
-				fired = append(fired, key)
+	numWaterTimes := len(waterTimes)
+	if numWaterTimes > 0 {
+		for i, hm := range waterTimes {
+			ratio := float64(i+1) / float64(numWaterTimes)
+			if ratio > 0.92 {
+				ratio = 0.92
+			}
+			need := int(float64(waterMin) * ratio)
+			if reachedHM(nowVN, hm) && waterTotal < need {
+				key := fmt.Sprintf("%s|water_%s", date, hm)
+				if s.markNotified(key, now) {
+					msg := fmt.Sprintf("Mới uống %d/%dml hôm nay. Làm thêm 1 cốc nước lọc nhé!", waterTotal, waterMin)
+					_, _ = s.sendPush("Uống thêm nước lọc", msg, "/")
+					fired = append(fired, key)
+				}
 			}
 		}
 	}
 
-	// 4. Nhắc đi ngủ sớm (hạn chế thức khuya - gan nhiễm mỡ)
-	if reachedHM(nowVN, set["t_sleep"]) {
-		key := date + "|sleep"
-		if s.markNotified(key, now) {
-			_, _ = s.sendPush("🌙 Đến giờ nghỉ ngơi", "Bác sĩ dặn hạn chế thức khuya để tốt cho gan. Chuẩn bị đi ngủ thôi Quyền ơi!", "/")
-			fired = append(fired, key)
+	// 4. Nhắc đi ngủ sớm (hỗ trợ nhiều mốc tự chọn)
+	sleepTimes := parseHMList(set["remind_sleep_times"], set["t_sleep"])
+	for i, hm := range sleepTimes {
+		if reachedHM(nowVN, hm) {
+			key := fmt.Sprintf("%s|sleep_%s", date, hm)
+			if s.markNotified(key, now) {
+				msg := "Bác sĩ dặn hạn chế thức khuya để tốt cho gan. Chuẩn bị đi ngủ thôi Quyền ơi!"
+				if i > 0 {
+					msg = fmt.Sprintf("Mốc nhắc %s: Đã muộn rồi, Quyền hãy nghỉ ngơi và đi ngủ để bảo vệ gan nhé.", hm)
+				}
+				_, _ = s.sendPush("Đến giờ nghỉ ngơi", msg, "/")
+				fired = append(fired, key)
+			}
 		}
 	}
 

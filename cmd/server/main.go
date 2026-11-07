@@ -18,7 +18,7 @@ func main() {
 	pin := os.Getenv("APP_PIN")
 	if pin == "" {
 		pin = "123456" // mã mặc định khi chạy local
-		log.Printf("⚠️ Chưa đặt APP_PIN trong môi trường, dùng tạm mã mặc định: %s", pin)
+		log.Printf("[CHÚ Ý] Chưa đặt APP_PIN trong môi trường, dùng tạm mã mặc định: %s", pin)
 	}
 
 	dataDir := os.Getenv("DATA_DIR")
@@ -46,7 +46,7 @@ func main() {
 
 	var staticFS fs.FS = web.Files
 	if _, err := os.Stat("./web/index.html"); err == nil {
-		log.Printf("📁 Phát hiện thư mục ./web cục bộ, nạp giao diện trực tiếp từ ổ cứng")
+		log.Printf("[INFO] Phát hiện thư mục ./web cục bộ, nạp giao diện trực tiếp từ ổ cứng")
 		staticFS = os.DirFS("./web")
 	}
 
@@ -70,7 +70,7 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("🚀 QuyenHealth đang chạy tại http://localhost:%s (data: %s)", port, dataDir)
+		log.Printf("[INFO] QuyenHealth đang chạy tại http://localhost:%s (data: %s)", port, dataDir)
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Lỗi HTTP server: %v", err)
 		}

@@ -16,21 +16,25 @@ import (
 // ---------- cài đặt ----------
 
 var defaultSettings = map[string]string{
-	"name":         "Quyền",
-	"age":          "22",
-	"height":       "172",
-	"start_weight": "97",
-	"goal_weight":  "70",
-	"activity":     "1.2",
-	"deficit":      "500",
-	"water_min":    "2500",
-	"water_max":    "3000",
-	"snack":        "1",
-	"remind_on":    "1",
-	"t_weight":     "06:30",
-	"t_med":        "08:00",
-	"t_med2":       "12:00",
-	"t_sleep":      "22:30",
+	"name":                "Quyền",
+	"age":                 "22",
+	"height":              "172",
+	"start_weight":        "97",
+	"goal_weight":         "70",
+	"activity":            "1.2",
+	"deficit":             "500",
+	"water_min":           "2500",
+	"water_max":           "3000",
+	"snack":               "1",
+	"remind_on":           "1",
+	"t_weight":            "06:30",
+	"t_med":               "08:00",
+	"t_med2":              "12:00",
+	"t_sleep":             "22:30",
+	"remind_weight_times": "06:30",
+	"remind_med_times":    "08:00,12:00",
+	"remind_water_times":  "10:00,14:00,17:00,20:00",
+	"remind_sleep_times":  "22:30",
 }
 
 func (s *Server) settings() map[string]string {
@@ -89,6 +93,23 @@ func validHM(v string) bool {
 	return err == nil && t.Format("15:04") == v
 }
 
+func validHMList(v string) bool {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return true // Cho phép rỗng nếu muốn tắt loại nhắc này
+	}
+	parts := strings.Split(v, ",")
+	if len(parts) > 12 {
+		return false
+	}
+	for _, p := range parts {
+		if !validHM(strings.TrimSpace(p)) {
+			return false
+		}
+	}
+	return true
+}
+
 func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 	var in map[string]string
 	if !readJSON(w, r, &in) {
@@ -114,6 +135,11 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 		case "t_weight", "t_med", "t_med2", "t_sleep":
 			if !validHM(v) {
 				httpErr(w, 400, "giờ không hợp lệ (HH:MM)")
+				return
+			}
+		case "remind_weight_times", "remind_med_times", "remind_water_times", "remind_sleep_times":
+			if !validHMList(v) {
+				httpErr(w, 400, "danh sách giờ không hợp lệ (HH:MM,...)")
 				return
 			}
 		case "snack", "remind_on":
