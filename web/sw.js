@@ -1,9 +1,9 @@
-const CACHE_NAME = 'quyenhealth-v24';
+const CACHE_NAME = 'quyenhealth-v25';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/style.css?v=24',
-  '/app.js?v=24',
+  '/style.css?v=25',
+  '/app.js?v=25',
   '/manifest.webmanifest',
   '/icons/icon-192.png',
   '/icons/icon-512.png'
@@ -60,7 +60,7 @@ self.addEventListener('message', (event) => {
   }
 });
 
-// Xử lý Web Push Notification
+// Xử lý Web Push Notification (Tương thích chuẩn Apple APNs iOS 16.4+ & Android)
 self.addEventListener('push', (event) => {
   let data = { title: 'QuyenHealth', body: 'Bạn có lời nhắc sức khoẻ mới!', url: '/' };
   try {
@@ -72,14 +72,17 @@ self.addEventListener('push', (event) => {
   }
 
   const options = {
-    body: data.body,
+    body: data.body || '',
     icon: '/icons/icon-192.png',
     badge: '/icons/icon-192.png',
-    vibrate: [200, 100, 200],
     data: { url: data.url || '/' }
   };
 
-  event.waitUntil(self.registration.showNotification(data.title, options));
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'QuyenHealth', options).catch((err) => {
+      console.error('showNotification error:', err);
+    })
+  );
 });
 
 self.addEventListener('notificationclick', (event) => {

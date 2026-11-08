@@ -1439,7 +1439,41 @@
     }
   }
 
+  function arrayBufferToBase64Url(buffer) {
+    if (!buffer) return '';
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  function getSafeSubscriptionJson(sub) {
+    const raw = sub.toJSON ? sub.toJSON() : {};
+    let p256dh = raw.keys && raw.keys.p256dh;
+    let auth = raw.keys && raw.keys.auth;
+
+    if (!p256dh && sub.getKey) {
+      const p256dhKey = sub.getKey('p256dh');
+      if (p256dhKey) p256dh = arrayBufferToBase64Url(p256dhKey);
+    }
+    if (!auth && sub.getKey) {
+      const authKey = sub.getKey('auth');
+      if (authKey) auth = arrayBufferToBase64Url(authKey);
+    }
+
+    return {
+      endpoint: sub.endpoint,
+      keys: {
+        p256dh: p256dh || '',
+        auth: auth || ''
+      }
+    };
+  }
+
   function urlBase64ToUint8Array(base64String) {
+    base64String = (base64String || '').trim();
     const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
     const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
     const rawData = window.atob(base64);
@@ -1470,30 +1504,48 @@
     }
 
     try {
+      showToast('Đang kết nối dịch vụ thông báo...');
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
-        showToast('Chưa cấp quyền thông báo cho ứng dụng', true);
+        showToast('Chưa cấp quyền thông báo trong Cài đặt iPhone', true);
         return;
       }
 
       const keyData = await api('/api/push/key');
-      const pubKey = keyData.publicKey;
+      const pubKey = (keyData.publicKey || '').trim();
+      if (!pubKey) {
+        throw new Error('Chưa nhận được khoá VAPID từ máy chủ');
+      }
+
       const reg = await navigator.serviceWorker.ready;
 
-      let sub = await reg.pushManager.getSubscription();
-      if (!sub) {
-        sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(pubKey)
-        });
+      // Luôn huỷ đăng ký cũ để đảm bảo VAPID public key khớp 100% với máy chủ
+      const existingSub = await reg.pushManager.getSubscription();
+      if (existingSub) {
+        try {
+          await existingSub.unsubscribe();
+        } catch (e) {
+          console.warn('Lỗi huỷ sub cũ:', e);
+        }
+      }
+
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(pubKey)
+      });
+
+      const payload = getSafeSubscriptionJson(sub);
+      if (!payload.keys.p256dh || !payload.keys.auth) {
+        throw new Error('Không trích xuất được khoá mã hoá của thiết bị');
       }
 
       await api('/api/push/subscribe', {
         method: 'POST',
-        body: JSON.stringify(sub)
+        body: JSON.stringify(payload)
       });
+
       playChimeSound();
-      showToast('Đã bật thông báo thành công! Bấm "Thử chuông" để kiểm tra.');
+      showToast('Đã kích hoạt thông báo thành công! Bấm "Thử chuông" để nhận thông báo.');
       updatePushBtnState();
     } catch (err) {
       showToast('Lỗi bật thông báo: ' + err.message, true);
@@ -1503,14 +1555,17 @@
   window.sendTestPush = async function () {
     playChimeSound();
     try {
+      showToast('Đang gửi thông báo thử tới iPhone qua Apple APNs...');
       const res = await api('/api/push/test', { method: 'POST' });
       if (res.sent > 0) {
-        showToast('Đã phát chuông và gửi thông báo tới thiết bị!');
+        showToast('Đã gửi thông báo! Nếu đang mở app, hãy vuốt thanh thông báo từ trên xuống hoặc khóa màn hình để xem banner.');
+      } else if (res.total === 0) {
+        showToast('Chưa có thiết bị đăng ký! Bấm nút "Bật thông báo" trước khi thử chuông.', true);
       } else {
-        showToast('Đã phát chuông thử! Bấm "Bật thông báo" để nhận tin nhắn màn hình khóa.', true);
+        showToast(`Apple từ chối (${res.status || 'lỗi'}: ${res.error || 'Vui lòng bấm Bật thông báo để đăng ký lại'})`, true);
       }
     } catch (e) {
-      showToast('Đã phát chuông thử nghiệm');
+      showToast('Lỗi gửi thử chuông: ' + e.message, true);
     }
   };
 

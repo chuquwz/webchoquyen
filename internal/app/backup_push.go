@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"sort"
@@ -287,24 +288,40 @@ func (s *Server) handlePushSubscribe(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]bool{"ok": true})
 }
 
+type pushResult struct {
+	Sent      int    `json:"sent"`
+	Total     int    `json:"total"`
+	LastCode  int    `json:"status"`
+	LastError string `json:"error,omitempty"`
+}
+
 func (s *Server) handlePushTest(w http.ResponseWriter, r *http.Request) {
-	sent, err := s.sendPush("QuyenHealth", "Thông báo thử thành công! Nhắc nhở đã hoạt động chuẩn xác.", "/")
+	res, err := s.sendPushDetailed("QuyenHealth", "Thông báo thử thành công! Nhắc nhở sức khoẻ hoạt động tốt.", "/")
 	if err != nil {
 		serverErr(w, err)
 		return
 	}
-	writeJSON(w, 200, map[string]any{"ok": true, "sent": sent})
+	writeJSON(w, 200, map[string]any{
+		"ok":     true,
+		"sent":   res.Sent,
+		"total":  res.Total,
+		"status": res.LastCode,
+		"error":  res.LastError,
+	})
 }
 
-func (s *Server) sendPush(title, body, url string) (int, error) {
+func (s *Server) sendPushDetailed(title, body, url string) (pushResult, error) {
+	var res pushResult
 	priv, pub, err := s.vapidKeys()
 	if err != nil {
-		return 0, err
+		return res, err
 	}
 	rows, err := s.db.Query(`SELECT endpoint, p256dh, auth FROM push_sub`)
 	if err != nil {
-		return 0, err
+		return res, err
 	}
+	defer rows.Close()
+
 	type subRow struct{ ep, p256dh, auth string }
 	var subs []subRow
 	for rows.Next() {
@@ -313,16 +330,15 @@ func (s *Server) sendPush(title, body, url string) (int, error) {
 			subs = append(subs, x)
 		}
 	}
-	rows.Close()
+	res.Total = len(subs)
 	if len(subs) == 0 {
-		return 0, nil
+		return res, nil
 	}
 	payload, _ := json.Marshal(map[string]string{"title": title, "body": body, "url": url})
 	sub := s.cfg.VapidSubject
 	if sub == "" {
-		sub = "mailto:quyenhealth@example.com"
+		sub = "mailto:quyenhealth.app@gmail.com"
 	}
-	sent := 0
 	for _, x := range subs {
 		resp, err := webpush.SendNotification(payload, &webpush.Subscription{
 			Endpoint: x.ep,
@@ -332,22 +348,35 @@ func (s *Server) sendPush(title, body, url string) (int, error) {
 			VAPIDPublicKey:  pub,
 			VAPIDPrivateKey: priv,
 			TTL:             3600,
+			Urgency:         webpush.UrgencyHigh,
 		})
 		if err != nil {
-			log.Printf("push lỗi: %v", err)
+			res.LastError = err.Error()
+			log.Printf("[PUSH ERROR] ep=%s: %v", x.ep, err)
 			continue
 		}
 		code := resp.StatusCode
+		bodyBytes, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
-		if code == http.StatusGone || code == http.StatusNotFound {
-			_, _ = s.db.Exec(`DELETE FROM push_sub WHERE endpoint=?`, x.ep)
-			continue
-		}
+		res.LastCode = code
+
 		if code >= 200 && code < 300 {
-			sent++
+			res.Sent++
+			log.Printf("[PUSH SUCCESS] code=%d ep=%s", code, x.ep)
+		} else {
+			res.LastError = strings.TrimSpace(string(bodyBytes))
+			log.Printf("[PUSH FAIL] code=%d body=%s ep=%s", code, res.LastError, x.ep)
+			if code == http.StatusGone || code == http.StatusNotFound {
+				_, _ = s.db.Exec(`DELETE FROM push_sub WHERE endpoint=?`, x.ep)
+			}
 		}
 	}
-	return sent, nil
+	return res, nil
+}
+
+func (s *Server) sendPush(title, body, url string) (int, error) {
+	res, err := s.sendPushDetailed(title, body, url)
+	return res.Sent, err
 }
 
 // handleTick dùng cho cron bên ngoài (cron-job.org / UptimeRobot) ping giữ/đánh thức Koyeb
