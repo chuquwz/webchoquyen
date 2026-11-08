@@ -444,14 +444,16 @@
   // --- CHECKLIST THUỐC ---
   function renderMedWidget() {
     const btn = document.getElementById('btn-today-med');
-    if (!btn) return;
-    if (state.medTaken) {
-      btn.className = 'btn-med-chip taken';
-      btn.innerHTML = '<span>Đã uống thuốc hôm nay</span>';
-    } else {
-      btn.className = 'btn-med-chip';
-      btn.innerHTML = '<span>Chưa uống thuốc</span>';
+    if (btn) {
+      if (state.medTaken) {
+        btn.className = 'btn-med-chip taken';
+        btn.innerHTML = '<span>Đã uống thuốc hôm nay</span>';
+      } else {
+        btn.className = 'btn-med-chip';
+        btn.innerHTML = '<span>Chưa uống thuốc</span>';
+      }
     }
+    renderSummaryMetrics();
     renderDailyHealthScore();
   }
 

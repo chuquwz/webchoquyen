@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=16">
+  <link rel="stylesheet" href="/style.css?v=17">
 </head>
 <body>
   <!-- Container Toast thông báo -->
@@ -113,7 +113,6 @@
           <div class="section-container">
             <div class="section-title-header">
               <h2 class="section-heading">Thao tác nhanh</h2>
-              <button type="button" class="btn-see-all" onclick="switchTab('overview')">Xem chỉ số</button>
             </div>
             <div class="quick-action-grid">
               <!-- Ô 1: + Nước lọc -->
@@ -243,7 +242,7 @@
               <span id="water-max-text" style="display: none;">3.000 ml</span>
             </div>
 
-            <!-- Ghi nhận Cân nặng & Thuốc -->
+            <!-- Ghi nhận Cân nặng -->
             <div class="quick-log-card" style="margin-top: 14px;">
               <div class="log-card-header">
                 <div>
@@ -253,9 +252,6 @@
                     <span id="weight-diff-badge" style="font-size: 12px; color: var(--text-sub); margin-left: 6px;">(Mục tiêu 70kg)</span>
                   </div>
                 </div>
-                <button type="button" id="btn-today-med" class="btn-med-chip" onclick="toggleMed()">
-                  <span>Chưa uống thuốc</span>
-                </button>
               </div>
               <p id="weight-status-sub" class="footer-caption" style="margin: 8px 0 12px;">Cân vào sáng sớm sau khi vệ sinh cá nhân, trước khi ăn sáng.</p>
 
@@ -765,6 +761,6 @@
 
   <span id="today-date-badge" style="display: none;"></span>
 
-  <script src="/app.js?v=16"></script>
+  <script src="/app.js?v=17"></script>
 </body>
 </html>
