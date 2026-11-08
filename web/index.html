@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=18">
+  <link rel="stylesheet" href="/style.css?v=19">
 </head>
 <body>
   <!-- Container Toast thông báo -->
@@ -83,22 +83,22 @@
             <div class="daily-score-info">
               <div class="score-title-row">
                 <span class="score-label">Tuân thủ hôm nay</span>
-                <span class="score-info-icon" title="Điểm tổng hợp từ lượng nước lọc, uống thuốc bổ gan và cân sáng">ⓘ</span>
+                <button type="button" class="score-info-icon-btn" onclick="openScoreBreakdownModal()" aria-label="Xem chi tiết cách tính điểm tuân thủ" title="Bấm để xem chi tiết cách tính điểm">ⓘ</button>
               </div>
               <div class="score-number-row">
-                <span id="daily-score-val" class="score-huge-val">70/100</span>
+                <span id="daily-score-val" class="score-huge-val font-tabular">0/100</span>
               </div>
-              <div class="score-status-row">
-                <span class="dot-green"></span>
-                <span id="daily-score-badge" class="score-status-text">Đang cải thiện</span>
+              <div id="score-status-row" class="score-status-row">
+                <span id="score-status-dot" class="dot-status"></span>
+                <span id="daily-score-badge" class="score-status-text">Mới bắt đầu</span>
               </div>
             </div>
 
             <!-- Vòng tròn Gauge SVG kèm biểu tượng sức khoẻ -->
-            <div class="daily-score-gauge-wrap">
+            <div class="daily-score-gauge-wrap" onclick="openScoreBreakdownModal()" style="cursor: pointer;" role="button" tabindex="0" aria-label="Xem chi tiết điểm tuân thủ hôm nay" onkeydown="if(event.key==='Enter'||event.key===' ') openScoreBreakdownModal()">
               <svg class="daily-score-svg" viewBox="0 0 100 100" width="92" height="92">
                 <circle class="score-track" cx="50" cy="50" r="40" stroke="#E2F0D6" stroke-width="8" fill="none" />
-                <circle id="score-ring-circle" class="score-fill" cx="50" cy="50" r="40" stroke="#5E9447" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="251.2" stroke-dashoffset="75.3" transform="rotate(-90 50 50)" />
+                <circle id="score-ring-circle" class="score-fill" cx="50" cy="50" r="40" stroke="#5E9447" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="251.2" stroke-dashoffset="251.2" transform="rotate(-90 50 50)" />
               </svg>
               <div class="score-gauge-center-icon">
                 <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#5E9447" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -755,8 +755,19 @@
     </div>
   </div>
 
+  <!-- MODAL: Chi Tiết Điểm Tuân Thủ Hôm Nay -->
+  <div id="modal-score-breakdown" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-score-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="modal-score-title" class="modal-title">Điểm tuân thủ hôm nay</h3>
+        <button type="button" class="modal-close" aria-label="Đóng" onclick="closeModal('modal-score-breakdown')">&times;</button>
+      </div>
+      <div id="score-breakdown-content" class="modal-scroll-body">Đang tính toán...</div>
+    </div>
+  </div>
+
   <span id="today-date-badge" style="display: none;"></span>
 
-  <script src="/app.js?v=18"></script>
+  <script src="/app.js?v=19"></script>
 </body>
 </html>

@@ -315,6 +315,30 @@ a:focus-visible,
   cursor: pointer;
 }
 
+.score-info-icon-btn {
+  background: none;
+  border: none;
+  padding: 0 4px;
+  font-size: 13.5px;
+  color: var(--text-muted);
+  cursor: pointer;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.score-info-icon-btn:hover {
+  color: var(--color-score-ring);
+  background-color: var(--color-tile-mint);
+}
+
+.score-info-icon-btn:focus-visible {
+  outline: 2px solid var(--color-score-ring);
+}
+
 .score-number-row {
   margin-bottom: 4px;
 }
@@ -325,6 +349,7 @@ a:focus-visible,
   letter-spacing: -0.6px;
   color: var(--text-main);
   line-height: 1.15;
+  font-variant-numeric: tabular-nums;
 }
 
 .score-status-row {
@@ -333,15 +358,18 @@ a:focus-visible,
   gap: 6px;
   font-size: 13px;
   font-weight: 700;
-  color: var(--color-score-ring);
+  color: var(--text-sub);
+  transition: color 0.3s ease;
 }
 
-.dot-green {
+.dot-green,
+.dot-status {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background-color: var(--color-score-ring);
+  background-color: var(--text-muted);
   display: inline-block;
+  transition: background-color 0.3s ease;
 }
 
 .daily-score-gauge-wrap {

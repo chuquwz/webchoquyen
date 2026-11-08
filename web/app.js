@@ -264,6 +264,8 @@
         }
       }
 
+      state.todayMeals = data.meals || [];
+
       renderTodayHeader();
       renderWaterWidget();
       renderMedWidget();
@@ -287,20 +289,36 @@
 
   // Tính & Vẽ Vòng Tròn Điểm Sức Khoẻ Hàng Ngày (Daily Health Score Gauge)
   function renderDailyHealthScore() {
-    let score = 70; // Điểm nền móng
+    let score = 0; // Bắt đầu từ 0 điểm cho ngày mới
 
-    // Uống nước: tối đa 15 điểm
-    const minWater = parseInt(state.settings.water_min || 2500);
-    const waterRatio = Math.min(1, state.waterTotal / minWater);
-    score += Math.round(waterRatio * 15);
+    // 1. Uống nước: tối đa 40 điểm (chuẩn theo mức nước tối thiểu, mặc định 2.500ml)
+    const minWater = parseInt((state.settings && state.settings.water_min) || 2500);
+    const curWater = state.waterTotal || 0;
+    const waterRatio = Math.min(1, curWater / minWater);
+    const waterPts = Math.round(waterRatio * 40);
+    score += waterPts;
 
-    // Thuốc men: 10 điểm
-    if (state.medTaken) score += 10;
+    // 2. Thuốc men (bổ gan): 30 điểm
+    const medPts = state.medTaken ? 30 : 0;
+    score += medPts;
 
-    // Đo cân sáng: 5 điểm
-    if (state.todayWeight !== null) score += 5;
+    // 3. Đo cân sáng: 15 điểm
+    const hasWeight = state.todayWeight !== null && state.todayWeight !== undefined;
+    const weightPts = hasWeight ? 15 : 0;
+    score += weightPts;
 
-    score = Math.min(100, Math.max(50, score));
+    // 4. Bữa ăn theo thực đơn: tối đa 15 điểm (5 điểm mỗi bữa chính: sáng, trưa, tối)
+    const meals = state.todayMeals || [];
+    const mainMeals = meals.filter(m => m.slot !== 'snack');
+    let mealPts = 0;
+    let doneMealsCount = 0;
+    if (mainMeals.length > 0) {
+      doneMealsCount = mainMeals.filter(m => m.status === 'done' || m.status === 'swapped').length;
+      mealPts = Math.min(15, doneMealsCount * 5);
+    }
+    score += mealPts;
+
+    score = Math.min(100, Math.max(0, score));
 
     const scoreValEl = document.getElementById('daily-score-val');
     if (scoreValEl) {
@@ -308,8 +326,35 @@
     }
 
     const badgeEl = document.getElementById('daily-score-badge');
+    const statusRowEl = document.getElementById('score-status-row');
+    const statusDotEl = document.getElementById('score-status-dot');
+
     if (badgeEl) {
-      badgeEl.textContent = score >= 85 ? 'Tốt' : score >= 70 ? 'Khá' : 'Đang cải thiện';
+      let badgeText = 'Mới bắt đầu';
+      let dotColor = '#8A9185';
+      let textColor = '#6E756B';
+
+      if (score >= 90) {
+        badgeText = 'Xuất sắc';
+        dotColor = '#2B5719';
+        textColor = '#2B5719';
+      } else if (score >= 70) {
+        badgeText = 'Tốt';
+        dotColor = '#3D6E26';
+        textColor = '#3D6E26';
+      } else if (score >= 40) {
+        badgeText = 'Khá';
+        dotColor = '#65A30D';
+        textColor = '#4D7C0F';
+      } else if (score > 0) {
+        badgeText = 'Đang cải thiện';
+        dotColor = '#D97706';
+        textColor = '#B45309';
+      }
+
+      badgeEl.textContent = badgeText;
+      if (statusRowEl) statusRowEl.style.color = textColor;
+      if (statusDotEl) statusDotEl.style.backgroundColor = dotColor;
     }
 
     // Vẽ vòng Gauge SVG (Chu vi r=40 là 251.2)
@@ -323,12 +368,12 @@
     // Cập nhật các thẻ tóm tắt ở mục Hôm Nay
     const waterSummary = document.getElementById('summary-water-display');
     if (waterSummary) {
-      waterSummary.textContent = (state.waterTotal / 1000).toFixed(1);
+      waterSummary.textContent = (curWater / 1000).toFixed(1);
     }
     const weightSummary = document.getElementById('summary-weight-display');
     if (weightSummary) {
-      const curW = state.todayWeight !== null ? state.todayWeight : state.currentWeight;
-      weightSummary.textContent = curW.toFixed(1);
+      const curW = state.todayWeight !== null && state.todayWeight !== undefined ? state.todayWeight : state.currentWeight;
+      weightSummary.textContent = curW ? curW.toFixed(1) : '--';
     }
     const medSummary = document.getElementById('summary-med-display');
     if (medSummary) {
@@ -336,6 +381,80 @@
       medSummary.style.color = state.medTaken ? '#2B5719' : '#C2410C';
     }
   }
+
+  // Mở modal giải thích chi tiết điểm tuân thủ hôm nay
+  window.openScoreBreakdownModal = function () {
+    const minWater = parseInt((state.settings && state.settings.water_min) || 2500);
+    const curWater = state.waterTotal || 0;
+    const waterRatio = Math.min(1, curWater / minWater);
+    const waterPts = Math.round(waterRatio * 40);
+
+    const medPts = state.medTaken ? 30 : 0;
+
+    const hasWeight = state.todayWeight !== null && state.todayWeight !== undefined;
+    const weightPts = hasWeight ? 15 : 0;
+
+    const meals = state.todayMeals || [];
+    const mainMeals = meals.filter(m => m.slot !== 'snack');
+    const doneMeals = mainMeals.filter(m => m.status === 'done' || m.status === 'swapped').length;
+    const mealPts = Math.min(15, doneMeals * 5);
+
+    const totalScore = Math.min(100, waterPts + medPts + weightPts + mealPts);
+
+    const container = document.getElementById('score-breakdown-content');
+    if (container) {
+      container.innerHTML = `
+        <div style="text-align: center; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--border-card);">
+          <div style="font-size: 38px; font-weight: 800; color: var(--color-score-ring); line-height: 1.1;" class="font-tabular">${totalScore}<span style="font-size: 18px; color: var(--text-muted); font-weight: 600;">/100</span></div>
+          <div style="font-size: 13px; font-weight: 600; color: var(--text-sub); margin-top: 4px;">Điểm tuân thủ bảo vệ sức khoẻ gan & cân nặng</div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
+          <div style="background: #F9FBF8; border: 1px solid var(--border-subtle); border-radius: 14px; padding: 12px 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <span style="font-weight: 700; font-size: 13.5px; color: var(--text-main);">💧 Uống nước lọc</span>
+              <span style="font-weight: 800; color: ${waterPts > 0 ? 'var(--color-score-ring)' : 'var(--text-muted)'};" class="font-tabular">${waterPts}/40 đ</span>
+            </div>
+            <div style="font-size: 12.5px; color: var(--text-sub);">
+              Đã uống <strong class="font-tabular">${curWater.toLocaleString('vi-VN')}</strong> / ${minWater.toLocaleString('vi-VN')} ml (${Math.min(100, Math.round(waterRatio * 100))}%)
+            </div>
+          </div>
+
+          <div style="background: #F9FBF8; border: 1px solid var(--border-subtle); border-radius: 14px; padding: 12px 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <span style="font-weight: 700; font-size: 13.5px; color: var(--text-main);">💊 Thuốc bổ gan</span>
+              <span style="font-weight: 800; color: ${medPts ? 'var(--color-score-ring)' : 'var(--text-muted)'};" class="font-tabular">${medPts}/30 đ</span>
+            </div>
+            <div style="font-size: 12.5px;">
+              ${state.medTaken ? '<span style="color: #2B5719; font-weight: 600;">✓ Đã uống thuốc hôm nay</span>' : '<span style="color: #C2410C;">Chưa uống thuốc (bấm vào ô Thuốc bổ gan để ghi nhận)</span>'}
+            </div>
+          </div>
+
+          <div style="background: #F9FBF8; border: 1px solid var(--border-subtle); border-radius: 14px; padding: 12px 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <span style="font-weight: 700; font-size: 13.5px; color: var(--text-main);">⚖️ Cân sáng sớm</span>
+              <span style="font-weight: 800; color: ${weightPts ? 'var(--color-score-ring)' : 'var(--text-muted)'};" class="font-tabular">${weightPts}/15 đ</span>
+            </div>
+            <div style="font-size: 12.5px;">
+              ${hasWeight ? `<span style="color: #2B5719; font-weight: 600;">✓ Đã ghi nhận: ${state.todayWeight.toFixed(1)} kg</span>` : '<span style="color: #C2410C;">Chưa cân sáng nay (bấm Lưu cân nặng bên dưới)</span>'}
+            </div>
+          </div>
+
+          <div style="background: #F9FBF8; border: 1px solid var(--border-subtle); border-radius: 14px; padding: 12px 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <span style="font-weight: 700; font-size: 13.5px; color: var(--text-main);">🥗 Thực đơn 3 bữa chính</span>
+              <span style="font-weight: 800; color: ${mealPts ? 'var(--color-score-ring)' : 'var(--text-muted)'};" class="font-tabular">${mealPts}/15 đ</span>
+            </div>
+            <div style="font-size: 12.5px; color: var(--text-sub);">
+              Đã ghi nhận <strong class="font-tabular">${doneMeals}/3</strong> bữa chính (5 điểm mỗi bữa)
+            </div>
+          </div>
+        </div>
+
+        <button class="btn-green-pill" style="width: 100%;" onclick="closeModal('modal-score-breakdown')">Đã hiểu</button>
+      `;
+    }
+    openModal('modal-score-breakdown');
+  };
 
   // --- UỐNG NƯỚC ---
   function renderWaterWidget() {
@@ -453,7 +572,6 @@
         btn.innerHTML = '<span>Chưa uống thuốc</span>';
       }
     }
-    renderSummaryMetrics();
     renderDailyHealthScore();
   }
 
@@ -745,6 +863,12 @@
         meal.status = res.status;
         meal.note = res.note;
       }
+      const tMeal = (state.todayMeals || []).find(m => m.slot === slot);
+      if (tMeal && date === state.today) {
+        tMeal.status = res.status;
+        tMeal.note = res.note;
+        renderDailyHealthScore();
+      }
       renderMealPlanList();
       if (date === state.today) loadToday();
       showToast(status === 'done' ? 'Đã ghi nhận ăn đúng thực đơn' : 'Đã cập nhật trạng thái');
@@ -784,6 +908,12 @@
       if (meal) {
         meal.status = 'swapped';
         meal.note = note;
+      }
+      const tMeal = (state.todayMeals || []).find(m => m.slot === slot);
+      if (tMeal && date === state.today) {
+        tMeal.status = 'swapped';
+        tMeal.note = note;
+        renderDailyHealthScore();
       }
       renderMealPlanList();
       if (date === state.today) loadToday();
