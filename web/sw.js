@@ -1,9 +1,9 @@
-const CACHE_NAME = 'quyenhealth-v25';
+const CACHE_NAME = 'quyenhealth-v26';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/style.css?v=25',
-  '/app.js?v=25',
+  '/style.css?v=26',
+  '/app.js?v=26',
   '/manifest.webmanifest',
   '/icons/icon-192.png',
   '/icons/icon-512.png'
@@ -79,9 +79,20 @@ self.addEventListener('push', (event) => {
   };
 
   event.waitUntil(
-    self.registration.showNotification(data.title || 'QuyenHealth', options).catch((err) => {
-      console.error('showNotification error:', err);
-    })
+    Promise.all([
+      self.registration.showNotification(data.title || 'QuyenHealth', options).catch((err) => {
+        console.error('showNotification error:', err);
+      }),
+      self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+        for (let client of windowClients) {
+          client.postMessage({
+            type: 'PUSH_RECEIVED',
+            title: data.title || 'QuyenHealth',
+            body: data.body || ''
+          });
+        }
+      }).catch(() => {})
+    ])
   );
 });
 

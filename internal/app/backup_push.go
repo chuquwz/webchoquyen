@@ -337,7 +337,9 @@ func (s *Server) sendPushDetailed(title, body, url string) (pushResult, error) {
 	payload, _ := json.Marshal(map[string]string{"title": title, "body": body, "url": url})
 	sub := s.cfg.VapidSubject
 	if sub == "" {
-		sub = "mailto:quyenhealth.app@gmail.com"
+		sub = "quyenhealth.app@gmail.com"
+	} else {
+		sub = strings.TrimPrefix(sub, "mailto:")
 	}
 	for _, x := range subs {
 		resp, err := webpush.SendNotification(payload, &webpush.Subscription{

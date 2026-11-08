@@ -128,6 +128,10 @@
           window.location.reload();
         }
       }
+      if (event.data && event.data.type === 'PUSH_RECEIVED') {
+        playChimeSound();
+        showToast(`🔔 ${event.data.title || 'Thông báo'}: ${event.data.body || ''}`);
+      }
     });
   }
 
