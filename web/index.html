@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=21">
+  <link rel="stylesheet" href="/style.css?v=22">
 </head>
 <body>
   <!-- Container Toast thông báo -->
@@ -227,6 +227,33 @@
                 </svg>
               </div>
             </button>
+          </div>
+
+          <!-- =====================================================================
+               KHU VỰC: ĐỘNG LỰC (NGƯỜI CON GÁI PHÙNG VĂN QUYỀN YÊU)
+               ===================================================================== -->
+          <div class="section-container" style="margin-top: 24px; margin-bottom: 28px;">
+            <div class="section-title-header">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <h2 class="section-heading" style="text-transform: uppercase; letter-spacing: 0.5px;">Động lực</h2>
+                <span class="motivation-heart-badge">❤️ Vì người tôi yêu</span>
+              </div>
+              <button type="button" class="btn-link-action" onclick="shuffleMotivationPhoto()" title="Đổi ảnh ngẫu nhiên">Đổi ảnh 🎲</button>
+            </div>
+
+            <!-- Thẻ Động Lực Nổi Bật -->
+            <div class="motivation-hero-card">
+              <div class="motivation-image-container" onclick="openMotivationModal()" role="button" tabindex="0" aria-label="Xem ảnh động lực phóng to" onkeydown="if(event.key==='Enter'||event.key===' ')openMotivationModal()">
+                <img id="motivation-hero-img" src="/ali/igexport-Dae9kAVCbKL.webp" alt="Động lực giảm cân của Phùng Văn Quyền" class="motivation-hero-img" loading="lazy">
+                <div class="motivation-image-overlay">
+                  <span class="motivation-badge-tag">Mục tiêu 70kg vì em</span>
+                  <p id="motivation-quote-text" class="motivation-quote">"Mỗi ngày kiên trì một chút, để trở thành phiên bản phong độ và khoẻ mạnh nhất bên người mình yêu."</p>
+                </div>
+              </div>
+
+              <!-- Dải ảnh cuộn ngang xem nhanh (Horizontal Thumbnails Strip) -->
+              <div class="motivation-thumbs-strip" id="motivation-thumbs-strip"></div>
+            </div>
           </div>
         </section>
 
@@ -715,8 +742,26 @@
     </div>
   </div>
 
+  <!-- MODAL: Xem Ảnh Động Lực Toàn Màn Hình -->
+  <div id="modal-motivation" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-motivation-title">
+    <div class="modal-dialog modal-dialog-photo">
+      <div class="modal-header">
+        <h3 id="modal-motivation-title" class="modal-title">❤️ Động lực của Quyền</h3>
+        <button type="button" class="modal-close" aria-label="Đóng" onclick="closeModal('modal-motivation')">&times;</button>
+      </div>
+      <div class="modal-photo-body">
+        <img id="modal-motivation-img" src="" alt="Ảnh động lực của Quyền" class="modal-photo-img">
+        <p id="modal-motivation-caption" class="modal-photo-caption">"Vì người con gái tôi yêu — Quyết tâm đạt mục tiêu 70kg!"</p>
+        <div class="modal-photo-actions">
+          <button type="button" class="btn-secondary-pill btn-sm" onclick="prevMotivationPhoto()">&larr; Ảnh trước</button>
+          <button type="button" class="btn-green-pill btn-sm" onclick="nextMotivationPhoto()">Ảnh tiếp theo &rarr;</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <span id="today-date-badge" style="display: none;"></span>
 
-  <script src="/app.js?v=21"></script>
+  <script src="/app.js?v=22"></script>
 </body>
 </html>

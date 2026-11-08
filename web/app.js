@@ -68,6 +68,7 @@
       const me = await api('/api/me');
       if (me.ok) {
         showAppView();
+        initMotivationSection();
         await loadToday();
       }
     } catch (e) {
@@ -271,6 +272,7 @@
       renderMedWidget();
       renderWeightStepper();
       renderDailyHealthScore();
+      initMotivationSection();
       renderTodayNextMeal(data.meals || []);
     } catch (e) { }
   }
@@ -1512,6 +1514,143 @@
       if (e.target === el) el.classList.remove('open');
     });
   });
+
+  // =========================================================================
+  // KHU VỰC ĐỘNG LỰC: NGƯỜI CON GÁI PHÙNG VĂN QUYỀN YÊU
+  // =========================================================================
+  const ALI_PHOTOS = [
+    'igexport-Daasz15CSO_-2.webp', 'igexport-Daasz15CSO_-3.webp', 'igexport-Daasz15CSO_-4.webp',
+    'igexport-Daasz15CSO_-5.webp', 'igexport-Daasz15CSO_-6.webp', 'igexport-Daasz15CSO_-7.webp',
+    'igexport-Daasz15CSO_.webp', 'igexport-Dae9kAVCbKL-10.webp', 'igexport-Dae9kAVCbKL-11.webp',
+    'igexport-Dae9kAVCbKL-2.webp', 'igexport-Dae9kAVCbKL-3.webp', 'igexport-Dae9kAVCbKL-4.webp',
+    'igexport-Dae9kAVCbKL-5.webp', 'igexport-Dae9kAVCbKL-6.webp', 'igexport-Dae9kAVCbKL-7.webp',
+    'igexport-Dae9kAVCbKL-8.webp', 'igexport-Dae9kAVCbKL-9.webp', 'igexport-Dae9kAVCbKL.webp',
+    'igexport-DdIV9QtCUqt-2.webp', 'igexport-DdIV9QtCUqt.webp', 'igexport-De9ryl2ozcv-2.webp',
+    'igexport-De9ryl2ozcv-3.webp', 'igexport-De9ryl2ozcv-4.webp', 'igexport-De9ryl2ozcv-5.webp',
+    'igexport-De9ryl2ozcv-6.webp', 'igexport-De9ryl2ozcv-7.webp', 'igexport-De9ryl2ozcv-8.webp',
+    'igexport-De9ryl2ozcv.webp', 'igexport-DNaF8pjBQDg-10.webp', 'igexport-DNaF8pjBQDg-11.webp',
+    'igexport-DNaF8pjBQDg-12.webp', 'igexport-DNaF8pjBQDg-13.webp', 'igexport-DNaF8pjBQDg-14.webp',
+    'igexport-DNaF8pjBQDg-15.webp', 'igexport-DNaF8pjBQDg-16.webp', 'igexport-DNaF8pjBQDg-17.webp',
+    'igexport-DNaF8pjBQDg-18.webp', 'igexport-DNaF8pjBQDg-19.webp', 'igexport-DNaF8pjBQDg-2.webp',
+    'igexport-DNaF8pjBQDg-3.webp', 'igexport-DNaF8pjBQDg-4.webp', 'igexport-DNaF8pjBQDg-5.webp',
+    'igexport-DNaF8pjBQDg-6.webp', 'igexport-DNaF8pjBQDg-7.webp', 'igexport-DNaF8pjBQDg-8.webp',
+    'igexport-DNaF8pjBQDg-9.webp', 'igexport-DNaF8pjBQDg.webp'
+  ];
+
+  const MOTIVATION_QUOTES = [
+    "Mỗi ngày kiên trì một chút, để trở thành phiên bản phong độ và khoẻ mạnh nhất bên người mình yêu.",
+    "Mỗi khi muốn bỏ cuộc, hãy nhớ đến nụ cười của cô ấy để tiếp tục cố gắng!",
+    "Mục tiêu 70kg — Giảm cân vì người con gái tôi yêu ❤️",
+    "Tình yêu là động lực lớn nhất để thay đổi và hoàn thiện bản thân mỗi ngày.",
+    "Hôm nay uống đủ nước, ăn chuẩn calo để luôn khoẻ mạnh và tự tin bên cô ấy nhé Quyền!",
+    "Cô ấy chính là lý do để bạn kỷ luật với bản thân hôm nay và ngày mai.",
+    "Một cơ thể khoẻ khoắn, một trái tim kiên định dành trọn cho người mình yêu.",
+    "Đích đến 70kg không còn xa — Hãy vững vàng vì người con gái ấy!",
+    "Khỏe mạnh hơn, tự tin hơn, hạnh phúc hơn cùng người con gái trong tim."
+  ];
+
+  let currentMotivationIdx = 0;
+  let motivationInitialized = false;
+
+  function initMotivationSection() {
+    const strip = document.getElementById('motivation-thumbs-strip');
+    if (!strip) return;
+
+    if (!motivationInitialized) {
+      const saved = localStorage.getItem('quyen_motivation_idx');
+      if (saved !== null && !isNaN(parseInt(saved))) {
+        currentMotivationIdx = parseInt(saved) % ALI_PHOTOS.length;
+      } else {
+        currentMotivationIdx = Math.floor(Math.random() * ALI_PHOTOS.length);
+      }
+
+      strip.innerHTML = ALI_PHOTOS.map((file, idx) => `
+        <img src="/ali/${file}" alt="Ảnh Ali ${idx + 1}" class="motivation-thumb-item ${idx === currentMotivationIdx ? 'active' : ''}" loading="lazy" onclick="selectMotivationPhoto(${idx})">
+      `).join('');
+      motivationInitialized = true;
+    }
+
+    renderMotivationHero();
+  }
+
+  function renderMotivationHero() {
+    const heroImg = document.getElementById('motivation-hero-img');
+    const quoteText = document.getElementById('motivation-quote-text');
+    if (heroImg) {
+      heroImg.style.opacity = '0.35';
+      setTimeout(() => {
+        heroImg.src = '/ali/' + ALI_PHOTOS[currentMotivationIdx];
+        heroImg.style.opacity = '1';
+      }, 120);
+    }
+    if (quoteText) {
+      const qIdx = currentMotivationIdx % MOTIVATION_QUOTES.length;
+      quoteText.textContent = `"${MOTIVATION_QUOTES[qIdx]}"`;
+    }
+
+    const thumbs = document.querySelectorAll('.motivation-thumb-item');
+    thumbs.forEach((el, idx) => {
+      if (idx === currentMotivationIdx) {
+        el.classList.add('active');
+        el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      } else {
+        el.classList.remove('active');
+      }
+    });
+
+    localStorage.setItem('quyen_motivation_idx', currentMotivationIdx);
+  }
+
+  window.selectMotivationPhoto = function (idx) {
+    if (idx < 0 || idx >= ALI_PHOTOS.length) return;
+    currentMotivationIdx = idx;
+    renderMotivationHero();
+  };
+
+  window.shuffleMotivationPhoto = function () {
+    if (ALI_PHOTOS.length <= 1) return;
+    let next;
+    do {
+      next = Math.floor(Math.random() * ALI_PHOTOS.length);
+    } while (next === currentMotivationIdx);
+    currentMotivationIdx = next;
+    renderMotivationHero();
+  };
+
+  window.openMotivationModal = function () {
+    const modalImg = document.getElementById('modal-motivation-img');
+    const modalCaption = document.getElementById('modal-motivation-caption');
+    if (modalImg) modalImg.src = '/ali/' + ALI_PHOTOS[currentMotivationIdx];
+    if (modalCaption) {
+      const qIdx = currentMotivationIdx % MOTIVATION_QUOTES.length;
+      modalCaption.textContent = `"${MOTIVATION_QUOTES[qIdx]}"`;
+    }
+    openModal('modal-motivation');
+  };
+
+  window.nextMotivationPhoto = function () {
+    currentMotivationIdx = (currentMotivationIdx + 1) % ALI_PHOTOS.length;
+    renderMotivationHero();
+    const modalImg = document.getElementById('modal-motivation-img');
+    const modalCaption = document.getElementById('modal-motivation-caption');
+    if (modalImg) modalImg.src = '/ali/' + ALI_PHOTOS[currentMotivationIdx];
+    if (modalCaption) {
+      const qIdx = currentMotivationIdx % MOTIVATION_QUOTES.length;
+      modalCaption.textContent = `"${MOTIVATION_QUOTES[qIdx]}"`;
+    }
+  };
+
+  window.prevMotivationPhoto = function () {
+    currentMotivationIdx = (currentMotivationIdx - 1 + ALI_PHOTOS.length) % ALI_PHOTOS.length;
+    renderMotivationHero();
+    const modalImg = document.getElementById('modal-motivation-img');
+    const modalCaption = document.getElementById('modal-motivation-caption');
+    if (modalImg) modalImg.src = '/ali/' + ALI_PHOTOS[currentMotivationIdx];
+    if (modalCaption) {
+      const qIdx = currentMotivationIdx % MOTIVATION_QUOTES.length;
+      modalCaption.textContent = `"${MOTIVATION_QUOTES[qIdx]}"`;
+    }
+  };
 
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
