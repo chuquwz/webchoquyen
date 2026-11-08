@@ -786,6 +786,90 @@ a:focus-visible,
 }
 
 /* --------------------------------------------------------------------------
+   Giant Meals CTA Button (Nút khổng lồ chuyển sang Thực đơn)
+   -------------------------------------------------------------------------- */
+.btn-giant-meals {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 14px;
+  padding: 18px 20px;
+  background-color: var(--color-pill-green);
+  color: var(--color-pill-text);
+  border: none;
+  border-radius: var(--radius-card);
+  box-shadow: 0 4px 18px rgba(164, 219, 122, 0.45);
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.btn-giant-meals:hover {
+  background-color: var(--color-pill-green-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 22px rgba(164, 219, 122, 0.55);
+}
+
+.btn-giant-meals:active {
+  transform: scale(0.98);
+}
+
+.giant-meals-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.giant-meals-icon-box {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background-color: rgba(255, 255, 255, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--color-pill-text);
+}
+
+.giant-meals-text-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.giant-meals-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--color-pill-text);
+  line-height: 1.25;
+}
+
+.giant-meals-sub {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #2D541C;
+  margin-top: 3px;
+}
+
+.giant-meals-arrow-circle {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--color-pill-text);
+  transition: transform 0.15s ease;
+}
+
+.btn-giant-meals:hover .giant-meals-arrow-circle {
+  transform: translateX(3px);
+}
+
+/* --------------------------------------------------------------------------
    Screen Nav Header (Screens 2, 3, 4, 5)
    -------------------------------------------------------------------------- */
 .screen-nav-header {

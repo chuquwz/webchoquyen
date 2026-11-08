@@ -600,14 +600,19 @@
 
     const btnSave = document.getElementById('btn-save-weight');
     const sub = document.getElementById('weight-status-sub');
-    if (btnSave && sub) {
+    if (btnSave) {
       if (state.todayWeight !== null) {
         btnSave.textContent = 'Đã lưu (' + state.todayWeight.toFixed(1) + 'kg) - Bấm sửa';
         btnSave.className = 'btn-secondary-pill btn-save-weight';
-        sub.textContent = 'Hôm nay Quyền đã ghi nhận cân nặng!';
       } else {
         btnSave.textContent = 'Lưu cân nặng';
         btnSave.className = 'btn-green-pill btn-save-weight';
+      }
+    }
+    if (sub) {
+      if (state.todayWeight !== null) {
+        sub.textContent = 'Hôm nay Quyền đã ghi nhận cân nặng!';
+      } else {
         sub.textContent = 'Cân vào sáng sớm sau khi vệ sinh cá nhân, trước khi ăn sáng.';
       }
     }
