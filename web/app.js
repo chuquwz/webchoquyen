@@ -496,15 +496,16 @@
       }
     }
 
-    if (undoBtn && entriesCount) {
+    if (undoBtn) {
+      undoBtn.style.display = state.waterEntries.length > 0 ? 'inline-block' : 'none';
+    }
+    if (entriesCount) {
       if (state.waterEntries.length > 0) {
-        undoBtn.style.display = 'inline-block';
         const last = state.waterEntries[state.waterEntries.length - 1];
         const timeStr = new Date(last.ts * 1000).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
         entriesCount.textContent = `Lần gần nhất: +${last.ml}ml lúc ${timeStr}`;
       } else {
-        undoBtn.style.display = 'none';
-        entriesCount.textContent = 'Chưa có lần uống nào';
+        entriesCount.textContent = '';
       }
     }
 
