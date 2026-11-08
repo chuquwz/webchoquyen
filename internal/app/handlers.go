@@ -85,7 +85,7 @@ func (s *Server) targetKcal(set map[string]string) int {
 
 func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 	set := s.settings()
-	writeJSON(w, 200, map[string]any{"settings": set, "target_kcal": s.targetKcal(set)})
+	writeJSON(w, 200, map[string]any{"settings": set, "target_kcal": s.targetKcal(set), "user": s.currentUser(r)})
 }
 
 func validHM(v string) bool {
@@ -737,6 +737,8 @@ func (s *Server) handleToday(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJSON(w, 200, map[string]any{
+		"ok":         true,
+		"user":       s.currentUser(r),
 		"date":       date,
 		"now":        s.now().Unix(),
 		"settings":   set,

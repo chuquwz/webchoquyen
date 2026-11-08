@@ -236,6 +236,22 @@ a:focus-visible,
   line-height: 1.25;
 }
 
+.badge-dev-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  border-radius: 999px;
+  background-color: #E2F0D6;
+  color: #2B5719;
+  border: 1px solid #C5DEB6;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+
 .btn-circle-action {
   width: 42px;
   height: 42px;

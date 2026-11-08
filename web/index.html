@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=23">
+  <link rel="stylesheet" href="/style.css?v=24">
 </head>
 <body>
   <!-- Container Toast thông báo -->
@@ -40,6 +40,9 @@
               <label class="login-form-label" for="pin-input">Mã PIN bảo mật</label>
               <div class="pin-input-wrap">
                 <input type="password" id="pin-input" class="pin-input" placeholder="••••" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="one-time-code" required autofocus>
+              </div>
+              <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 6px; text-align: center;">
+                Nhập PIN <strong>0312</strong> vào Quyền &bull; PIN <strong>1401</strong> vào Dev
               </div>
             </div>
             <button type="submit" class="btn-green-pill btn-login-submit">Đăng nhập ngay</button>
@@ -469,12 +472,12 @@
           </div>
 
           <div class="profile-card">
-            <div class="profile-avatar-large">
+            <div id="profile-avatar-box" class="profile-avatar-large">
               <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="#2B5719" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             </div>
             <div class="profile-meta-info">
-              <strong class="profile-name">Phùng Văn Quyền</strong>
-              <span class="profile-target">Hành trình: 97.0 kg &rarr; Mục tiêu 70.0 kg</span>
+              <strong id="profile-display-name" class="profile-name">Phùng Văn Quyền</strong>
+              <span id="profile-display-sub" class="profile-target">Hành trình: 97.0 kg &rarr; Mục tiêu 70.0 kg</span>
             </div>
           </div>
 
@@ -807,6 +810,6 @@
 
   <span id="today-date-badge" style="display: none;"></span>
 
-  <script src="/app.js?v=23"></script>
+  <script src="/app.js?v=24"></script>
 </body>
 </html>

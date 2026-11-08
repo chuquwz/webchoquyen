@@ -5,6 +5,7 @@
 
   // State cục bộ của ứng dụng
   let state = {
+    currentUser: localStorage.getItem('qh_user') || 'quyen',
     today: new Date().toISOString().split('T')[0],
     settings: {},
     targetKcal: 1800,
@@ -67,6 +68,10 @@
     try {
       const me = await api('/api/me');
       if (me.ok) {
+        if (me.user) {
+          state.currentUser = me.user;
+          localStorage.setItem('qh_user', me.user);
+        }
         showAppView();
         initMotivationSection();
         await loadToday();
@@ -178,9 +183,15 @@
           body: JSON.stringify({ pin })
         });
         if (res.ok) {
+          state.currentUser = res.user || (pin === '1401' ? 'dev' : 'quyen');
+          localStorage.setItem('qh_user', state.currentUser);
           showAppView();
           await loadToday();
-          showToast('Chào Quyền! Chúc một ngày nhiều sức khoẻ');
+          if (state.currentUser === 'dev') {
+            showToast('Chào mừng Developer! Bạn đang ở chế độ Dev 🛠️');
+          } else {
+            showToast('Chào Quyền! Chúc một ngày nhiều sức khoẻ');
+          }
         }
       } catch (err) { }
     });
@@ -188,7 +199,11 @@
 
   window.logout = async function () {
     if (!confirm('Bạn có chắc muốn đăng xuất khỏi thiết bị này?')) return;
-    await api('/api/logout', { method: 'POST' });
+    try {
+      await api('/api/logout', { method: 'POST' });
+    } catch (e) {}
+    localStorage.removeItem('qh_user');
+    state.currentUser = 'quyen';
     showLoginView();
   };
 
@@ -249,6 +264,10 @@
   async function loadToday() {
     try {
       const data = await api('/api/today');
+      if (data.user) {
+        state.currentUser = data.user;
+        localStorage.setItem('qh_user', data.user);
+      }
       state.today = data.date;
       state.settings = data.settings || {};
       state.targetKcal = data.target_kcal || 1800;
@@ -277,6 +296,58 @@
     } catch (e) { }
   }
 
+  function updateProfileDisplay() {
+    const isDev = state.currentUser === 'dev';
+    const profileNameEl = document.getElementById('profile-display-name');
+    const profileSubEl = document.getElementById('profile-display-sub');
+    const avatarBox = document.getElementById('profile-avatar-box');
+    const topAvatar = document.querySelector('.user-avatar-circle');
+
+    if (profileNameEl) {
+      if (isDev) {
+        profileNameEl.innerHTML = 'Tài khoản Dev <span class="badge-dev-tag">DEVELOPER</span>';
+      } else {
+        profileNameEl.textContent = 'Phùng Văn Quyền';
+      }
+    }
+
+    if (profileSubEl) {
+      if (isDev) {
+        profileSubEl.textContent = 'Chế độ thử nghiệm & phát triển hệ thống 🛠️';
+      } else {
+        profileSubEl.innerHTML = 'Hành trình: 97.0 kg &rarr; Mục tiêu 70.0 kg';
+      }
+    }
+
+    if (avatarBox) {
+      if (isDev) {
+        avatarBox.innerHTML = `
+          <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="#2B5719" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+          </svg>`;
+      } else {
+        avatarBox.innerHTML = `
+          <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="#2B5719" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+          </svg>`;
+      }
+    }
+
+    if (topAvatar) {
+      if (isDev) {
+        topAvatar.innerHTML = `
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#2B5719" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+          </svg>`;
+      } else {
+        topAvatar.innerHTML = `
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#2B5719" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+          </svg>`;
+      }
+    }
+  }
+
   function renderTodayHeader() {
     const badge = document.getElementById('today-date-badge');
     if (badge) {
@@ -284,9 +355,14 @@
     }
     const nameEl = document.getElementById('user-display-name');
     if (nameEl) {
-      const uName = (state.settings && state.settings.name) || 'Quyền';
-      nameEl.textContent = `${uName}! 👋`;
+      if (state.currentUser === 'dev') {
+        nameEl.innerHTML = 'Dev! <span class="badge-dev-tag">DEV</span>';
+      } else {
+        const uName = (state.settings && state.settings.name) || 'Quyền';
+        nameEl.textContent = `${uName}! 👋`;
+      }
     }
+    updateProfileDisplay();
   }
 
   // Tính & Vẽ Vòng Tròn Điểm Sức Khoẻ Hàng Ngày (Daily Health Score Gauge)
@@ -1133,9 +1209,14 @@
   async function loadSettingsData() {
     try {
       const data = await api('/api/settings');
+      if (data.user) {
+        state.currentUser = data.user;
+        localStorage.setItem('qh_user', data.user);
+      }
       const s = data.settings || {};
       state.settings = s;
-      if (document.getElementById('set-name')) document.getElementById('set-name').value = s.name || 'Quyền';
+      updateProfileDisplay();
+      if (document.getElementById('set-name')) document.getElementById('set-name').value = state.currentUser === 'dev' ? 'Dev' : (s.name || 'Quyền');
       if (document.getElementById('set-age')) document.getElementById('set-age').value = s.age || '22';
       if (document.getElementById('set-height')) document.getElementById('set-height').value = s.height || '172';
       if (document.getElementById('set-goal')) document.getElementById('set-goal').value = s.goal_weight || '70';
