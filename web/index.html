@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=22">
+  <link rel="stylesheet" href="/style.css?v=23">
 </head>
 <body>
   <!-- Container Toast thông báo -->
@@ -486,6 +486,10 @@
               <button type="button" id="btn-enable-push" class="btn-green-pill btn-sm" onclick="enablePushNotifications()">Bật thông báo</button>
               <button type="button" class="btn-secondary-pill btn-sm" onclick="sendTestPush()">Thử chuông</button>
             </div>
+            <div id="ios-pwa-tip" class="ios-pwa-tip-banner" onclick="openIOSGuideModal()">
+              <span>📱 Dành cho iPhone: Cách bật chuông thông báo</span>
+              <span style="font-weight: 700;">Xem hướng dẫn &rarr;</span>
+            </div>
           </div>
 
           <!-- Lịch nhắc nhở tự do -->
@@ -760,8 +764,49 @@
     </div>
   </div>
 
+  <!-- MODAL: Hướng dẫn bật thông báo trên iPhone -->
+  <div id="modal-ios-pwa-guide" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-ios-guide-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="modal-ios-guide-title" class="modal-title">Bật thông báo trên iPhone</h3>
+        <button type="button" class="modal-close" aria-label="Đóng" onclick="closeModal('modal-ios-pwa-guide')">&times;</button>
+      </div>
+      <div class="modal-scroll-body" style="padding-top: 10px;">
+        <p style="font-size: 13.5px; color: var(--text-sub); line-height: 1.5; margin-bottom: 16px;">
+          Để bảo vệ quyền riêng tư, <strong>hệ điều hành iOS của Apple</strong> chỉ kích hoạt chuông thông báo khi ứng dụng được <strong>Thêm vào Màn hình chính</strong>. Bạn chỉ cần 3 bước đơn giản:
+        </p>
+
+        <div class="ios-guide-step">
+          <div class="ios-step-num">1</div>
+          <div class="ios-step-text">
+            <strong>Bấm nút Chia sẻ ở thanh dưới Safari</strong>
+            <p>Nhìn xuống thanh dưới cùng Safari, bấm vào biểu tượng <strong>hình vuông có mũi tên chỉ lên</strong>.</p>
+          </div>
+        </div>
+
+        <div class="ios-guide-step">
+          <div class="ios-step-num">2</div>
+          <div class="ios-step-text">
+            <strong>Chọn "Thêm vào MH chính" (Add to Home Screen)</strong>
+            <p>Cuộn xuống trong danh sách chọn <strong>Thêm vào MH chính</strong>, sau đó bấm <strong>Thêm</strong> ở góc trên bên phải.</p>
+          </div>
+        </div>
+
+        <div class="ios-guide-step">
+          <div class="ios-step-num">3</div>
+          <div class="ios-step-text">
+            <strong>Mở app từ Màn hình chính & Bật thông báo</strong>
+            <p>Thoát ra màn hình chính, mở biểu tượng <strong>QuyenHealth</strong>, vào Cài đặt và bấm <strong>Bật thông báo</strong>. Khi iPhone hỏi cho phép, bấm <strong>Cho phép</strong>.</p>
+          </div>
+        </div>
+
+        <button type="button" class="btn-green-pill" style="width: 100%; margin-top: 18px;" onclick="closeModal('modal-ios-pwa-guide')">Đã hiểu hướng dẫn</button>
+      </div>
+    </div>
+  </div>
+
   <span id="today-date-badge" style="display: none;"></span>
 
-  <script src="/app.js?v=22"></script>
+  <script src="/app.js?v=23"></script>
 </body>
 </html>

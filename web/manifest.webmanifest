@@ -4,8 +4,8 @@
   "description": "Ứng dụng theo dõi sức khoẻ, nước, cân nặng và thực đơn cho Phùng Văn Quyền",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#0ea5e9",
+  "background_color": "#F5F7F4",
+  "theme_color": "#F5F7F4",
   "orientation": "portrait-primary",
   "icons": [
     {

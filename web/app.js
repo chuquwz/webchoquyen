@@ -1171,6 +1171,7 @@
       }
 
       renderReminderSection();
+      updatePushBtnState();
     } catch (e) { }
   }
 
@@ -1288,7 +1289,75 @@
     } catch (e) { }
   };
 
-  // --- THÔNG BÁO PUSH ---
+  // --- THÔNG BÁO PUSH & CHUÔNG NHẮC NHỞ ---
+  function isIOSDevice() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  }
+
+  function isStandalonePWA() {
+    return window.navigator.standalone === true ||
+      window.matchMedia('(display-mode: standalone)').matches;
+  }
+
+  window.openIOSGuideModal = function () {
+    openModal('modal-ios-pwa-guide');
+  };
+
+  function playChimeSound() {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const now = ctx.currentTime;
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(587.33, now); // D5
+      gain1.gain.setValueAtTime(0.3, now);
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.start(now);
+      osc1.stop(now + 0.6);
+
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(880, now + 0.15); // A5
+      gain2.gain.setValueAtTime(0.35, now + 0.15);
+      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.start(now + 0.15);
+      osc2.stop(now + 0.9);
+    } catch (e) { }
+  }
+
+  function updatePushBtnState() {
+    const btn = document.getElementById('btn-enable-push');
+    const tip = document.getElementById('ios-pwa-tip');
+    const isIOS = isIOSDevice();
+    const isStandalone = isStandalonePWA();
+
+    if (tip) {
+      if (isIOS && !isStandalone) {
+        tip.style.display = 'flex';
+      } else {
+        tip.style.display = 'none';
+      }
+    }
+
+    if (!btn) return;
+    if ('Notification' in window && Notification.permission === 'granted') {
+      btn.textContent = 'Đã bật thông báo';
+      btn.className = 'btn-secondary-pill btn-sm';
+    } else {
+      btn.textContent = 'Bật thông báo';
+      btn.className = 'btn-green-pill btn-sm';
+    }
+  }
+
   function urlBase64ToUint8Array(base64String) {
     const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
     const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
@@ -1301,10 +1370,24 @@
   }
 
   window.enablePushNotifications = async function () {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      showToast('Trình duyệt chưa hỗ trợ thông báo push', true);
+    const isIOS = isIOSDevice();
+    const isStandalone = isStandalonePWA();
+
+    // Trên iPhone: Nếu mở trong tab Safari thường, Apple chặn PushManager
+    if (isIOS && !isStandalone) {
+      openModal('modal-ios-pwa-guide');
       return;
     }
+
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      if (isIOS) {
+        openModal('modal-ios-pwa-guide');
+      } else {
+        showToast('Trình duyệt chưa hỗ trợ thông báo push', true);
+      }
+      return;
+    }
+
     try {
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
@@ -1328,21 +1411,26 @@
         method: 'POST',
         body: JSON.stringify(sub)
       });
-      showToast('Đã bật thông báo thành công');
+      playChimeSound();
+      showToast('Đã bật thông báo thành công! Bấm "Thử chuông" để kiểm tra.');
+      updatePushBtnState();
     } catch (err) {
       showToast('Lỗi bật thông báo: ' + err.message, true);
     }
   };
 
   window.sendTestPush = async function () {
+    playChimeSound();
     try {
       const res = await api('/api/push/test', { method: 'POST' });
       if (res.sent > 0) {
-        showToast('Đã gửi thông báo thử tới thiết bị!');
+        showToast('Đã phát chuông và gửi thông báo tới thiết bị!');
       } else {
-        showToast('Chưa có thiết bị đăng ký. Bấm "Bật thông báo" trước nhé.', true);
+        showToast('Đã phát chuông thử! Bấm "Bật thông báo" để nhận tin nhắn màn hình khóa.', true);
       }
-    } catch (e) { }
+    } catch (e) {
+      showToast('Đã phát chuông thử nghiệm');
+    }
   };
 
   // --- ĐƯỜNG HUYẾT ---

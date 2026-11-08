@@ -1903,6 +1903,71 @@ body:not(.is-logged-in) #app-bottom-nav {
   flex: 1;
 }
 
+/* --------------------------------------------------------------------------
+   iOS PWA Guide Step Styles
+   -------------------------------------------------------------------------- */
+.ios-guide-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  background-color: #F8FAF7;
+  border: 1px solid #E2EBDD;
+  border-radius: 16px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+
+.ios-step-num {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: var(--color-pill-green);
+  color: var(--color-pill-text);
+  font-weight: 800;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ios-step-text {
+  font-size: 13px;
+  color: var(--text-main);
+  line-height: 1.4;
+}
+
+.ios-step-text strong {
+  display: block;
+  font-size: 13.5px;
+  color: #1A3610;
+  margin-bottom: 3px;
+}
+
+.ios-step-text p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-sub);
+}
+
+.ios-pwa-tip-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #F0F6EC;
+  border: 1px dashed #A4DB7A;
+  border-radius: 14px;
+  padding: 10px 14px;
+  margin-top: 10px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #2D541C;
+}
+
+.ios-pwa-tip-banner:hover {
+  background-color: #E6F0E0;
+}
+
 /* Media Queries for Accessibility */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
