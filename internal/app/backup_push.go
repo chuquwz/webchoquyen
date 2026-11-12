@@ -19,14 +19,35 @@ import (
 // ---------- Sao lưu & Khôi phục JSON ----------
 
 type backupData struct {
-	Version  int               `json:"version"`
-	ExportAt int64             `json:"export_at"`
-	Settings map[string]string `json:"settings"`
-	Water    []backupWater     `json:"water"`
-	Weight   []backupWeight    `json:"weight"`
-	Med      []backupMed       `json:"med"`
-	Meals    []backupMeal      `json:"meals"`
-	Glucose  []backupGlucose   `json:"glucose"`
+	Version    int                `json:"version"`
+	ExportAt   int64              `json:"export_at"`
+	Settings   map[string]string  `json:"settings"`
+	Water      []backupWater      `json:"water"`
+	Weight     []backupWeight     `json:"weight"`
+	Med        []backupMed        `json:"med"`
+	Meals      []backupMeal       `json:"meals"`
+	Glucose    []backupGlucose    `json:"glucose"`
+	WorkJobs   []backupWorkJob    `json:"work_jobs,omitempty"`
+	WorkLedger []backupWorkLedger `json:"work_ledger,omitempty"`
+}
+
+type backupWorkJob struct {
+	Date     string `json:"date"`
+	Customer string `json:"customer"`
+	Channel  string `json:"channel"`
+	Service  string `json:"service"`
+	Price    int    `json:"price"`
+	Status   string `json:"status"`
+	Note     string `json:"note"`
+	Ts       int64  `json:"ts"`
+}
+
+type backupWorkLedger struct {
+	Date     string `json:"date"`
+	Category string `json:"category"`
+	Amount   int    `json:"amount"`
+	Note     string `json:"note"`
+	Ts       int64  `json:"ts"`
 }
 
 type backupWater struct {
@@ -132,6 +153,26 @@ func (s *Server) handleBackup(w http.ResponseWriter, r *http.Request) {
 		rows.Close()
 	}
 
+	if rows, err := s.db.Query(`SELECT date, customer, channel, service, price, status, note, ts FROM work_jobs ORDER BY date, id`); err == nil {
+		for rows.Next() {
+			var x backupWorkJob
+			if rows.Scan(&x.Date, &x.Customer, &x.Channel, &x.Service, &x.Price, &x.Status, &x.Note, &x.Ts) == nil {
+				b.WorkJobs = append(b.WorkJobs, x)
+			}
+		}
+		rows.Close()
+	}
+
+	if rows, err := s.db.Query(`SELECT date, category, amount, note, ts FROM work_ledger ORDER BY date, id`); err == nil {
+		for rows.Next() {
+			var x backupWorkLedger
+			if rows.Scan(&x.Date, &x.Category, &x.Amount, &x.Note, &x.Ts) == nil {
+				b.WorkLedger = append(b.WorkLedger, x)
+			}
+		}
+		rows.Close()
+	}
+
 	fname := fmt.Sprintf("quyenhealth-backup-%s.json", s.today())
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, fname))
 	writeJSON(w, 200, b)
@@ -228,6 +269,40 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
 		if _, err := tx.Exec(`INSERT INTO glucose_log(ts,date,mmol,ctx) VALUES(?,?,?,?)`, x.Ts, x.Date, x.Mmol, x.Ctx); err != nil {
 			serverErr(w, err)
 			return
+		}
+	}
+
+	if b.WorkJobs != nil {
+		if _, err := tx.Exec(`DELETE FROM work_jobs`); err != nil {
+			serverErr(w, err)
+			return
+		}
+		for _, x := range b.WorkJobs {
+			if !validDate(x.Date) || strings.TrimSpace(x.Customer) == "" || strings.TrimSpace(x.Service) == "" || x.Price <= 0 {
+				continue
+			}
+			if _, err := tx.Exec(`INSERT INTO work_jobs(date,customer,channel,service,price,status,note,ts) VALUES(?,?,?,?,?,?,?,?)`,
+				x.Date, strings.TrimSpace(x.Customer), validChannel(x.Channel), strings.TrimSpace(x.Service), normalizeVND(x.Price), validJobStatus(x.Status), x.Note, x.Ts); err != nil {
+				serverErr(w, err)
+				return
+			}
+		}
+	}
+
+	if b.WorkLedger != nil {
+		if _, err := tx.Exec(`DELETE FROM work_ledger`); err != nil {
+			serverErr(w, err)
+			return
+		}
+		for _, x := range b.WorkLedger {
+			if !validDate(x.Date) || !validLedgerCategory(x.Category) || x.Amount <= 0 {
+				continue
+			}
+			if _, err := tx.Exec(`INSERT INTO work_ledger(date,category,amount,note,ts) VALUES(?,?,?,?,?)`,
+				x.Date, x.Category, normalizeVND(x.Amount), x.Note, x.Ts); err != nil {
+				serverErr(w, err)
+				return
+			}
 		}
 	}
 

@@ -275,6 +275,14 @@ func (s *Server) routes() {
 	m.HandleFunc("GET /api/push/key", a(s.handlePushKey))
 	m.HandleFunc("POST /api/push/subscribe", a(s.handlePushSubscribe))
 	m.HandleFunc("POST /api/push/test", a(s.handlePushTest))
+	m.HandleFunc("GET /api/work", a(s.handleGetWork))
+	m.HandleFunc("POST /api/work/job", a(s.handlePostWorkJob))
+	m.HandleFunc("PUT /api/work/job/{id}", a(s.handlePutWorkJob))
+	m.HandleFunc("DELETE /api/work/job/{id}", a(s.handleDelWorkJob))
+	m.HandleFunc("POST /api/work/job/pay-customer", a(s.handlePayCustomerJobs))
+	m.HandleFunc("POST /api/work/ledger", a(s.handlePostWorkLedger))
+	m.HandleFunc("DELETE /api/work/ledger/{id}", a(s.handleDelWorkLedger))
+	m.HandleFunc("GET /api/work/export", a(s.handleExportWorkCSV))
 	m.HandleFunc("/", s.assets.serve)
 	s.mux = m
 }

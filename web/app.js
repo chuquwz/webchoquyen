@@ -232,6 +232,7 @@
 
     if (tabId === 'overview') loadWeightData();
     if (tabId === 'meals') loadMeals();
+    if (tabId === 'work') loadWorkData();
     if (tabId === 'settings') {
       loadSettingsData();
       loadGlucoseData();
@@ -246,7 +247,7 @@
 
   function setupRouting() {
     const hash = window.location.hash.replace('#', '');
-    if (['today', 'meals', 'overview', 'settings'].includes(hash)) {
+    if (['today', 'work', 'meals', 'overview', 'settings'].includes(hash)) {
       switchTab(hash);
     }
   }
@@ -1887,6 +1888,652 @@
       });
     }
   });
+
+  // =========================================================================
+  // 6. SỔ CÔNG VIỆC CỦA QUYỀN (THAY THẾ BẢNG EXCEL TRÊN ĐIỆN THOẠI)
+  // =========================================================================
+  let workState = {
+    date: '',
+    month: '',
+    today: '',
+    subTab: 'jobs', // 'jobs' | 'unpaid' | 'ledger'
+    jobs: [],
+    ledger: [],
+    daySummary: {},
+    monthSummary: {},
+    unpaidGroups: [],
+    totalUnpaidAll: 0,
+    totalUnpaidJobs: 0,
+    recentDays: [],
+    suggestions: { customers: [], services: [] }
+  };
+
+  function escapeHTML(str) {
+    return String(str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function formatVND(amount) {
+    const n = Number(amount) || 0;
+    return n.toLocaleString('vi-VN') + 'đ';
+  }
+
+  function formatShortK(amount) {
+    const n = Number(amount) || 0;
+    if (n === 0) return '0đ';
+    if (n % 1000 === 0) {
+      return (n / 1000).toLocaleString('vi-VN') + 'k';
+    }
+    return n.toLocaleString('vi-VN') + 'đ';
+  }
+
+  function shiftDateStr(dStr, deltaDays) {
+    const parts = dStr.split('-').map(Number);
+    const dt = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+    dt.setUTCDate(dt.getUTCDate() + deltaDays);
+    return dt.toISOString().slice(0, 10);
+  }
+
+  async function loadWorkData(targetDate) {
+    const dateParam = targetDate || workState.date || state.today || '';
+    const monthParam = dateParam ? dateParam.slice(0, 7) : '';
+    const qs = dateParam ? `?date=${encodeURIComponent(dateParam)}&month=${encodeURIComponent(monthParam)}` : '';
+    try {
+      const data = await api('/api/work' + qs);
+      workState.date = data.date || state.today;
+      workState.month = data.month || workState.date.slice(0, 7);
+      workState.today = data.today || state.today;
+      workState.jobs = data.jobs || [];
+      workState.ledger = data.ledger || [];
+      workState.daySummary = data.day_summary || {};
+      workState.monthSummary = data.month_summary || {};
+      workState.unpaidGroups = data.unpaid_groups || [];
+      workState.totalUnpaidAll = data.total_unpaid_all || 0;
+      workState.totalUnpaidJobs = data.total_unpaid_jobs || 0;
+      workState.recentDays = data.recent_days || [];
+      workState.suggestions = data.suggestions || { customers: [], services: [] };
+
+      renderWorkScreen();
+    } catch (e) {}
+  }
+
+  function renderWorkScreen() {
+    // 1. Date bar
+    const dateInput = document.getElementById('work-date-input');
+    if (dateInput) dateInput.value = workState.date;
+
+    const humanEl = document.getElementById('work-date-human');
+    if (humanEl) {
+      if (workState.date === workState.today) {
+        humanEl.textContent = `Hôm nay (${getDayOfWeekVN(workState.date)})`;
+      } else if (workState.date === shiftDateStr(workState.today, -1)) {
+        humanEl.textContent = `Hôm qua (${getDayOfWeekVN(workState.date)})`;
+      } else {
+        humanEl.textContent = `${getDayOfWeekVN(workState.date)} - ${formatVNDate(workState.date)}`;
+      }
+    }
+
+    const todayBtn = document.getElementById('btn-work-today');
+    if (todayBtn) {
+      todayBtn.style.opacity = workState.date === workState.today ? '0.55' : '1';
+    }
+
+    // 2. Summary Hero Card
+    const ds = workState.daySummary || {};
+    const ms = workState.monthSummary || {};
+    const setTxt = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = val;
+    };
+
+    setTxt('work-summary-date-label', workState.date === workState.today ? 'Tổng kết hôm nay' : `Tổng kết ngày ${formatVNDate(workState.date)}`);
+    setTxt('work-day-revenue', formatVND(ds.total_revenue || 0));
+    setTxt('work-day-job-count', `${ds.total_jobs || 0} đơn`);
+    setTxt('work-day-net', formatVND(ds.net_cash || 0));
+    setTxt('work-day-paid', formatShortK(ds.paid_amount || 0));
+    setTxt('work-day-unpaid', formatShortK(ds.unpaid_amount || 0));
+    setTxt('work-day-expense', formatShortK(ds.expense_amount || 0));
+
+    // Extra badges (Nộp quỹ, Số quỹ, Mượn, Trả nợ)
+    const extraEl = document.getElementById('work-day-extra-badges');
+    if (extraEl) {
+      const pills = [];
+      if (ds.fund_in > 0) pills.push(`<span class="work-extra-pill font-tabular">🐷 Nộp quỹ: ${formatShortK(ds.fund_in)}</span>`);
+      if (ds.fund_bal > 0) pills.push(`<span class="work-extra-pill font-tabular">💰 Số quỹ: ${formatShortK(ds.fund_bal)}</span>`);
+      if (ds.borrow_amount > 0) pills.push(`<span class="work-extra-pill font-tabular">🤝 Mượn: ${formatShortK(ds.borrow_amount)}</span>`);
+      if (ds.repay_amount > 0) pills.push(`<span class="work-extra-pill font-tabular">💸 Trả nợ: ${formatShortK(ds.repay_amount)}</span>`);
+      if (pills.length > 0) {
+        extraEl.style.display = 'flex';
+        extraEl.innerHTML = pills.join('');
+      } else {
+        extraEl.style.display = 'none';
+        extraEl.innerHTML = '';
+      }
+    }
+
+    // Month strip
+    if (workState.month) {
+      const mParts = workState.month.split('-');
+      setTxt('work-month-label', `Tháng ${parseInt(mParts[1], 10)}/${mParts[0]} (${ms.total_jobs || 0} đơn):`);
+    }
+    setTxt('work-month-revenue', formatShortK(ms.total_revenue || 0));
+    setTxt('work-month-paid', formatShortK(ms.paid_amount || 0));
+    setTxt('work-month-expense', formatShortK(ms.expense_amount || 0));
+
+    // Subtab badges
+    setTxt('work-badge-day-jobs', String(workState.jobs.length));
+    setTxt('work-badge-unpaid-all', String(workState.totalUnpaidJobs || 0));
+
+    renderWorkSuggestions();
+    renderWorkJobsList();
+    renderWorkMonthDays();
+    renderWorkUnpaidGroups();
+    renderWorkLedgerList();
+  }
+
+  window.stepWorkDate = function (delta) {
+    const base = workState.date || state.today;
+    const nextDate = shiftDateStr(base, delta);
+    loadWorkData(nextDate);
+  };
+
+  window.onWorkDateChange = function (val) {
+    if (val) loadWorkData(val);
+  };
+
+  window.jumpWorkToday = function () {
+    loadWorkData(workState.today || state.today);
+  };
+
+  window.switchWorkSubTab = function (sub) {
+    workState.subTab = sub;
+    ['jobs', 'unpaid', 'ledger'].forEach(k => {
+      const btn = document.getElementById('work-subtab-btn-' + k);
+      const pane = document.getElementById('work-subpane-' + k);
+      if (btn) {
+        const active = k === sub;
+        btn.classList.toggle('active', active);
+        btn.setAttribute('aria-selected', active ? 'true' : 'false');
+      }
+      if (pane) {
+        pane.classList.toggle('active', k === sub);
+      }
+    });
+  };
+
+  function renderWorkSuggestions() {
+    const custContainer = document.getElementById('work-customer-chips');
+    if (custContainer) {
+      const custs = (workState.suggestions && workState.suggestions.customers) || [];
+      custContainer.innerHTML = custs.map(c => {
+        const safe = escapeHTML(c);
+        return `<button type="button" class="work-suggest-chip" data-cust="${safe}" onclick="pickWorkCustomer(this.getAttribute('data-cust'))">${safe}</button>`;
+      }).join('');
+    }
+
+    const svcContainer = document.getElementById('work-service-chips');
+    if (svcContainer) {
+      const svcs = (workState.suggestions && workState.suggestions.services) || [];
+      svcContainer.innerHTML = svcs.map(item => {
+        const safeSvc = escapeHTML(item.service);
+        const priceLabel = item.price ? ` (${formatShortK(item.price)})` : '';
+        return `<button type="button" class="work-suggest-chip font-tabular" data-svc="${safeSvc}" data-price="${item.price || 0}" onclick="pickWorkService(this.getAttribute('data-svc'), Number(this.getAttribute('data-price')))">${safeSvc.trim()}${priceLabel}</button>`;
+      }).join('');
+    }
+  }
+
+  window.pickWorkCustomer = function (name) {
+    const input = document.getElementById('work-job-customer');
+    if (input) {
+      input.value = name;
+      const svcInput = document.getElementById('work-job-service');
+      if (svcInput && !svcInput.value) {
+        svcInput.focus();
+      }
+    }
+  };
+
+  window.pickWorkService = function (svcName, defaultPrice) {
+    const input = document.getElementById('work-job-service');
+    if (input) {
+      input.value = svcName;
+      input.focus();
+      try {
+        input.setSelectionRange(svcName.length, svcName.length);
+      } catch (e) {}
+    }
+    const priceInput = document.getElementById('work-job-price');
+    if (defaultPrice > 0 && priceInput && !priceInput.value) {
+      setWorkJobPrice(defaultPrice);
+    }
+  };
+
+  window.setWorkJobChannel = function (ch) {
+    const hidden = document.getElementById('work-job-channel');
+    if (hidden) hidden.value = ch;
+    const btnZl = document.getElementById('btn-ch-zl');
+    const btnFb = document.getElementById('btn-ch-fb');
+    if (btnZl) btnZl.classList.toggle('active', ch === 'ZL');
+    if (btnFb) btnFb.classList.toggle('active', ch === 'FB');
+  };
+
+  window.setWorkJobStatus = function (st) {
+    const hidden = document.getElementById('work-job-status');
+    if (hidden) hidden.value = st;
+    const btnTt = document.getElementById('btn-st-tt');
+    const btnCtt = document.getElementById('btn-st-ctt');
+    if (btnTt) btnTt.classList.toggle('active-tt', st === 'TT');
+    if (btnCtt) btnCtt.classList.toggle('active-ctt', st === 'CTT');
+  };
+
+  window.setWorkJobPrice = function (vnd) {
+    const input = document.getElementById('work-job-price');
+    if (input) {
+      input.value = vnd / 1000;
+      updateWorkPricePreview(input.value);
+    }
+    document.querySelectorAll('#work-job-form .btn-price-chip').forEach(btn => {
+      const match = btn.textContent.trim() === (vnd / 1000) + 'k';
+      btn.classList.toggle('active', match);
+    });
+  };
+
+  window.updateWorkPricePreview = function (rawVal) {
+    const preview = document.getElementById('work-job-price-preview');
+    if (!preview) return;
+    let n = parseInt(rawVal, 10);
+    if (!n || n <= 0) {
+      preview.textContent = '';
+      return;
+    }
+    if (n < 1000) n = n * 1000;
+    preview.textContent = '= ' + formatVND(n);
+  };
+
+  window.submitWorkJob = async function (e) {
+    e.preventDefault();
+    const customer = document.getElementById('work-job-customer').value.trim();
+    const service = document.getElementById('work-job-service').value.trim();
+    const rawPrice = parseInt(document.getElementById('work-job-price').value, 10);
+    const channel = document.getElementById('work-job-channel').value || 'ZL';
+    const status = document.getElementById('work-job-status').value || 'TT';
+
+    if (!customer || !service || !rawPrice || rawPrice <= 0) {
+      showToast('Nhập đầy đủ tên khách, dịch vụ và giá tiền', true);
+      return;
+    }
+
+    const price = rawPrice < 1000 ? rawPrice * 1000 : rawPrice;
+    try {
+      await api('/api/work/job', {
+        method: 'POST',
+        body: JSON.stringify({
+          date: workState.date || state.today,
+          customer,
+          channel,
+          service,
+          price,
+          status
+        })
+      });
+      document.getElementById('work-job-service').value = '';
+      document.getElementById('work-job-price').value = '';
+      updateWorkPricePreview('');
+      document.querySelectorAll('#work-job-form .btn-price-chip').forEach(b => b.classList.remove('active'));
+      showToast(`Đã lưu đơn ${customer} (${formatShortK(price)} - ${status})`);
+      await loadWorkData(workState.date);
+    } catch (err) {}
+  };
+
+  function renderWorkJobsList() {
+    const container = document.getElementById('work-jobs-list');
+    const subEl = document.getElementById('work-jobs-list-sub');
+    if (!container) return;
+
+    const jobs = workState.jobs || [];
+    const ds = workState.daySummary || {};
+    if (subEl) {
+      subEl.textContent = `${jobs.length} đơn • Tổng ${formatShortK(ds.total_revenue || 0)}`;
+    }
+
+    if (jobs.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state-box">
+          Chưa có đơn dịch vụ nào trong ngày ${formatVNDate(workState.date)}.<br>
+          Chọn nhanh <strong>Khách quen + Dịch vụ + Mệnh giá</strong> ở khung trên để lưu đơn chỉ trong vài giây.
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = jobs.map((j, idx) => {
+      const isCTT = j.status === 'CTT';
+      const chClass = j.channel === 'FB' ? 'ch-fb' : 'ch-zl';
+      const stClass = isCTT ? 'st-ctt' : 'st-tt';
+      const stLabel = isCTT ? '⏳ Nợ (CTT) • Bấm để thu' : '✓ Đã thu (TT)';
+
+      return `
+        <div class="work-job-card ${isCTT ? 'is-unpaid' : ''}">
+          <div class="work-job-top">
+            <div class="work-job-cust-wrap">
+              <span class="work-stt-badge font-tabular">#${idx + 1}</span>
+              <span class="work-ch-badge ${chClass}">${escapeHTML(j.channel)}</span>
+              <span class="work-job-cust-name">${escapeHTML(j.customer)}</span>
+            </div>
+            <span class="work-job-price-val font-tabular">${formatVND(j.price)}</span>
+          </div>
+          <div class="work-job-bottom">
+            <span class="work-job-service-name">${escapeHTML(j.service)}</span>
+            <div class="work-job-actions">
+              <button type="button" class="btn-status-toggle ${stClass}" onclick="toggleWorkJobStatus(${j.id}, '${isCTT ? 'TT' : 'CTT'}')" aria-label="Đổi trạng thái thanh toán đơn ${escapeHTML(j.customer)}">
+                ${stLabel}
+              </button>
+              <button type="button" class="btn-job-icon" onclick="openEditWorkJobModal(${j.id})" aria-label="Sửa đơn ${escapeHTML(j.customer)}">Sửa</button>
+              <button type="button" class="btn-job-icon btn-del" onclick="deleteWorkJob(${j.id})" aria-label="Xoá đơn ${escapeHTML(j.customer)}">Xoá</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  window.toggleWorkJobStatus = async function (jobId, nextStatus) {
+    try {
+      await api('/api/work/job/' + jobId, {
+        method: 'PUT',
+        body: JSON.stringify({ status: nextStatus })
+      });
+      showToast(nextStatus === 'TT' ? 'Đã chuyển sang Đã thu tiền (TT)' : 'Đã chuyển sang Khách nợ (CTT)');
+      await loadWorkData(workState.date);
+    } catch (e) {}
+  };
+
+  window.openEditWorkJobModal = function (jobId) {
+    let job = (workState.jobs || []).find(x => x.id === jobId);
+    if (!job) {
+      for (const g of (workState.unpaidGroups || [])) {
+        const found = (g.jobs || []).find(x => x.id === jobId);
+        if (found) {
+          job = found;
+          break;
+        }
+      }
+    }
+    if (!job) return;
+
+    document.getElementById('edit-job-id').value = job.id;
+    document.getElementById('edit-job-date').value = job.date;
+    document.getElementById('edit-job-channel').value = job.channel || 'ZL';
+    document.getElementById('edit-job-customer').value = job.customer;
+    document.getElementById('edit-job-service').value = job.service;
+    document.getElementById('edit-job-price').value = job.price;
+    document.getElementById('edit-job-status').value = job.status || 'TT';
+
+    openModal('modal-edit-work-job');
+  };
+
+  window.submitEditWorkJob = async function (e) {
+    e.preventDefault();
+    const id = document.getElementById('edit-job-id').value;
+    const date = document.getElementById('edit-job-date').value;
+    const channel = document.getElementById('edit-job-channel').value;
+    const customer = document.getElementById('edit-job-customer').value.trim();
+    const service = document.getElementById('edit-job-service').value.trim();
+    const rawPrice = parseInt(document.getElementById('edit-job-price').value, 10);
+    const status = document.getElementById('edit-job-status').value;
+
+    const price = rawPrice < 1000 ? rawPrice * 1000 : rawPrice;
+    try {
+      await api('/api/work/job/' + id, {
+        method: 'PUT',
+        body: JSON.stringify({ date, channel, customer, service, price, status })
+      });
+      closeModal('modal-edit-work-job');
+      showToast('Đã cập nhật đơn dịch vụ');
+      await loadWorkData(workState.date);
+    } catch (err) {}
+  };
+
+  window.deleteWorkJob = async function (jobId) {
+    if (!confirm('Xoá đơn dịch vụ này khỏi sổ công việc? Thao tác này không thể hoàn tác.')) return;
+    try {
+      await api('/api/work/job/' + jobId, { method: 'DELETE' });
+      showToast('Đã xoá đơn dịch vụ');
+      await loadWorkData(workState.date);
+    } catch (e) {}
+  };
+
+  function renderWorkMonthDays() {
+    const container = document.getElementById('work-month-days-list');
+    if (!container) return;
+    const days = workState.recentDays || [];
+    if (days.length === 0) {
+      container.innerHTML = `<div class="empty-state-box">Chưa có dữ liệu ngày làm việc nào trong tháng này.</div>`;
+      return;
+    }
+
+    container.innerHTML = days.map(d => {
+      const isSelected = d.date === workState.date;
+      return `
+        <button type="button" class="work-day-brief-row font-tabular" style="${isSelected ? 'border-color: #6CA844; background-color: #F2F9EE;' : ''}" onclick="loadWorkData('${d.date}')">
+          <div>
+            <strong style="font-size: 13.5px; color: var(--text-main);">${formatVNDate(d.date)} (${getDayOfWeekVN(d.date)})</strong>
+            <div style="font-size: 11.5px; color: var(--text-sub); margin-top: 2px;">
+              ${d.job_count} đơn &bull; Đã thu ${formatShortK(d.paid_amount)}
+              ${d.unpaid_amount > 0 ? ` &bull; <span style="color:#B45309;font-weight:700;">Nợ ${formatShortK(d.unpaid_amount)}</span>` : ''}
+              ${d.expense_amount > 0 ? ` &bull; Chi ${formatShortK(d.expense_amount)}` : ''}
+            </div>
+          </div>
+          <div style="text-align: right;">
+            <span style="font-size: 14.5px; font-weight: 800; color: #1E3B13;">${formatShortK(d.total_revenue)}</span>
+          </div>
+        </button>
+      `;
+    }).join('');
+  }
+
+  function renderWorkUnpaidGroups() {
+    const totalEl = document.getElementById('work-unpaid-total-all');
+    const countEl = document.getElementById('work-unpaid-count-all');
+    const listEl = document.getElementById('work-unpaid-groups-list');
+    if (totalEl) totalEl.textContent = formatVND(workState.totalUnpaidAll || 0);
+    if (countEl) countEl.textContent = `${workState.totalUnpaidJobs || 0} đơn nợ`;
+    if (!listEl) return;
+
+    const groups = workState.unpaidGroups || [];
+    if (groups.length === 0) {
+      listEl.innerHTML = `
+        <div class="empty-state-box">
+          🎉 Tuyệt vời! Không có khách hàng nào đang nợ (CTT). Tất cả các đơn đều đã thanh toán đủ.
+        </div>
+      `;
+      return;
+    }
+
+    listEl.innerHTML = groups.map((g, gIdx) => {
+      const safeCust = escapeHTML(g.customer);
+      const itemsHtml = (g.jobs || []).map(j => `
+        <div class="work-debt-item-row font-tabular">
+          <div style="min-width: 0; flex: 1;">
+            <strong style="color: var(--text-main);">${formatVNDate(j.date).slice(0, 5)}</strong>:
+            <span>${escapeHTML(j.service)}</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <strong style="color: #9A3412;">${formatShortK(j.price)}</strong>
+            <button type="button" class="btn-status-toggle st-tt" style="min-height: 28px; padding: 2px 8px; font-size: 11px;" onclick="toggleWorkJobStatus(${j.id}, 'TT')" aria-label="Thu tiền đơn ${escapeHTML(j.service)}">Thu đơn này</button>
+          </div>
+        </div>
+      `).join('');
+
+      return `
+        <div class="work-debt-group-card">
+          <div class="work-debt-group-header">
+            <div>
+              <div class="work-debt-cust-title">${safeCust} <span class="work-ch-badge ${g.channel === 'FB' ? 'ch-fb' : 'ch-zl'}">${escapeHTML(g.channel)}</span></div>
+              <span style="font-size: 11.5px; color: var(--text-sub);">${g.job_count} đơn chưa thanh toán</span>
+            </div>
+            <span class="work-debt-total-val font-tabular">${formatVND(g.total_amount)}</span>
+          </div>
+          <div class="work-debt-items-list">${itemsHtml}</div>
+          <div class="work-debt-group-actions">
+            <button type="button" class="btn-debt-copy" onclick="copyCustomerDebtText(${gIdx})">📋 Copy báo nợ</button>
+            <button type="button" class="btn-debt-payall" onclick="payAllCustomerDebt(${gIdx})">✓ Đã thu hết (${formatShortK(g.total_amount)})</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  window.copyCustomerDebtText = async function (groupIdx) {
+    const g = (workState.unpaidGroups || [])[groupIdx];
+    if (!g) return;
+    const lines = [`Gửi ${g.customer} danh sách đơn chưa thanh toán (${g.job_count} đơn):`];
+    (g.jobs || []).slice().reverse().forEach((j, idx) => {
+      const dShort = formatVNDate(j.date).slice(0, 5);
+      lines.push(`${idx + 1}. Ngày ${dShort}: ${j.service} = ${formatShortK(j.price)}`);
+    });
+    lines.push(`👉 Tổng cộng: ${formatVND(g.total_amount)}`);
+
+    const text = lines.join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast(`Đã copy báo nợ của ${g.customer} để dán gửi Zalo/FB`);
+    } catch (e) {
+      showToast('Không thể copy tự động trên trình duyệt này', true);
+    }
+  };
+
+  window.payAllCustomerDebt = async function (groupIdx) {
+    const g = (workState.unpaidGroups || [])[groupIdx];
+    if (!g) return;
+    if (!confirm(`Xác nhận đã thu đủ ${formatVND(g.total_amount)} (${g.job_count} đơn) của khách "${g.customer}"?`)) return;
+
+    try {
+      await api('/api/work/job/pay-customer', {
+        method: 'POST',
+        body: JSON.stringify({ customer: g.customer })
+      });
+      showToast(`Đã tất toán toàn bộ đơn nợ của ${g.customer}`);
+      await loadWorkData(workState.date);
+    } catch (e) {}
+  };
+
+  // ================= PHÂN KHU 3: SỔ THU CHI / QUỸ / MƯỢN / TRẢ NỢ =================
+  window.setWorkLedgerCategory = function (cat) {
+    const hidden = document.getElementById('work-ledger-category');
+    if (hidden) hidden.value = cat;
+    document.querySelectorAll('.work-cat-chip').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-cat') === cat);
+    });
+  };
+
+  window.setWorkLedgerAmount = function (vnd) {
+    const input = document.getElementById('work-ledger-amount');
+    if (input) input.value = vnd / 1000;
+  };
+
+  window.setWorkLedgerNote = function (noteText, defaultVnd) {
+    const noteInput = document.getElementById('work-ledger-note');
+    if (noteInput) noteInput.value = noteText;
+    if (defaultVnd > 0) {
+      const amtInput = document.getElementById('work-ledger-amount');
+      if (amtInput && !amtInput.value) {
+        amtInput.value = defaultVnd / 1000;
+      }
+    }
+    if (noteText.toLowerCase().includes('nộp quỹ')) {
+      setWorkLedgerCategory('fund_in');
+    } else {
+      setWorkLedgerCategory('expense');
+    }
+  };
+
+  window.submitWorkLedger = async function (e) {
+    e.preventDefault();
+    const category = document.getElementById('work-ledger-category').value || 'expense';
+    const rawAmt = parseInt(document.getElementById('work-ledger-amount').value, 10);
+    const note = document.getElementById('work-ledger-note').value.trim();
+
+    if (!rawAmt || rawAmt <= 0 || !note) {
+      showToast('Nhập số tiền và nội dung chi tiết', true);
+      return;
+    }
+
+    const amount = rawAmt < 1000 ? rawAmt * 1000 : rawAmt;
+    try {
+      await api('/api/work/ledger', {
+        method: 'POST',
+        body: JSON.stringify({
+          date: workState.date || state.today,
+          category,
+          amount,
+          note
+        })
+      });
+      document.getElementById('work-ledger-amount').value = '';
+      document.getElementById('work-ledger-note').value = '';
+      showToast('Đã lưu khoản mục vào sổ');
+      await loadWorkData(workState.date);
+    } catch (err) {}
+  };
+
+  function getLedgerCatLabel(cat) {
+    switch (cat) {
+      case 'expense': return '🍜 Chi tiêu / Phát sinh';
+      case 'fund_in': return '🐷 Nộp Quỹ';
+      case 'fund_bal': return '💰 Số Quỹ';
+      case 'borrow': return '🤝 Mượn';
+      case 'repay': return '💸 Trả Nợ';
+      default: return cat;
+    }
+  }
+
+  function renderWorkLedgerList() {
+    const container = document.getElementById('work-ledger-list');
+    if (!container) return;
+    const list = workState.ledger || [];
+    if (list.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state-box">
+          Chưa có khoản chi tiêu, nộp quỹ hay mượn/trả nợ nào trong ngày ${formatVNDate(workState.date)}.
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = list.map(item => `
+      <div class="work-job-card">
+        <div class="work-job-top">
+          <div>
+            <span class="work-stt-badge">${getLedgerCatLabel(item.category)}</span>
+            <div class="work-job-cust-name" style="margin-top: 5px;">${escapeHTML(item.note)}</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="work-job-price-val font-tabular">${formatVND(item.amount)}</span>
+            <button type="button" class="btn-job-icon btn-del" onclick="deleteWorkLedger(${item.id})" aria-label="Xoá khoản mục ${escapeHTML(item.note)}">Xoá</button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  window.deleteWorkLedger = async function (id) {
+    if (!confirm('Xoá khoản mục thu chi này?')) return;
+    try {
+      await api('/api/work/ledger/' + id, { method: 'DELETE' });
+      showToast('Đã xoá khoản mục');
+      await loadWorkData(workState.date);
+    } catch (e) {}
+  };
+
+  window.exportWorkExcel = function () {
+    const month = workState.month || (workState.date || state.today).slice(0, 7);
+    window.location.href = `/api/work/export?month=${encodeURIComponent(month)}`;
+  };
 
   // Khởi động ứng dụng
   init();

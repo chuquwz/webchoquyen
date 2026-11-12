@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=26">
+  <link rel="stylesheet" href="/style.css?v=27">
 </head>
 <body>
   <!-- Container Toast thông báo -->
@@ -599,6 +599,273 @@
           </div>
         </section>
 
+        <!-- =====================================================================
+             MÀN HÌNH: CÔNG VIỆC CỦA QUYỀN (SỔ VIỆC MOBILE-FIRST THAY THẾ EXCEL)
+             ===================================================================== -->
+        <section id="tab-work" class="tab-pane" role="tabpanel" aria-label="Sổ công việc của Quyền">
+          <!-- Header: Tiêu đề + Nút Xuất Excel -->
+          <div class="screen-nav-header">
+            <button type="button" class="btn-circle-action" aria-label="Quay lại trang Hôm nay" onclick="switchTab('today')">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#1C1F1B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M15 18l-6-6 6-6"/>
+              </svg>
+            </button>
+            <h1 class="screen-nav-title">Sổ công việc</h1>
+            <button type="button" class="btn-work-export-pill" onclick="exportWorkExcel()" title="Tải bảng Excel (.csv) của tháng đang xem">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              <span>Xuất Excel</span>
+            </button>
+          </div>
+
+          <!-- Thanh điều hướng Ngày làm việc -->
+          <div class="work-date-bar">
+            <button type="button" class="btn-work-date-step" aria-label="Ngày trước đó" onclick="stepWorkDate(-1)">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <div class="work-date-picker-wrap">
+              <label for="work-date-input" class="sr-only">Chọn ngày làm việc</label>
+              <input type="date" id="work-date-input" class="work-date-input font-tabular" onchange="onWorkDateChange(this.value)">
+              <span id="work-date-human" class="work-date-human">Hôm nay</span>
+            </div>
+            <button type="button" class="btn-work-date-step" aria-label="Ngày tiếp theo" onclick="stepWorkDate(1)">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+            <button type="button" id="btn-work-today" class="btn-work-today-chip" onclick="jumpWorkToday()">Hôm nay</button>
+          </div>
+
+          <!-- Thẻ Tổng Kết Ngày & Tháng Tự Động -->
+          <div class="work-summary-hero-card" role="region" aria-label="Tổng kết doanh thu và chi tiêu">
+            <div class="work-summary-top-row">
+              <div>
+                <span class="work-summary-eyebrow" id="work-summary-date-label">Tổng kết ngày</span>
+                <div class="work-summary-total-line">
+                  <span id="work-day-revenue" class="work-huge-money font-tabular">0đ</span>
+                  <span id="work-day-job-count" class="work-job-count-pill font-tabular">0 đơn</span>
+                </div>
+              </div>
+              <div class="work-net-box">
+                <span class="work-net-label">Thực còn (Đã thu &minus; Chi)</span>
+                <span id="work-day-net" class="work-net-val font-tabular">0đ</span>
+              </div>
+            </div>
+
+            <!-- 3 Ô Chỉ Số Chính Trong Ngày: Đã thu (TT) | Khách nợ (CTT) | Chi tiêu -->
+            <div class="work-summary-grid-3">
+              <div class="work-stat-mini-box stat-paid">
+                <span class="work-stat-mini-label">✓ Thực thu (TT)</span>
+                <span id="work-day-paid" class="work-stat-mini-val font-tabular">0đ</span>
+              </div>
+              <div class="work-stat-mini-box stat-unpaid" onclick="switchWorkSubTab('unpaid')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')switchWorkSubTab('unpaid')">
+                <span class="work-stat-mini-label">⏳ Còn nợ (CTT)</span>
+                <span id="work-day-unpaid" class="work-stat-mini-val font-tabular">0đ</span>
+              </div>
+              <div class="work-stat-mini-box stat-expense" onclick="switchWorkSubTab('ledger')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')switchWorkSubTab('ledger')">
+                <span class="work-stat-mini-label">💸 Chi tiêu ngày</span>
+                <span id="work-day-expense" class="work-stat-mini-val font-tabular">0đ</span>
+              </div>
+            </div>
+
+            <!-- Dòng phụ: Quỹ / Mượn / Trả nợ trong ngày (nếu có) + Luỹ kế Tháng -->
+            <div id="work-day-extra-badges" class="work-extra-badges-row" style="display: none;"></div>
+
+            <div class="work-month-strip">
+              <span id="work-month-label" class="work-month-title">Tháng này:</span>
+              <span class="work-month-metrics font-tabular">
+                Doanh thu <strong id="work-month-revenue">0đ</strong> &bull;
+                Đã thu <strong id="work-month-paid">0đ</strong> &bull;
+                Chi <strong id="work-month-expense">0đ</strong>
+              </span>
+            </div>
+          </div>
+
+          <!-- Thanh Chuyển Đổi 3 Phân Khu (Đơn dịch vụ | Sổ nợ CTT | Thu chi & Quỹ) -->
+          <div class="work-subtab-bar" role="tablist" aria-label="Phân khu sổ công việc">
+            <button type="button" id="work-subtab-btn-jobs" class="work-subtab-btn active" role="tab" aria-selected="true" onclick="switchWorkSubTab('jobs')">
+              <span>📋 Đơn dịch vụ</span>
+              <span id="work-badge-day-jobs" class="work-subtab-count font-tabular">0</span>
+            </button>
+            <button type="button" id="work-subtab-btn-unpaid" class="work-subtab-btn" role="tab" aria-selected="false" onclick="switchWorkSubTab('unpaid')">
+              <span>⏳ Sổ nợ (CTT)</span>
+              <span id="work-badge-unpaid-all" class="work-subtab-count badge-alert font-tabular">0</span>
+            </button>
+            <button type="button" id="work-subtab-btn-ledger" class="work-subtab-btn" role="tab" aria-selected="false" onclick="switchWorkSubTab('ledger')">
+              <span>💸 Thu chi &amp; Quỹ</span>
+            </button>
+          </div>
+
+          <!-- ===============================================================
+               PHÂN KHU 1: ĐƠN DỊCH VỤ KHÁCH HÀNG TRONG NGÀY
+               =============================================================== -->
+          <div id="work-subpane-jobs" class="work-subpane active">
+            <!-- Form Nhập Đơn Dịch Vụ Siêu Tốc Cho Điện Thoại -->
+            <form id="work-job-form" class="work-quick-card" onsubmit="submitWorkJob(event)">
+              <div class="work-card-title-row">
+                <h2 class="work-card-heading">+ Ghi đơn dịch vụ mới</h2>
+                <!-- Chọn kênh liên hệ ZL / FB 1 chạm -->
+                <div class="work-channel-toggle" role="group" aria-label="Kênh liên hệ khách hàng">
+                  <button type="button" id="btn-ch-zl" class="work-ch-btn active" onclick="setWorkJobChannel('ZL')">Zalo (ZL)</button>
+                  <button type="button" id="btn-ch-fb" class="work-ch-btn" onclick="setWorkJobChannel('FB')">Facebook (FB)</button>
+                </div>
+              </div>
+              <input type="hidden" id="work-job-channel" value="ZL">
+
+              <!-- 1. Tên Khách Hàng + Dải Chip Khách Quen -->
+              <div class="form-group" style="margin-top: 10px;">
+                <label class="form-label" for="work-job-customer">Tên khách hàng / cửa hàng</label>
+                <input type="text" id="work-job-customer" class="form-input work-mobile-input" placeholder="Ví dụ: Điện Thoại Nguyên Trường" maxlength="100" autocomplete="off" required>
+                <div class="work-chips-label">Chạm chọn nhanh khách quen:</div>
+                <div id="work-customer-chips" class="work-chips-scroll" aria-label="Gợi ý khách hàng quen thuộc"></div>
+              </div>
+
+              <!-- 2. Dịch Vụ / Dòng Máy + Chip Tiền Tố Nhanh -->
+              <div class="form-group" style="margin-top: 12px;">
+                <label class="form-label" for="work-job-service">Dịch vụ &amp; dòng máy</label>
+                <input type="text" id="work-job-service" class="form-input work-mobile-input" placeholder="Ví dụ: FIX VOLTE OPPO A55S 5G" maxlength="150" autocomplete="off" required>
+                <div class="work-chips-label">Chạm điền nhanh dịch vụ hay làm:</div>
+                <div id="work-service-chips" class="work-chips-scroll" aria-label="Gợi ý dịch vụ thường làm"></div>
+              </div>
+
+              <!-- 3. Giá Tiền + Chip Mệnh Giá 1 Chạm -->
+              <div class="form-group" style="margin-top: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                  <label class="form-label" for="work-job-price">Giá tiền (gõ số nghìn: 200 = 200.000đ)</label>
+                  <span id="work-job-price-preview" class="work-price-preview font-tabular"></span>
+                </div>
+                <input type="number" id="work-job-price" class="form-input work-mobile-input font-tabular" placeholder="Ví dụ: 200 hoặc 200000" inputmode="numeric" min="1" required oninput="updateWorkPricePreview(this.value)">
+                <div class="work-price-Preset-grid" aria-label="Chọn nhanh mệnh giá tiền">
+                  <button type="button" class="btn-price-chip font-tabular" onclick="setWorkJobPrice(35000)">35k</button>
+                  <button type="button" class="btn-price-chip font-tabular" onclick="setWorkJobPrice(50000)">50k</button>
+                  <button type="button" class="btn-price-chip font-tabular" onclick="setWorkJobPrice(70000)">70k</button>
+                  <button type="button" class="btn-price-chip font-tabular" onclick="setWorkJobPrice(80000)">80k</button>
+                  <button type="button" class="btn-price-chip font-tabular" onclick="setWorkJobPrice(100000)">100k</button>
+                  <button type="button" class="btn-price-chip font-tabular" onclick="setWorkJobPrice(150000)">150k</button>
+                  <button type="button" class="btn-price-chip font-tabular" onclick="setWorkJobPrice(200000)">200k</button>
+                  <button type="button" class="btn-price-chip font-tabular" onclick="setWorkJobPrice(250000)">250k</button>
+                  <button type="button" class="btn-price-chip font-tabular" onclick="setWorkJobPrice(350000)">350k</button>
+                </div>
+              </div>
+
+              <!-- 4. Trạng Thái Thanh Toán (TT vs CTT) + Nút Lưu -->
+              <div class="work-status-submit-row">
+                <div class="work-status-selector" role="group" aria-label="Trạng thái thanh toán">
+                  <input type="hidden" id="work-job-status" value="TT">
+                  <button type="button" id="btn-st-tt" class="work-status-opt active-tt" onclick="setWorkJobStatus('TT')">
+                    ✓ Đã thu (TT)
+                  </button>
+                  <button type="button" id="btn-st-ctt" class="work-status-opt" onclick="setWorkJobStatus('CTT')">
+                    ⏳ Khách nợ (CTT)
+                  </button>
+                </div>
+                <button type="submit" class="btn-green-pill btn-work-submit">Lưu đơn</button>
+              </div>
+            </form>
+
+            <!-- Danh Sách Đơn Dịch Vụ Trong Ngày -->
+            <div class="section-container" style="margin-top: 18px;">
+              <div class="section-title-header">
+                <h2 class="section-heading">Danh sách đơn trong ngày</h2>
+                <span id="work-jobs-list-sub" class="work-list-sub font-tabular">0 đơn</span>
+              </div>
+              <div id="work-jobs-list" class="work-items-stack"></div>
+            </div>
+
+            <!-- Lịch Sử Các Ngày Có Làm Việc Trong Tháng -->
+            <div class="section-container" style="margin-top: 22px; margin-bottom: 24px;">
+              <div class="section-title-header">
+                <h2 class="section-heading">Các ngày làm việc trong tháng</h2>
+              </div>
+              <div id="work-month-days-list" class="work-items-stack"></div>
+            </div>
+          </div>
+
+          <!-- ===============================================================
+               PHÂN KHU 2: SỔ NỢ KHÁCH HÀNG (GOM ĐƠN CTT THEO KHÁCH)
+               =============================================================== -->
+          <div id="work-subpane-unpaid" class="work-subpane">
+            <div class="work-unpaid-banner">
+              <div>
+                <span class="work-unpaid-banner-label">Tổng tiền khách đang nợ (CTT)</span>
+                <div id="work-unpaid-total-all" class="work-unpaid-banner-val font-tabular">0đ</div>
+              </div>
+              <span id="work-unpaid-count-all" class="work-job-count-pill badge-alert font-tabular">0 đơn nợ</span>
+            </div>
+
+            <p class="work-helper-text">
+              Danh sách tự động gom tất cả các đơn <strong>Chưa thanh toán (CTT)</strong> theo từng khách hàng. Bạn có thể bấm <strong>Copy báo nợ</strong> để gửi qua Zalo/FB hoặc bấm <strong>Thu hết nợ</strong> khi khách chuyển khoản.
+            </p>
+
+            <div id="work-unpaid-groups-list" class="work-items-stack" style="margin-bottom: 24px;"></div>
+          </div>
+
+          <!-- ===============================================================
+               PHÂN KHU 3: SỔ THU CHI PHÁT SINH, NỘP QUỸ, MƯỢN & TRẢ NỢ
+               =============================================================== -->
+          <div id="work-subpane-ledger" class="work-subpane">
+            <form id="work-ledger-form" class="work-quick-card" onsubmit="submitWorkLedger(event)">
+              <h2 class="work-card-heading">+ Ghi thu chi / Quỹ / Mượn / Trả nợ</h2>
+              <p class="work-helper-text" style="margin-top: 4px; margin-bottom: 10px;">
+                Tách riêng các khoản chi tiêu cá nhân, thuê tool, nộp quỹ, mượn và trả nợ để bảng đơn hàng luôn sạch sẽ, rõ ràng.
+              </p>
+
+              <!-- Chọn Phân Loại -->
+              <div class="form-group">
+                <label class="form-label" for="work-ledger-category">Phân loại khoản mục</label>
+                <div class="work-cat-grid" role="group" aria-label="Chọn phân loại thu chi">
+                  <button type="button" class="work-cat-chip active" data-cat="expense" onclick="setWorkLedgerCategory('expense')">🍜 Chi tiêu / Phát sinh</button>
+                  <button type="button" class="work-cat-chip" data-cat="fund_in" onclick="setWorkLedgerCategory('fund_in')">🐷 Nộp Quỹ</button>
+                  <button type="button" class="work-cat-chip" data-cat="fund_bal" onclick="setWorkLedgerCategory('fund_bal')">💰 Số Quỹ</button>
+                  <button type="button" class="work-cat-chip" data-cat="borrow" onclick="setWorkLedgerCategory('borrow')">🤝 Mượn</button>
+                  <button type="button" class="work-cat-chip" data-cat="repay" onclick="setWorkLedgerCategory('repay')">💸 Trả Nợ</button>
+                </div>
+                <input type="hidden" id="work-ledger-category" value="expense">
+              </div>
+
+              <!-- Số tiền -->
+              <div class="form-group" style="margin-top: 10px;">
+                <label class="form-label" for="work-ledger-amount">Số tiền (gõ số nghìn: 50 = 50.000đ)</label>
+                <input type="number" id="work-ledger-amount" class="form-input work-mobile-input font-tabular" placeholder="Ví dụ: 50 hoặc 50000" inputmode="numeric" min="1" required>
+                <div class="work-price-Preset-grid" aria-label="Chọn nhanh số tiền">
+                  <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(10000)">10k</button>
+                  <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(35000)">35k</button>
+                  <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(50000)">50k</button>
+                  <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(100000)">100k</button>
+                  <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(150000)">150k</button>
+                  <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(200000)">200k</button>
+                  <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(500000)">500k</button>
+                </div>
+              </div>
+
+              <!-- Nội dung chi tiết + Chip gợi ý nhanh -->
+              <div class="form-group" style="margin-top: 10px;">
+                <label class="form-label" for="work-ledger-note">Nội dung chi tiết</label>
+                <input type="text" id="work-ledger-note" class="form-input work-mobile-input" placeholder="Ví dụ: Mua cơm, Thuê tools, Đổ xăng..." maxlength="300" required>
+                <div class="work-chips-scroll" style="margin-top: 6px;" aria-label="Gợi ý nội dung chi tiêu">
+                  <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Thuê tools', 10000)">Thuê tools (10k)</button>
+                  <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Mua cơm', 50000)">Mua cơm (50k)</button>
+                  <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Ăn sáng', 35000)">Ăn sáng (35k)</button>
+                  <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Đổ xăng', 150000)">Đổ xăng (150k)</button>
+                  <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Đi ăn', 200000)">Đi ăn</button>
+                  <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Nộp quỹ ngày', 100000)">Nộp quỹ ngày</button>
+                </div>
+              </div>
+
+              <button type="submit" class="btn-green-pill" style="width: 100%; margin-top: 14px;">Lưu khoản mục</button>
+            </form>
+
+            <!-- Danh sách các khoản Thu Chi / Quỹ trong ngày -->
+            <div class="section-container" style="margin-top: 18px; margin-bottom: 24px;">
+              <div class="section-title-header">
+                <h2 class="section-heading">Phát sinh trong ngày đang xem</h2>
+              </div>
+              <div id="work-ledger-list" class="work-items-stack"></div>
+            </div>
+          </div>
+        </section>
+
       </div>
 
       <!-- =====================================================================
@@ -613,7 +880,16 @@
           <span class="nav-label">Hôm nay</span>
         </button>
 
-        <!-- 2. Thực đơn -->
+        <!-- 2. Công việc (Sổ Việc) -->
+        <button type="button" class="nav-pill-btn" id="nav-btn-work" role="tab" aria-selected="false" aria-label="Công việc" onclick="switchTab('work')">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+          </svg>
+          <span class="nav-label">Công việc</span>
+        </button>
+
+        <!-- 3. Thực đơn -->
         <button type="button" class="nav-pill-btn" id="nav-btn-meals" role="tab" aria-selected="false" aria-label="Thực đơn" onclick="switchTab('meals')">
           <svg class="nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
@@ -621,7 +897,7 @@
           <span class="nav-label">Thực đơn</span>
         </button>
 
-        <!-- 3. Chỉ số -->
+        <!-- 4. Chỉ số -->
         <button type="button" class="nav-pill-btn" id="nav-btn-overview" role="tab" aria-selected="false" aria-label="Chỉ số" onclick="switchTab('overview')">
           <svg class="nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/>
@@ -629,7 +905,7 @@
           <span class="nav-label">Chỉ số</span>
         </button>
 
-        <!-- 4. Cài đặt -->
+        <!-- 5. Cài đặt -->
         <button type="button" class="nav-pill-btn" id="nav-btn-settings" role="tab" aria-selected="false" aria-label="Cài đặt" onclick="switchTab('settings')">
           <svg class="nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
@@ -808,8 +1084,57 @@
     </div>
   </div>
 
+  <!-- MODAL: Chỉnh Sửa Đơn Dịch Vụ -->
+  <div id="modal-edit-work-job" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-edit-job-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="modal-edit-job-title" class="modal-title">Sửa đơn dịch vụ</h3>
+        <button type="button" class="modal-close" aria-label="Đóng hộp thoại sửa đơn" onclick="closeModal('modal-edit-work-job')">&times;</button>
+      </div>
+      <form onsubmit="submitEditWorkJob(event)">
+        <input type="hidden" id="edit-job-id">
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label" for="edit-job-date">Ngày làm</label>
+            <input type="date" id="edit-job-date" class="form-input font-tabular" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="edit-job-channel">Kênh liên hệ</label>
+            <select id="edit-job-channel" class="form-input">
+              <option value="ZL">Zalo (ZL)</option>
+              <option value="FB">Facebook (FB)</option>
+              <option value="KHAC">Khác</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group" style="margin-top: 10px;">
+          <label class="form-label" for="edit-job-customer">Tên khách hàng</label>
+          <input type="text" id="edit-job-customer" class="form-input work-mobile-input" maxlength="100" required>
+        </div>
+        <div class="form-group" style="margin-top: 10px;">
+          <label class="form-label" for="edit-job-service">Dịch vụ &amp; dòng máy</label>
+          <input type="text" id="edit-job-service" class="form-input work-mobile-input" maxlength="150" required>
+        </div>
+        <div class="form-grid-2" style="margin-top: 10px;">
+          <div class="form-group">
+            <label class="form-label" for="edit-job-price">Giá tiền (VNĐ)</label>
+            <input type="number" id="edit-job-price" class="form-input work-mobile-input font-tabular" min="1" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="edit-job-status">Trạng thái</label>
+            <select id="edit-job-status" class="form-input">
+              <option value="TT">Đã thu (TT)</option>
+              <option value="CTT">Khách nợ (CTT)</option>
+            </select>
+          </div>
+        </div>
+        <button type="submit" class="btn-green-pill" style="width: 100%; margin-top: 16px;">Lưu thay đổi</button>
+      </form>
+    </div>
+  </div>
+
   <span id="today-date-badge" style="display: none;"></span>
 
-  <script src="/app.js?v=26"></script>
+  <script src="/app.js?v=27"></script>
 </body>
 </html>

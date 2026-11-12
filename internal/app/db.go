@@ -25,6 +25,26 @@ CREATE TABLE IF NOT EXISTS glucose_log (
 CREATE INDEX IF NOT EXISTS idx_glucose_date ON glucose_log(date);
 CREATE TABLE IF NOT EXISTS push_sub (endpoint TEXT PRIMARY KEY, p256dh TEXT NOT NULL, auth TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS notif_log (key TEXT PRIMARY KEY, ts INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS work_jobs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  date TEXT NOT NULL,
+  customer TEXT NOT NULL,
+  channel TEXT NOT NULL DEFAULT 'ZL',
+  service TEXT NOT NULL,
+  price INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'TT',
+  note TEXT NOT NULL DEFAULT '',
+  ts INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_work_jobs_date ON work_jobs(date);
+CREATE INDEX IF NOT EXISTS idx_work_jobs_status ON work_jobs(status);
+CREATE TABLE IF NOT EXISTS work_ledger (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  date TEXT NOT NULL,
+  category TEXT NOT NULL,
+  amount INTEGER NOT NULL,
+  note TEXT NOT NULL DEFAULT '',
+  ts INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_work_ledger_date ON work_ledger(date);
 `
 
 // OpenDB mở (hoặc tạo) cơ sở dữ liệu SQLite trong dir.

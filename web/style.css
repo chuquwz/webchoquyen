@@ -1984,6 +1984,913 @@ body:not(.is-logged-in) #app-bottom-nav {
   background-color: #E6F0E0;
 }
 
+/* --------------------------------------------------------------------------
+   Screen: SỔ CÔNG VIỆC CỦA QUYỀN (Tab Work - Mobile-First)
+   -------------------------------------------------------------------------- */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.btn-work-export-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 40px;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-tile-mint);
+  border: 1.5px solid #C5DEB6;
+  color: var(--color-pill-text);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease-out, background-color 0.15s ease-out;
+}
+
+.btn-work-export-pill:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+/* Date Navigation Bar */
+.work-date-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  background-color: #F7FAF5;
+  border: 1px solid #E2ECE0;
+  border-radius: 18px;
+  padding: 6px 8px;
+}
+
+.btn-work-date-step {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background-color: #FFFFFF;
+  border: 1px solid #DCE7D8;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: transform 0.15s ease-out, background-color 0.15s ease-out;
+}
+
+.btn-work-date-step:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.work-date-picker-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.work-date-input {
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-main);
+  text-align: center;
+  cursor: pointer;
+  padding: 0;
+  max-width: 100%;
+}
+
+.work-date-human {
+  font-size: 11px;
+  font-weight: 600;
+  color: #3D7824;
+  line-height: 1.2;
+}
+
+.btn-work-today-chip {
+  min-height: 36px;
+  padding: 6px 11px;
+  border-radius: 12px;
+  background-color: var(--color-pill-green);
+  color: var(--color-pill-text);
+  border: none;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: transform 0.15s ease-out, opacity 0.15s ease-out;
+}
+
+.btn-work-today-chip:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+/* Summary Hero Card */
+.work-summary-hero-card {
+  background-color: #FFFFFF;
+  border: 1.5px solid #DFEAE0;
+  border-radius: 26px;
+  padding: 16px;
+  box-shadow: var(--shadow-card);
+  margin-bottom: 14px;
+}
+
+.work-summary-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.work-summary-eyebrow {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-sub);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.work-summary-total-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.work-huge-money {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.work-job-count-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  background-color: #E8F6DE;
+  color: #254516;
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.work-job-count-pill.badge-alert {
+  background-color: #FEF2F2;
+  color: #B91C1C;
+  border: 1px solid #FECACA;
+}
+
+.work-net-box {
+  background-color: #F4F9F1;
+  border: 1px solid #DCEAD5;
+  border-radius: 14px;
+  padding: 7px 11px;
+  text-align: right;
+}
+
+.work-net-label {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-sub);
+}
+
+.work-net-val {
+  font-size: 15px;
+  font-weight: 800;
+  color: #1E3B13;
+}
+
+.work-summary-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.work-stat-mini-box {
+  border-radius: 14px;
+  padding: 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.work-stat-mini-box.stat-paid {
+  background-color: #EDF7E7;
+  border: 1px solid #CBE4BC;
+}
+
+.work-stat-mini-box.stat-unpaid {
+  background-color: #FFF7ED;
+  border: 1px solid #FED7AA;
+  cursor: pointer;
+}
+
+.work-stat-mini-box.stat-expense {
+  background-color: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  cursor: pointer;
+}
+
+.work-stat-mini-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #3F473C;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stat-paid .work-stat-mini-val {
+  color: #1E4611;
+}
+
+.stat-unpaid .work-stat-mini-val {
+  color: #B45309;
+}
+
+.stat-expense .work-stat-mini-val {
+  color: #334155;
+}
+
+.work-stat-mini-val {
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.work-extra-badges-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #E2ECE0;
+}
+
+.work-extra-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 10px;
+  background-color: #F5F8F4;
+  color: var(--text-main);
+  border: 1px solid #E0E8DC;
+}
+
+.work-month-strip {
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid #EDF2EB;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--text-sub);
+}
+
+.work-month-title {
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.work-month-metrics strong {
+  color: var(--text-main);
+  font-weight: 800;
+}
+
+/* Segmented Sub-tabs */
+.work-subtab-bar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  background-color: #EFF4ED;
+  padding: 5px;
+  border-radius: 18px;
+  margin-bottom: 14px;
+}
+
+.work-subtab-btn {
+  min-height: 40px;
+  border: none;
+  border-radius: 13px;
+  background: transparent;
+  color: #4A5246;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  cursor: pointer;
+  min-width: 0;
+  transition: background-color 0.15s ease-out, color 0.15s ease-out, transform 0.15s ease-out;
+}
+
+.work-subtab-btn:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.work-subtab-btn.active {
+  background-color: #FFFFFF;
+  color: #1A3310;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.work-subtab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background-color: #E2F0D6;
+  color: #1E3B13;
+  font-size: 10.5px;
+  font-weight: 800;
+}
+
+.work-subtab-count.badge-alert {
+  background-color: #DC2626;
+  color: #FFFFFF;
+}
+
+.work-subpane {
+  display: none;
+}
+
+.work-subpane.active {
+  display: block;
+}
+
+/* Quick Entry Form Card */
+.work-quick-card {
+  background-color: #FFFFFF;
+  border: 1.5px solid #E1EBE0;
+  border-radius: 26px;
+  padding: 16px;
+  box-shadow: var(--shadow-card);
+}
+
+.work-card-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.work-card-heading {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.work-channel-toggle {
+  display: inline-flex;
+  background-color: #F2F6F0;
+  border-radius: 12px;
+  padding: 3px;
+  border: 1px solid #DFEAE0;
+}
+
+.work-ch-btn {
+  min-height: 32px;
+  padding: 4px 10px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #545D50;
+  cursor: pointer;
+  transition: background-color 0.15s ease-out, color 0.15s ease-out, transform 0.15s ease-out;
+}
+
+.work-ch-btn:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.work-ch-btn.active {
+  background-color: #1D4ED8;
+  color: #FFFFFF;
+}
+
+#btn-ch-fb.active {
+  background-color: #0369A1;
+  color: #FFFFFF;
+}
+
+/* 16px font size on mobile inputs to prevent iOS Safari auto-zoom */
+.work-mobile-input {
+  font-size: 16px !important;
+  min-height: 44px;
+  padding: 9px 12px !important;
+}
+
+.work-chips-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+.work-chips-scroll {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 4px 2px 6px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.work-chips-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.work-suggest-chip {
+  flex-shrink: 0;
+  min-height: 34px;
+  padding: 5px 11px;
+  border-radius: var(--radius-pill);
+  background-color: #F4F8F2;
+  border: 1px solid #D8E6D2;
+  color: #254516;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease-out, background-color 0.15s ease-out;
+}
+
+.work-suggest-chip:not(:disabled):active {
+  transform: scale(0.96);
+  background-color: var(--color-pill-green);
+}
+
+.work-price-preview {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #2B5719;
+}
+
+.work-price-Preset-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+
+@media (max-width: 360px) {
+  .work-price-Preset-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.btn-price-chip {
+  min-height: 38px;
+  border-radius: 11px;
+  background-color: #F3F8F0;
+  border: 1.5px solid #D7E6D0;
+  color: #1E3B13;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.15s ease-out, background-color 0.15s ease-out;
+}
+
+.btn-price-chip:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.btn-price-chip.active {
+  background-color: var(--color-pill-green);
+  border-color: #6CA844;
+  color: var(--color-pill-text);
+}
+
+.work-status-submit-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.work-status-selector {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.work-status-opt {
+  min-height: 44px;
+  border-radius: 14px;
+  border: 1.5px solid #DCE5D8;
+  background-color: #F8FAF7;
+  color: #4A5246;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.15s ease-out, background-color 0.15s ease-out, border-color 0.15s ease-out;
+}
+
+.work-status-opt:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.work-status-opt.active-tt {
+  background-color: #E8F6DE;
+  border-color: #5E9447;
+  color: #1A3A0E;
+}
+
+.work-status-opt.active-ctt {
+  background-color: #FFF7ED;
+  border-color: #EA580C;
+  color: #9A3412;
+}
+
+.btn-work-submit {
+  width: 100%;
+  min-height: 48px;
+  font-size: 15px;
+}
+
+/* Job & Ledger Item Cards */
+.work-list-sub {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-sub);
+}
+
+.work-items-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.work-job-card {
+  background-color: #FFFFFF;
+  border: 1px solid #E2EAE0;
+  border-radius: 20px;
+  padding: 13px 14px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.work-job-card.is-unpaid {
+  border-left: 4px solid #EA580C;
+  background-color: #FFFCF9;
+}
+
+.work-job-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.work-job-cust-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.work-stt-badge {
+  font-size: 11px;
+  font-weight: 800;
+  color: #525B4E;
+  background-color: #EEF3EC;
+  padding: 2px 7px;
+  border-radius: 8px;
+}
+
+.work-ch-badge {
+  font-size: 10.5px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 7px;
+  letter-spacing: 0.03em;
+}
+
+.work-ch-badge.ch-zl {
+  background-color: #DBEAFE;
+  color: #1E40AF;
+}
+
+.work-ch-badge.ch-fb {
+  background-color: #E0F2FE;
+  color: #075985;
+}
+
+.work-job-cust-name {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: var(--text-main);
+  overflow-wrap: break-word;
+}
+
+.work-job-price-val {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-main);
+  white-space: nowrap;
+}
+
+.work-job-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.work-job-service-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #3D443A;
+  overflow-wrap: break-word;
+  flex: 1;
+  min-width: 140px;
+}
+
+.work-job-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-status-toggle {
+  min-height: 34px;
+  padding: 4px 10px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.15s ease-out;
+}
+
+.btn-status-toggle:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.btn-status-toggle.st-tt {
+  background-color: #E8F6DE;
+  border: 1px solid #B7DF9C;
+  color: #1E4611;
+}
+
+.btn-status-toggle.st-ctt {
+  background-color: #FFF7ED;
+  border: 1.5px solid #FB923C;
+  color: #9A3412;
+}
+
+.btn-job-icon {
+  min-width: 34px;
+  min-height: 34px;
+  padding: 4px 8px;
+  border-radius: 10px;
+  background-color: #F5F8F4;
+  border: 1px solid #E1E9DE;
+  color: #4A5246;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease-out;
+}
+
+.btn-job-icon:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.btn-job-icon.btn-del {
+  color: #B91C1C;
+  background-color: #FEF2F2;
+  border-color: #FECACA;
+}
+
+/* Unpaid Customer Groups (Sổ Nợ CTT) */
+.work-unpaid-banner {
+  background-color: #FFF7ED;
+  border: 1.5px solid #FDBA74;
+  border-radius: 22px;
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.work-unpaid-banner-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #9A3412;
+}
+
+.work-unpaid-banner-val {
+  font-size: 22px;
+  font-weight: 800;
+  color: #9A3412;
+}
+
+.work-helper-text {
+  font-size: 12.5px;
+  color: var(--text-sub);
+  line-height: 1.45;
+  margin-bottom: 12px;
+}
+
+.work-debt-group-card {
+  background-color: #FFFFFF;
+  border: 1.5px solid #FED7AA;
+  border-radius: 22px;
+  padding: 14px;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.work-debt-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #FFEDD5;
+}
+
+.work-debt-cust-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.work-debt-total-val {
+  font-size: 17px;
+  font-weight: 800;
+  color: #C2410C;
+  white-space: nowrap;
+}
+
+.work-debt-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.work-debt-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  padding: 6px 8px;
+  background-color: #FFFBF7;
+  border-radius: 10px;
+  border: 1px solid #FFEDD5;
+}
+
+.work-debt-group-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.btn-debt-copy,
+.btn-debt-payall {
+  min-height: 40px;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+  padding: 6px 10px;
+  transition: transform 0.15s ease-out;
+}
+
+.btn-debt-copy:not(:disabled):active,
+.btn-debt-payall:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.btn-debt-copy {
+  background-color: #F4F8F2;
+  border: 1.5px solid #CBE0C0;
+  color: #1E3B13;
+}
+
+.btn-debt-payall {
+  background-color: var(--color-pill-green);
+  border: 1.5px solid #76B843;
+  color: var(--color-pill-text);
+}
+
+/* Ledger Category Chips */
+.work-cat-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.work-cat-chip {
+  min-height: 38px;
+  padding: 6px 11px;
+  border-radius: 12px;
+  background-color: #F5F8F4;
+  border: 1.5px solid #DCE7D8;
+  color: #3F473C;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease-out, background-color 0.15s ease-out;
+}
+
+.work-cat-chip:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.work-cat-chip.active {
+  background-color: var(--color-pill-green);
+  border-color: #6CA844;
+  color: var(--color-pill-text);
+}
+
+.work-day-brief-row {
+  background-color: #FFFFFF;
+  border: 1px solid #E2EAE0;
+  border-radius: 16px;
+  padding: 11px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  transition: transform 0.15s ease-out, background-color 0.15s ease-out;
+}
+
+.work-day-brief-row:not(:disabled):active {
+  transform: scale(0.98);
+}
+
+@media (hover: hover) {
+  .btn-work-export-pill:hover,
+  .work-suggest-chip:hover,
+  .btn-price-chip:hover {
+    background-color: #E2F0D6;
+  }
+  .work-day-brief-row:hover {
+    background-color: #F7FAF5;
+  }
+}
+
 /* Media Queries for Accessibility */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
