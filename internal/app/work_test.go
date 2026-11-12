@@ -190,3 +190,59 @@ func TestWorkFlowAndExport(t *testing.T) {
 	}
 }
 
+func TestMultiDoseMedByReminderSchedule(t *testing.T) {
+	srv := newTestServer(t)
+	h := srv.Handler()
+	today := srv.today()
+
+	// Mặc định có 3 mốc nhắc thuốc (08:00, 12:30, 20:00) -> target_count = 3
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "GET", "/api/today", nil))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 GET /api/today, got %d", w.Code)
+	}
+	var todayResp struct {
+		Med struct {
+			Taken       bool     `json:"taken"`
+			TakenCount  int      `json:"taken_count"`
+			TargetCount int      `json:"target_count"`
+			Times       []string `json:"times"`
+		} `json:"med"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &todayResp)
+	if todayResp.Med.TargetCount != 3 || todayResp.Med.TakenCount != 0 || todayResp.Med.Taken {
+		t.Fatalf("expected target 3 and taken 0, got %+v", todayResp.Med)
+	}
+
+	// Ghi nhận uống lần 1/3 -> taken_count = 1, taken = false (chưa đủ 3 lần)
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "PUT", "/api/med", map[string]any{
+		"date":        today,
+		"taken_count": 1,
+	}))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 PUT /api/med, got %d", w.Code)
+	}
+	var medResp struct {
+		Taken       bool `json:"taken"`
+		TakenCount  int  `json:"taken_count"`
+		TargetCount int  `json:"target_count"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &medResp)
+	if medResp.TakenCount != 1 || medResp.TargetCount != 3 || medResp.Taken {
+		t.Fatalf("expected 1/3 not yet complete, got %+v", medResp)
+	}
+
+	// Ghi nhận uống đủ 3/3 -> taken_count = 3, taken = true
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "PUT", "/api/med", map[string]any{
+		"date":        today,
+		"taken_count": 3,
+	}))
+	_ = json.Unmarshal(w.Body.Bytes(), &medResp)
+	if medResp.TakenCount != 3 || !medResp.Taken {
+		t.Fatalf("expected 3/3 complete, got %+v", medResp)
+	}
+}
+
+

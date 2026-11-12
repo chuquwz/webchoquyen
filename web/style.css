@@ -3304,6 +3304,124 @@ body:not(.is-logged-in) #app-bottom-nav {
   }
 }
 
+/* ==========================================================================
+   THUỐC BỔ GAN NHIỀU CỮ THEO LỊCH NHẮC (MULTI-DOSE MEDICINE TRACKER)
+   ========================================================================== */
+.btn-med-schedule-pill {
+  background-color: #F2F7EF;
+  border: 1px solid #C8DEC0;
+  color: #2B5719;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 9999px;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: transform 0.15s ease-out, background-color 0.15s ease-out;
+}
+
+.btn-med-schedule-pill:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.med-dose-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.btn-med-dose-pill {
+  background-color: #F8FAF7;
+  border: 1.5px solid #D7E2D3;
+  border-radius: 14px;
+  padding: 9px 10px;
+  min-height: 58px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  color: var(--text-main);
+  transition: transform 0.15s ease-out, background-color 0.15s ease-out, border-color 0.15s ease-out;
+}
+
+.btn-med-dose-pill:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.btn-med-dose-pill.next-dose {
+  background-color: #FFFBEB;
+  border-color: #F59E0B;
+}
+
+.btn-med-dose-pill.done {
+  background-color: #ECFDF3;
+  border-color: #4ADE80;
+  color: #14532D;
+}
+
+.med-dose-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 4px;
+}
+
+.med-dose-title {
+  font-size: 12px;
+  font-weight: 800;
+  color: inherit;
+}
+
+.med-dose-time {
+  font-size: 12px;
+  font-weight: 700;
+  color: #3D6E26;
+  background-color: rgba(94, 148, 71, 0.12);
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+.btn-med-dose-pill.done .med-dose-time {
+  background-color: #BBF7D0;
+  color: #14532D;
+}
+
+.btn-med-dose-pill.next-dose .med-dose-time {
+  background-color: #FEF3C7;
+  color: #B45309;
+}
+
+.med-dose-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-sub);
+}
+
+.btn-med-dose-pill.done .med-dose-status {
+  color: #15803D;
+  font-weight: 700;
+}
+
+.btn-med-dose-pill.next-dose .med-dose-status {
+  color: #B45309;
+  font-weight: 700;
+}
+
 /* Media Queries for Accessibility */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

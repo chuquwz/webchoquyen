@@ -12,6 +12,9 @@
     waterTotal: 0,
     waterEntries: [],
     medTaken: false,
+    medTakenCount: 0,
+    medTargetCount: 3,
+    medTimes: ['08:00', '12:30', '20:00'],
     currentWeight: 97.0,
     todayWeight: null,
     mealPlan: [],
@@ -266,6 +269,47 @@
     return days[d.getDay()];
   }
 
+  function syncMedScheduleFromSettings(settingsObj, apiMedObj) {
+    const s = settingsObj || state.settings || {};
+    // Tự động nâng cấp mặc định cũ 2 lần ("08:00,12:00") lên 3 lần/ngày ("08:00,12:30,20:00") cho Quyền
+    if (!localStorage.getItem('qh_med_3x_migrated')) {
+      if (s.remind_med_times === '08:00,12:00' || !s.remind_med_times) {
+        s.remind_med_times = '08:00,12:30,20:00';
+        localStorage.setItem('qh_med_3x_migrated', '1');
+        api('/api/settings', {
+          method: 'PUT',
+          body: JSON.stringify({ remind_med_times: '08:00,12:30,20:00', t_med: '08:00', t_med2: '12:30' })
+        }).catch(() => {});
+      } else {
+        localStorage.setItem('qh_med_3x_migrated', '1');
+      }
+    }
+
+    let times = [];
+    if (s.remind_med_times !== undefined) {
+      times = s.remind_med_times
+        ? s.remind_med_times.split(',').map(t => t.trim()).filter(Boolean)
+        : [];
+    } else if (apiMedObj && Array.isArray(apiMedObj.times)) {
+      times = apiMedObj.times.slice();
+    } else {
+      times = ['08:00', '12:30', '20:00'];
+    }
+    times.sort();
+    state.medTimes = times;
+    // Quy tắc cốt lõi: Số lần đặt lịch nhắc = Số lần Quyền phải uống thuốc trong ngày
+    state.medTargetCount = Math.max(1, times.length);
+    if (typeof reminderState !== 'undefined' && reminderState) {
+      reminderState.med = times.slice();
+    }
+    if (apiMedObj && typeof apiMedObj.taken_count === 'number') {
+      state.medTakenCount = Math.max(0, apiMedObj.taken_count);
+    } else if (apiMedObj && typeof apiMedObj.taken === 'boolean' && state.medTakenCount === 0) {
+      state.medTakenCount = apiMedObj.taken ? state.medTargetCount : 0;
+    }
+    state.medTaken = state.medTakenCount >= state.medTargetCount;
+  }
+
   // ================= 1. HÔM NAY =================
   async function loadToday() {
     try {
@@ -279,7 +323,7 @@
       state.targetKcal = data.target_kcal || 1800;
       state.waterTotal = data.water ? data.water.total : 0;
       state.waterEntries = (data.water && data.water.entries) || [];
-      state.medTaken = data.med && data.med.taken;
+      syncMedScheduleFromSettings(state.settings, data.med);
 
       if (data.weight) {
         state.todayWeight = data.weight.today;
@@ -362,8 +406,11 @@
     const waterPts = Math.round(waterRatio * 40);
     score += waterPts;
 
-    // 2. Thuốc men (bổ gan): 30 điểm
-    const medPts = state.medTaken ? 30 : 0;
+    // 2. Thuốc men (bổ gan): tối đa 30 điểm (tính theo tỷ lệ số cữ đã uống / số mốc lịch nhắc)
+    const medTarget = Math.max(1, state.medTargetCount || (state.medTimes && state.medTimes.length) || 3);
+    const medCount = Math.min(medTarget, Math.max(0, state.medTakenCount || 0));
+    const medRatio = medCount / medTarget;
+    const medPts = Math.round(medRatio * 30);
     score += medPts;
 
     // 3. Đo cân sáng: 15 điểm
@@ -441,8 +488,16 @@
     }
     const medSummary = document.getElementById('summary-med-display');
     if (medSummary) {
-      medSummary.textContent = state.medTaken ? 'Đã uống' : 'Chưa uống';
-      medSummary.style.color = state.medTaken ? '#2B5719' : '#C2410C';
+      if (medCount >= medTarget) {
+        medSummary.textContent = `Đủ ${medTarget}/${medTarget} lần`;
+        medSummary.style.color = '#2B5719';
+      } else if (medCount > 0) {
+        medSummary.textContent = `${medCount}/${medTarget} lần`;
+        medSummary.style.color = '#B45309';
+      } else {
+        medSummary.textContent = `0/${medTarget} lần`;
+        medSummary.style.color = '#C2410C';
+      }
     }
   }
 
@@ -453,7 +508,9 @@
     const waterRatio = Math.min(1, curWater / minWater);
     const waterPts = Math.round(waterRatio * 40);
 
-    const medPts = state.medTaken ? 30 : 0;
+    const medTarget = Math.max(1, state.medTargetCount || (state.medTimes && state.medTimes.length) || 3);
+    const medCount = Math.min(medTarget, Math.max(0, state.medTakenCount || 0));
+    const medPts = Math.round((medCount / medTarget) * 30);
 
     const hasWeight = state.todayWeight !== null && state.todayWeight !== undefined;
     const weightPts = hasWeight ? 15 : 0;
@@ -495,7 +552,9 @@
               <span style="font-weight: 800; color: ${medPts ? 'var(--color-score-ring)' : 'var(--text-muted)'};" class="font-tabular">${medPts}/30 đ</span>
             </div>
             <div style="font-size: 12.5px;">
-              ${state.medTaken ? '<span style="color: #2B5719; font-weight: 600;">Đã uống thuốc hôm nay</span>' : '<span style="color: #C2410C;">Chưa uống thuốc (bấm vào ô Thuốc bổ gan để ghi nhận)</span>'}
+              ${medCount >= medTarget
+                ? `<span style="color: #2B5719; font-weight: 600;">Đã uống đủ ${medCount}/${medTarget} lần theo lịch nhắc hôm nay</span>`
+                : `<span style="color: #C2410C;">Đã uống <strong class="font-tabular">${medCount}/${medTarget}</strong> lần (bấm vào từng cữ thuốc để ghi nhận)</span>`}
             </div>
           </div>
 
@@ -637,35 +696,116 @@
     await addWater(ml);
   };
 
-  // --- CHECKLIST THUỐC ---
+  // --- CHECKLIST THUỐC THEO SỐ LẦN ĐẶT LỊCH NHẮC ---
   function renderMedWidget() {
-    const btn = document.getElementById('btn-today-med');
-    if (btn) {
-      if (state.medTaken) {
-        btn.className = 'btn-med-chip taken';
-        btn.innerHTML = '<span>Đã uống thuốc hôm nay</span>';
-      } else {
-        btn.className = 'btn-med-chip';
-        btn.innerHTML = '<span>Chưa uống thuốc</span>';
-      }
+    const times = (state.medTimes && state.medTimes.length > 0) ? state.medTimes : [];
+    const target = Math.max(1, times.length || state.medTargetCount || 3);
+    state.medTargetCount = target;
+    const takenCount = Math.min(target, Math.max(0, state.medTakenCount || 0));
+    state.medTaken = takenCount >= target;
+    const pct = Math.min(100, Math.round((takenCount / target) * 100));
+
+    const curEl = document.getElementById('med-cur-count');
+    if (curEl) curEl.textContent = String(takenCount);
+
+    const targetEl = document.getElementById('med-target-count');
+    if (targetEl) targetEl.textContent = `${target} lần`;
+
+    const pctEl = document.getElementById('med-percent-badge');
+    if (pctEl) pctEl.textContent = `${pct}%`;
+
+    const fillEl = document.getElementById('med-progress-fill');
+    if (fillEl) fillEl.style.width = `${pct}%`;
+
+    const schedTxt = document.getElementById('med-schedule-count-txt');
+    if (schedTxt) {
+      schedTxt.textContent = times.length > 0 ? `${times.length} lần/ngày` : 'Đặt lịch nhắc';
     }
+
+    const grid = document.getElementById('med-dose-pills-grid');
+    if (grid) {
+      let html = '';
+      for (let i = 0; i < target; i++) {
+        const doseNum = i + 1;
+        const hm = times[i] || `Cữ ${doseNum}`;
+        const isDone = takenCount >= doseNum;
+        const isNext = !isDone && takenCount === i;
+        const stateCls = isDone ? 'done' : (isNext ? 'next-dose' : '');
+        const statusIcon = isDone
+          ? `<svg class="ui-inline-svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>`
+          : (isNext
+            ? `<svg class="ui-inline-svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`
+            : `<svg class="ui-inline-svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/></svg>`);
+        const statusLabel = isDone ? 'Đã uống' : (isNext ? 'Bấm đã uống' : 'Chưa uống');
+
+        html += `
+          <button type="button" class="btn-med-dose-pill ${stateCls} font-tabular" onclick="setMedDose(${doseNum})" aria-pressed="${isDone}">
+            <div class="med-dose-top">
+              <span class="med-dose-title">Lần ${doseNum}</span>
+              <span class="med-dose-time">${escapeHtml(hm)}</span>
+            </div>
+            <span class="med-dose-status">${statusIcon}<span>${statusLabel}</span></span>
+          </button>`;
+      }
+      grid.innerHTML = html;
+    }
+
     renderDailyHealthScore();
   }
 
-  window.toggleMed = async function () {
-    const next = !state.medTaken;
-    state.medTaken = next;
+  async function saveMedCountToServer(nextCount) {
+    const prevCount = state.medTakenCount || 0;
+    const target = Math.max(1, (state.medTimes && state.medTimes.length) || state.medTargetCount || 3);
+    const clamped = Math.min(target, Math.max(0, nextCount));
+    state.medTakenCount = clamped;
+    state.medTaken = clamped >= target;
     renderMedWidget();
     try {
-      await api('/api/med', {
+      const res = await api('/api/med', {
         method: 'PUT',
-        body: JSON.stringify({ date: state.today, taken: next })
+        body: JSON.stringify({ date: state.today, taken_count: clamped, taken: clamped >= target })
       });
-      showToast(next ? 'Đã ghi nhận uống thuốc hôm nay' : 'Đã bỏ ghi nhận thuốc');
+      if (res && typeof res.taken_count === 'number') {
+        state.medTakenCount = res.taken_count;
+      }
+      if (res && typeof res.target_count === 'number') {
+        state.medTargetCount = res.target_count;
+      }
+      state.medTaken = state.medTakenCount >= state.medTargetCount;
+      renderMedWidget();
+      if (clamped >= target) {
+        showToast(`Đã uống đủ ${clamped}/${target} cữ thuốc hôm nay!`);
+      } else if (clamped > 0) {
+        showToast(`Đã ghi nhận uống thuốc lần ${clamped}/${target}`);
+      } else {
+        showToast('Đã đặt lại trạng thái thuốc hôm nay (0/' + target + ')');
+      }
     } catch (e) {
-      state.medTaken = !next;
+      state.medTakenCount = prevCount;
+      state.medTaken = prevCount >= target;
       renderMedWidget();
     }
+  }
+
+  window.setMedDose = async function (doseNum) {
+    const cur = state.medTakenCount || 0;
+    const nextCount = (cur === doseNum) ? (doseNum - 1) : doseNum;
+    await saveMedCountToServer(nextCount);
+  };
+
+  window.toggleMed = async function () {
+    const target = Math.max(1, (state.medTimes && state.medTimes.length) || state.medTargetCount || 3);
+    const cur = Math.min(target, Math.max(0, state.medTakenCount || 0));
+    const nextCount = cur < target ? (cur + 1) : 0;
+    await saveMedCountToServer(nextCount);
+  };
+
+  window.jumpToMedScheduleSettings = function () {
+    switchTab('settings');
+    setTimeout(() => {
+      const el = document.getElementById('remind-med-chips');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 120);
   };
 
   // --- CÂN NẶNG HÔM NAY & STEPPER ---
@@ -1199,7 +1339,7 @@
   // ================= 4. CÀI ĐẶT & NHẮC NHỞ =================
   let reminderState = {
     weight: ['06:30'],
-    med: ['08:00', '12:00'],
+    med: ['08:00', '12:30', '20:00'],
     water: ['10:00', '14:00', '17:00', '20:00'],
     sleep: ['22:30']
   };
@@ -1234,8 +1374,10 @@
       if (s.remind_med_times !== undefined) {
         reminderState.med = s.remind_med_times ? s.remind_med_times.split(',').map(t => t.trim()).filter(Boolean) : [];
       } else {
-        reminderState.med = [s.t_med || '08:00', s.t_med2 || '12:00'].filter(Boolean);
+        reminderState.med = ['08:00', '12:30', '20:00'];
       }
+      syncMedScheduleFromSettings(s);
+      renderMedWidget();
 
       if (s.remind_water_times !== undefined) {
         reminderState.water = s.remind_water_times ? s.remind_water_times.split(',').map(t => t.trim()).filter(Boolean) : [];
@@ -1263,6 +1405,8 @@
     if (badge) {
       if (list.length === 0) {
         badge.textContent = 'Đang tắt';
+      } else if (cat === 'med') {
+        badge.textContent = `${list.length} lần/ngày`;
       } else {
         badge.textContent = `${list.length} mốc`;
       }
@@ -1301,12 +1445,18 @@
     reminderState[cat].push(newTime);
     reminderState[cat].sort();
     renderReminderChips(cat);
+    if (cat === 'med') {
+      saveReminderSchedule(true);
+    }
   };
 
   window.removeReminderTime = function (cat, idx) {
     if (!reminderState[cat]) return;
     reminderState[cat].splice(idx, 1);
     renderReminderChips(cat);
+    if (cat === 'med') {
+      saveReminderSchedule(true);
+    }
   };
 
   window.updateReminderTime = function (cat, idx, val) {
@@ -1314,9 +1464,12 @@
     reminderState[cat][idx] = val;
     reminderState[cat].sort();
     renderReminderChips(cat);
+    if (cat === 'med') {
+      saveReminderSchedule(true);
+    }
   };
 
-  window.saveReminderSchedule = async function () {
+  window.saveReminderSchedule = async function (silent = false) {
     const payload = {
       remind_weight_times: (reminderState.weight || []).join(','),
       remind_med_times: (reminderState.med || []).join(','),
@@ -1334,7 +1487,11 @@
         body: JSON.stringify(payload)
       });
       state.settings = res.settings;
-      showToast('Đã lưu lịch nhắc nhở thành công!');
+      syncMedScheduleFromSettings(state.settings);
+      renderMedWidget();
+      if (!silent) {
+        showToast(`Đã lưu lịch nhắc! Số lần uống thuốc: ${state.medTargetCount} lần/ngày.`);
+      }
     } catch (e) { }
   };
 
@@ -1363,6 +1520,8 @@
       });
       state.settings = res.settings;
       state.targetKcal = res.target_kcal;
+      syncMedScheduleFromSettings(state.settings);
+      renderMedWidget();
       renderTodayHeader();
       showToast('Đã lưu cấu hình cá nhân');
     } catch (e) { }

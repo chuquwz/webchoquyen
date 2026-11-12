@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=32">
+  <link rel="stylesheet" href="/style.css?v=33">
 </head>
 <body>
   <!-- Container Toast thông báo -->
@@ -132,7 +132,7 @@
               </div>
 
               <!-- Thẻ Tóm Tắt 2: Thuốc bổ gan -->
-              <div class="summary-stat-card card-green-tint" onclick="toggleMed()">
+              <div class="summary-stat-card card-green-tint" onclick="toggleMed()" role="button" tabindex="0" aria-label="Ghi nhận cữ thuốc bổ gan tiếp theo" onkeydown="if(event.key==='Enter'||event.key===' ')toggleMed()">
                 <div class="summary-card-header">
                   <div class="summary-icon-circle icon-green">
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="#5E9447" stroke="#5E9447"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/></svg>
@@ -140,7 +140,7 @@
                   <span class="summary-card-label">Thuốc bổ gan</span>
                 </div>
                 <div class="summary-val-row">
-                  <span id="summary-med-display" class="summary-val-num" style="font-size: 14px;">Chưa uống</span>
+                  <span id="summary-med-display" class="summary-val-num font-tabular" style="font-size: 14px;">0/3 lần</span>
                 </div>
               </div>
 
@@ -190,6 +190,31 @@
                 <button id="btn-undo-water" class="btn-link-action" style="display: none;" onclick="undoLastWater()">Hoàn tác</button>
               </div>
               <span id="water-max-text" style="display: none;">3.000 ml</span>
+            </div>
+
+            <!-- Ghi nhận Thuốc bổ gan theo số lần đặt lịch nhắc -->
+            <div id="today-med-card" class="quick-log-card" style="margin-top: 14px;">
+              <div class="log-card-header">
+                <div>
+                  <h3 class="log-card-title">Thuốc bổ gan hôm nay</h3>
+                  <div class="log-card-subtitle">
+                    Đã uống <span id="med-cur-count" class="font-tabular" style="font-weight: 700; color: var(--text-main);">0</span> / <span id="med-target-count" class="font-tabular">3 lần</span>
+                    <span id="med-percent-badge" class="log-badge-pct font-tabular">0%</span>
+                  </div>
+                </div>
+                <button type="button" id="btn-med-schedule-link" class="btn-med-schedule-pill font-tabular" onclick="jumpToMedScheduleSettings()" title="Số lần đặt lịch nhắc bằng số lần uống thuốc mỗi ngày">
+                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                  <span id="med-schedule-count-txt">3 mốc nhắc</span>
+                </button>
+              </div>
+
+              <!-- Thanh tiến độ các cữ thuốc trong ngày -->
+              <div class="log-progress-track">
+                <div id="med-progress-fill" class="log-progress-fill" style="width: 0%;"></div>
+              </div>
+
+              <!-- Danh sách các cữ thuốc tương ứng với từng mốc giờ nhắc -->
+              <div id="med-dose-pills-grid" class="med-dose-grid" role="group" aria-label="Các cữ uống thuốc trong ngày"></div>
             </div>
 
             <!-- Ghi nhận Cân nặng -->
@@ -518,8 +543,8 @@
               <div class="schedule-row">
                 <span class="schedule-label">Uống thuốc:</span>
                 <div id="remind-med-chips" class="schedule-chips"></div>
-                <button type="button" class="btn-add-chip" onclick="addReminderTime('med', '08:00')">+</button>
-                <span id="badge-count-med" class="schedule-count-sub">2 mốc</span>
+                <button type="button" class="btn-add-chip" onclick="addReminderTime('med', '08:00')" title="Thêm mốc giờ uống thuốc">+</button>
+                <span id="badge-count-med" class="schedule-count-sub font-tabular">3 lần/ngày</span>
               </div>
               <div class="schedule-row">
                 <span class="schedule-label">Nước lọc:</span>
@@ -1332,6 +1357,6 @@
 
   <span id="today-date-badge" style="display: none;"></span>
 
-  <script src="/app.js?v=32"></script>
+  <script src="/app.js?v=33"></script>
 </body>
 </html>

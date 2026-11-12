@@ -232,9 +232,12 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
 		if !validDate(x.Date) {
 			continue
 		}
-		t := 0
-		if x.Taken != 0 {
-			t = 1
+		t := x.Taken
+		if t < 0 {
+			t = 0
+		}
+		if t > 20 {
+			t = 20
 		}
 		if _, err := tx.Exec(`INSERT INTO med_log(date,taken,ts) VALUES(?,?,?) ON CONFLICT(date) DO UPDATE SET taken=excluded.taken, ts=excluded.ts`, x.Date, t, x.Ts); err != nil {
 			serverErr(w, err)
@@ -546,24 +549,18 @@ func (s *Server) tick(now time.Time) []string {
 		}
 	}
 
-	// 2. Nhắc uống thuốc (hỗ trợ nhiều mốc tự chọn)
-	fallbackMed := set["t_med"]
-	if set["t_med2"] != "" {
-		fallbackMed += "," + set["t_med2"]
-	}
-	medTimes := parseHMList(set["remind_med_times"], fallbackMed)
-	if !s.medTaken(date) {
-		for i, hm := range medTimes {
-			if reachedHM(nowVN, hm) {
-				key := fmt.Sprintf("%s|med_%s", date, hm)
-				if s.markNotified(key, now) {
-					msg := "Đến giờ uống thuốc hôm nay rồi Quyền ơi!"
-					if i > 0 {
-						msg = fmt.Sprintf("Mốc nhắc %s: Quyền đã uống thuốc chưa? Nhớ bấm xác nhận nhé.", hm)
-					}
-					_, _ = s.sendPush("Nhắc uống thuốc", msg, "/")
-					fired = append(fired, key)
-				}
+	// 2. Nhắc uống thuốc theo đúng số lần đặt lịch nhắc (mỗi mốc nhắc = 1 cữ uống thuốc)
+	medTimes := s.medScheduleTimes(set)
+	medTarget := len(medTimes)
+	takenCount := s.medTakenCount(date)
+	for i, hm := range medTimes {
+		needCount := i + 1
+		if reachedHM(nowVN, hm) && takenCount < needCount {
+			key := fmt.Sprintf("%s|med_%s", date, hm)
+			if s.markNotified(key, now) {
+				msg := fmt.Sprintf("Cữ thuốc lần %d/%d (%s): Đến giờ uống thuốc rồi Quyền ơi! (Đã uống %d/%d lần)", needCount, medTarget, hm, takenCount, medTarget)
+				_, _ = s.sendPush("Nhắc uống thuốc", msg, "/")
+				fired = append(fired, key)
 			}
 		}
 	}
