@@ -130,7 +130,7 @@
       }
       if (event.data && event.data.type === 'PUSH_RECEIVED') {
         playChimeSound();
-        showToast(`🔔 ${event.data.title || 'Thông báo'}: ${event.data.body || ''}`);
+        showToast(`${event.data.title || 'Thông báo'}: ${event.data.body || ''}`);
       }
     });
   }
@@ -192,7 +192,7 @@
           showAppView();
           await loadToday();
           if (state.currentUser === 'dev') {
-            showToast('Chào mừng Developer! Bạn đang ở chế độ Dev 🛠️');
+            showToast('Chào mừng Developer! Bạn đang ở chế độ Dev');
           } else {
             showToast('Chào Quyền! Chúc một ngày nhiều sức khoẻ');
           }
@@ -318,7 +318,7 @@
 
     if (profileSubEl) {
       if (isDev) {
-        profileSubEl.textContent = 'Chế độ thử nghiệm & phát triển hệ thống 🛠️';
+        profileSubEl.textContent = 'Chế độ thử nghiệm & phát triển hệ thống';
       } else {
         profileSubEl.innerHTML = 'Hành trình: 97.0 kg &rarr; Mục tiêu 70.0 kg';
       }
@@ -364,7 +364,7 @@
         nameEl.innerHTML = 'Dev! <span class="badge-dev-tag">DEV</span>';
       } else {
         const uName = (state.settings && state.settings.name) || 'Quyền';
-        nameEl.textContent = `${uName}! 👋`;
+        nameEl.textContent = `${uName}!`;
       }
     }
     updateProfileDisplay();
@@ -494,7 +494,10 @@
         <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
           <div style="background: #F9FBF8; border: 1px solid var(--border-subtle); border-radius: 14px; padding: 12px 14px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-              <span style="font-weight: 700; font-size: 13.5px; color: var(--text-main);">💧 Uống nước lọc</span>
+              <span style="font-weight: 700; font-size: 13.5px; color: var(--text-main); display: inline-flex; align-items: center; gap: 6px;">
+                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#38A3A5" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+                <span>Uống nước lọc</span>
+              </span>
               <span style="font-weight: 800; color: ${waterPts > 0 ? 'var(--color-score-ring)' : 'var(--text-muted)'};" class="font-tabular">${waterPts}/40 đ</span>
             </div>
             <div style="font-size: 12.5px; color: var(--text-sub);">
@@ -504,27 +507,36 @@
 
           <div style="background: #F9FBF8; border: 1px solid var(--border-subtle); border-radius: 14px; padding: 12px 14px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-              <span style="font-weight: 700; font-size: 13.5px; color: var(--text-main);">💊 Thuốc bổ gan</span>
+              <span style="font-weight: 700; font-size: 13.5px; color: var(--text-main); display: inline-flex; align-items: center; gap: 6px;">
+                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#5E9447" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/></svg>
+                <span>Thuốc bổ gan</span>
+              </span>
               <span style="font-weight: 800; color: ${medPts ? 'var(--color-score-ring)' : 'var(--text-muted)'};" class="font-tabular">${medPts}/30 đ</span>
             </div>
             <div style="font-size: 12.5px;">
-              ${state.medTaken ? '<span style="color: #2B5719; font-weight: 600;">✓ Đã uống thuốc hôm nay</span>' : '<span style="color: #C2410C;">Chưa uống thuốc (bấm vào ô Thuốc bổ gan để ghi nhận)</span>'}
+              ${state.medTaken ? '<span style="color: #2B5719; font-weight: 600;">Đã uống thuốc hôm nay</span>' : '<span style="color: #C2410C;">Chưa uống thuốc (bấm vào ô Thuốc bổ gan để ghi nhận)</span>'}
             </div>
           </div>
 
           <div style="background: #F9FBF8; border: 1px solid var(--border-subtle); border-radius: 14px; padding: 12px 14px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-              <span style="font-weight: 700; font-size: 13.5px; color: var(--text-main);">⚖️ Cân sáng sớm</span>
+              <span style="font-weight: 700; font-size: 13.5px; color: var(--text-main); display: inline-flex; align-items: center; gap: 6px;">
+                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#E55B6C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                <span>Cân sáng sớm</span>
+              </span>
               <span style="font-weight: 800; color: ${weightPts ? 'var(--color-score-ring)' : 'var(--text-muted)'};" class="font-tabular">${weightPts}/15 đ</span>
             </div>
             <div style="font-size: 12.5px;">
-              ${hasWeight ? `<span style="color: #2B5719; font-weight: 600;">✓ Đã ghi nhận: ${state.todayWeight.toFixed(1)} kg</span>` : '<span style="color: #C2410C;">Chưa cân sáng nay (bấm Lưu cân nặng bên dưới)</span>'}
+              ${hasWeight ? `<span style="color: #2B5719; font-weight: 600;">Đã ghi nhận: ${state.todayWeight.toFixed(1)} kg</span>` : '<span style="color: #C2410C;">Chưa cân sáng nay (bấm Lưu cân nặng bên dưới)</span>'}
             </div>
           </div>
 
           <div style="background: #F9FBF8; border: 1px solid var(--border-subtle); border-radius: 14px; padding: 12px 14px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-              <span style="font-weight: 700; font-size: 13.5px; color: var(--text-main);">🥗 Thực đơn 3 bữa chính</span>
+              <span style="font-weight: 700; font-size: 13.5px; color: var(--text-main); display: inline-flex; align-items: center; gap: 6px;">
+                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#2B5719" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                <span>Thực đơn 3 bữa chính</span>
+              </span>
               <span style="font-weight: 800; color: ${mealPts ? 'var(--color-score-ring)' : 'var(--text-muted)'};" class="font-tabular">${mealPts}/15 đ</span>
             </div>
             <div style="font-size: 12.5px; color: var(--text-sub);">
@@ -1769,7 +1781,7 @@
   const MOTIVATION_QUOTES = [
     "Mỗi ngày kiên trì một chút, để trở thành phiên bản phong độ và khoẻ mạnh nhất bên người mình yêu.",
     "Mỗi khi muốn bỏ cuộc, hãy nhớ đến nụ cười của cô ấy để tiếp tục cố gắng!",
-    "Mục tiêu 70kg — Giảm cân vì người con gái tôi yêu ❤️",
+    "Mục tiêu 70kg — Giảm cân vì người con gái tôi yêu.",
     "Tình yêu là động lực lớn nhất để thay đổi và hoàn thiện bản thân mỗi ngày.",
     "Hôm nay uống đủ nước, ăn chuẩn calo để luôn khoẻ mạnh và tự tin bên cô ấy nhé Quyền!",
     "Cô ấy chính là lý do để bạn kỷ luật với bản thân hôm nay và ngày mai.",
@@ -1917,6 +1929,22 @@
       .replace(/'/g, '&#39;');
   }
 
+  function workIconSVG(name, size = 14) {
+    const paths = {
+      check: '<path d="M20 6L9 17l-5-5"/>',
+      clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+      copy: '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+      expense: '<path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>',
+      fund_in: '<path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+      fund_bal: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>',
+      borrow: '<line x1="17" y1="7" x2="7" y2="17"/><polyline points="17 17 7 17 7 7"/>',
+      repay: '<line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/>',
+      shield_ok: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>'
+    };
+    const body = paths[name] || '';
+    return `<svg class="ui-inline-svg" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
+  }
+
   function formatVND(amount) {
     const n = Number(amount) || 0;
     return n.toLocaleString('vi-VN') + 'đ';
@@ -2002,10 +2030,10 @@
     const extraEl = document.getElementById('work-day-extra-badges');
     if (extraEl) {
       const pills = [];
-      if (ds.fund_in > 0) pills.push(`<span class="work-extra-pill font-tabular">🐷 Nộp quỹ: ${formatShortK(ds.fund_in)}</span>`);
-      if (ds.fund_bal > 0) pills.push(`<span class="work-extra-pill font-tabular">💰 Số quỹ: ${formatShortK(ds.fund_bal)}</span>`);
-      if (ds.borrow_amount > 0) pills.push(`<span class="work-extra-pill font-tabular">🤝 Mượn: ${formatShortK(ds.borrow_amount)}</span>`);
-      if (ds.repay_amount > 0) pills.push(`<span class="work-extra-pill font-tabular">💸 Trả nợ: ${formatShortK(ds.repay_amount)}</span>`);
+      if (ds.fund_in > 0) pills.push(`<span class="work-extra-pill font-tabular">${workIconSVG('fund_in', 13)} <span>Nộp quỹ: ${formatShortK(ds.fund_in)}</span></span>`);
+      if (ds.fund_bal > 0) pills.push(`<span class="work-extra-pill font-tabular">${workIconSVG('fund_bal', 13)} <span>Số quỹ: ${formatShortK(ds.fund_bal)}</span></span>`);
+      if (ds.borrow_amount > 0) pills.push(`<span class="work-extra-pill font-tabular">${workIconSVG('borrow', 13)} <span>Mượn: ${formatShortK(ds.borrow_amount)}</span></span>`);
+      if (ds.repay_amount > 0) pills.push(`<span class="work-extra-pill font-tabular">${workIconSVG('repay', 13)} <span>Trả nợ: ${formatShortK(ds.repay_amount)}</span></span>`);
       if (pills.length > 0) {
         extraEl.style.display = 'flex';
         extraEl.innerHTML = pills.join('');
@@ -2214,7 +2242,9 @@
       const isCTT = j.status === 'CTT';
       const chClass = j.channel === 'FB' ? 'ch-fb' : 'ch-zl';
       const stClass = isCTT ? 'st-ctt' : 'st-tt';
-      const stLabel = isCTT ? '⏳ Nợ (CTT) • Bấm để thu' : '✓ Đã thu (TT)';
+      const stLabel = isCTT
+        ? `${workIconSVG('clock', 13)} <span>Nợ (CTT) • Bấm để thu</span>`
+        : `${workIconSVG('check', 13)} <span>Đã thu (TT)</span>`;
 
       return `
         <div class="work-job-card ${isCTT ? 'is-unpaid' : ''}">
@@ -2347,8 +2377,9 @@
     const groups = workState.unpaidGroups || [];
     if (groups.length === 0) {
       listEl.innerHTML = `
-        <div class="empty-state-box">
-          🎉 Tuyệt vời! Không có khách hàng nào đang nợ (CTT). Tất cả các đơn đều đã thanh toán đủ.
+        <div class="empty-state-box" style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+          <span style="color: #2B5719;">${workIconSVG('shield_ok', 28)}</span>
+          <span>Không có khách hàng nào đang nợ (CTT). Tất cả các đơn đều đã thanh toán đủ.</span>
         </div>
       `;
       return;
@@ -2380,8 +2411,8 @@
           </div>
           <div class="work-debt-items-list">${itemsHtml}</div>
           <div class="work-debt-group-actions">
-            <button type="button" class="btn-debt-copy" onclick="copyCustomerDebtText(${gIdx})">📋 Copy báo nợ</button>
-            <button type="button" class="btn-debt-payall" onclick="payAllCustomerDebt(${gIdx})">✓ Đã thu hết (${formatShortK(g.total_amount)})</button>
+            <button type="button" class="btn-debt-copy" onclick="copyCustomerDebtText(${gIdx})">${workIconSVG('copy', 14)} <span>Copy báo nợ</span></button>
+            <button type="button" class="btn-debt-payall" onclick="payAllCustomerDebt(${gIdx})">${workIconSVG('check', 14)} <span>Đã thu hết (${formatShortK(g.total_amount)})</span></button>
           </div>
         </div>
       `;
@@ -2396,7 +2427,7 @@
       const dShort = formatVNDate(j.date).slice(0, 5);
       lines.push(`${idx + 1}. Ngày ${dShort}: ${j.service} = ${formatShortK(j.price)}`);
     });
-    lines.push(`👉 Tổng cộng: ${formatVND(g.total_amount)}`);
+    lines.push(`Tổng cộng: ${formatVND(g.total_amount)}`);
 
     const text = lines.join('\n');
     try {
@@ -2483,12 +2514,12 @@
 
   function getLedgerCatLabel(cat) {
     switch (cat) {
-      case 'expense': return '🍜 Chi tiêu / Phát sinh';
-      case 'fund_in': return '🐷 Nộp Quỹ';
-      case 'fund_bal': return '💰 Số Quỹ';
-      case 'borrow': return '🤝 Mượn';
-      case 'repay': return '💸 Trả Nợ';
-      default: return cat;
+      case 'expense': return `${workIconSVG('expense', 13)} <span>Chi tiêu / Phát sinh</span>`;
+      case 'fund_in': return `${workIconSVG('fund_in', 13)} <span>Nộp Quỹ</span>`;
+      case 'fund_bal': return `${workIconSVG('fund_bal', 13)} <span>Số Quỹ</span>`;
+      case 'borrow': return `${workIconSVG('borrow', 13)} <span>Mượn</span>`;
+      case 'repay': return `${workIconSVG('repay', 13)} <span>Trả Nợ</span>`;
+      default: return escapeHTML(cat);
     }
   }
 

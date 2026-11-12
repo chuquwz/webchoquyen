@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=27">
+  <link rel="stylesheet" href="/style.css?v=28">
 </head>
 <body>
   <!-- Container Toast thông báo -->
@@ -65,7 +65,7 @@
               </div>
               <div class="user-name-stack">
                 <span class="greeting-sub">Xin chào,</span>
-                <span class="greeting-name" id="user-display-name">Quyền! 👋</span>
+                <span class="greeting-name" id="user-display-name">Quyền!</span>
               </div>
             </div>
             <button type="button" class="btn-circle-action" aria-label="Thông báo sức khoẻ" onclick="openNotificationsModal()">
@@ -239,9 +239,15 @@
             <div class="section-title-header">
               <div style="display: flex; align-items: center; gap: 8px;">
                 <h2 class="section-heading" style="text-transform: uppercase; letter-spacing: 0.5px;">Động lực</h2>
-                <span class="motivation-heart-badge">❤️ Vì người tôi yêu</span>
+                <span class="motivation-heart-badge">
+                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="13" height="13" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                  <span>Vì người tôi yêu</span>
+                </span>
               </div>
-              <button type="button" class="btn-link-action" onclick="shuffleMotivationPhoto()" title="Đổi ảnh ngẫu nhiên">Đổi ảnh 🎲</button>
+              <button type="button" class="btn-link-action" style="display: inline-flex; align-items: center; gap: 4px;" onclick="shuffleMotivationPhoto()" title="Đổi ảnh ngẫu nhiên">
+                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+                <span>Đổi ảnh</span>
+              </button>
             </div>
 
             <!-- Thẻ Động Lực Nổi Bật -->
@@ -490,7 +496,10 @@
               <button type="button" class="btn-secondary-pill btn-sm" onclick="sendTestPush()">Thử chuông</button>
             </div>
             <div id="ios-pwa-tip" class="ios-pwa-tip-banner" onclick="openIOSGuideModal()">
-              <span>📱 Dành cho iPhone: Cách bật chuông thông báo</span>
+              <span style="display: inline-flex; align-items: center; gap: 6px;">
+                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                <span>Dành cho iPhone: Cách bật chuông thông báo</span>
+              </span>
               <span style="font-weight: 700;">Xem hướng dẫn &rarr;</span>
             </div>
           </div>
@@ -656,15 +665,24 @@
             <!-- 3 Ô Chỉ Số Chính Trong Ngày: Đã thu (TT) | Khách nợ (CTT) | Chi tiêu -->
             <div class="work-summary-grid-3">
               <div class="work-stat-mini-box stat-paid">
-                <span class="work-stat-mini-label">✓ Thực thu (TT)</span>
+                <span class="work-stat-mini-label">
+                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+                  <span>Thực thu (TT)</span>
+                </span>
                 <span id="work-day-paid" class="work-stat-mini-val font-tabular">0đ</span>
               </div>
               <div class="work-stat-mini-box stat-unpaid" onclick="switchWorkSubTab('unpaid')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')switchWorkSubTab('unpaid')">
-                <span class="work-stat-mini-label">⏳ Còn nợ (CTT)</span>
+                <span class="work-stat-mini-label">
+                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                  <span>Còn nợ (CTT)</span>
+                </span>
                 <span id="work-day-unpaid" class="work-stat-mini-val font-tabular">0đ</span>
               </div>
               <div class="work-stat-mini-box stat-expense" onclick="switchWorkSubTab('ledger')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')switchWorkSubTab('ledger')">
-                <span class="work-stat-mini-label">💸 Chi tiêu ngày</span>
+                <span class="work-stat-mini-label">
+                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                  <span>Chi tiêu ngày</span>
+                </span>
                 <span id="work-day-expense" class="work-stat-mini-val font-tabular">0đ</span>
               </div>
             </div>
@@ -685,15 +703,18 @@
           <!-- Thanh Chuyển Đổi 3 Phân Khu (Đơn dịch vụ | Sổ nợ CTT | Thu chi & Quỹ) -->
           <div class="work-subtab-bar" role="tablist" aria-label="Phân khu sổ công việc">
             <button type="button" id="work-subtab-btn-jobs" class="work-subtab-btn active" role="tab" aria-selected="true" onclick="switchWorkSubTab('jobs')">
-              <span>📋 Đơn dịch vụ</span>
+              <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
+              <span>Đơn dịch vụ</span>
               <span id="work-badge-day-jobs" class="work-subtab-count font-tabular">0</span>
             </button>
             <button type="button" id="work-subtab-btn-unpaid" class="work-subtab-btn" role="tab" aria-selected="false" onclick="switchWorkSubTab('unpaid')">
-              <span>⏳ Sổ nợ (CTT)</span>
+              <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+              <span>Sổ nợ (CTT)</span>
               <span id="work-badge-unpaid-all" class="work-subtab-count badge-alert font-tabular">0</span>
             </button>
             <button type="button" id="work-subtab-btn-ledger" class="work-subtab-btn" role="tab" aria-selected="false" onclick="switchWorkSubTab('ledger')">
-              <span>💸 Thu chi &amp; Quỹ</span>
+              <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
+              <span>Thu chi &amp; Quỹ</span>
             </button>
           </div>
 
@@ -754,10 +775,12 @@
                 <div class="work-status-selector" role="group" aria-label="Trạng thái thanh toán">
                   <input type="hidden" id="work-job-status" value="TT">
                   <button type="button" id="btn-st-tt" class="work-status-opt active-tt" onclick="setWorkJobStatus('TT')">
-                    ✓ Đã thu (TT)
+                    <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+                    <span>Đã thu (TT)</span>
                   </button>
                   <button type="button" id="btn-st-ctt" class="work-status-opt" onclick="setWorkJobStatus('CTT')">
-                    ⏳ Khách nợ (CTT)
+                    <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                    <span>Khách nợ (CTT)</span>
                   </button>
                 </div>
                 <button type="submit" class="btn-green-pill btn-work-submit">Lưu đơn</button>
@@ -815,11 +838,26 @@
               <div class="form-group">
                 <label class="form-label" for="work-ledger-category">Phân loại khoản mục</label>
                 <div class="work-cat-grid" role="group" aria-label="Chọn phân loại thu chi">
-                  <button type="button" class="work-cat-chip active" data-cat="expense" onclick="setWorkLedgerCategory('expense')">🍜 Chi tiêu / Phát sinh</button>
-                  <button type="button" class="work-cat-chip" data-cat="fund_in" onclick="setWorkLedgerCategory('fund_in')">🐷 Nộp Quỹ</button>
-                  <button type="button" class="work-cat-chip" data-cat="fund_bal" onclick="setWorkLedgerCategory('fund_bal')">💰 Số Quỹ</button>
-                  <button type="button" class="work-cat-chip" data-cat="borrow" onclick="setWorkLedgerCategory('borrow')">🤝 Mượn</button>
-                  <button type="button" class="work-cat-chip" data-cat="repay" onclick="setWorkLedgerCategory('repay')">💸 Trả Nợ</button>
+                  <button type="button" class="work-cat-chip active" data-cat="expense" onclick="setWorkLedgerCategory('expense')">
+                    <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                    <span>Chi tiêu / Phát sinh</span>
+                  </button>
+                  <button type="button" class="work-cat-chip" data-cat="fund_in" onclick="setWorkLedgerCategory('fund_in')">
+                    <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    <span>Nộp Quỹ</span>
+                  </button>
+                  <button type="button" class="work-cat-chip" data-cat="fund_bal" onclick="setWorkLedgerCategory('fund_bal')">
+                    <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+                    <span>Số Quỹ</span>
+                  </button>
+                  <button type="button" class="work-cat-chip" data-cat="borrow" onclick="setWorkLedgerCategory('borrow')">
+                    <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="17" y1="7" x2="7" y2="17"/><polyline points="17 17 7 17 7 7"/></svg>
+                    <span>Mượn</span>
+                  </button>
+                  <button type="button" class="work-cat-chip" data-cat="repay" onclick="setWorkLedgerCategory('repay')">
+                    <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
+                    <span>Trả Nợ</span>
+                  </button>
                 </div>
                 <input type="hidden" id="work-ledger-category" value="expense">
               </div>
@@ -1029,7 +1067,10 @@
   <div id="modal-motivation" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-motivation-title">
     <div class="modal-dialog modal-dialog-photo">
       <div class="modal-header">
-        <h3 id="modal-motivation-title" class="modal-title">❤️ Động lực của Quyền</h3>
+        <h3 id="modal-motivation-title" class="modal-title" style="display: inline-flex; align-items: center; gap: 6px;">
+          <svg class="ui-inline-svg" viewBox="0 0 24 24" width="18" height="18" fill="#D94862" stroke="#D94862" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          <span>Động lực của Quyền</span>
+        </h3>
         <button type="button" class="modal-close" aria-label="Đóng" onclick="closeModal('modal-motivation')">&times;</button>
       </div>
       <div class="modal-photo-body">
@@ -1135,6 +1176,6 @@
 
   <span id="today-date-badge" style="display: none;"></span>
 
-  <script src="/app.js?v=27"></script>
+  <script src="/app.js?v=28"></script>
 </body>
 </html>
