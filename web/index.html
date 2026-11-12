@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=28">
+  <link rel="stylesheet" href="/style.css?v=30">
 </head>
 <body>
   <!-- Container Toast thông báo -->
@@ -646,75 +646,120 @@
             <button type="button" id="btn-work-today" class="btn-work-today-chip" onclick="jumpWorkToday()">Hôm nay</button>
           </div>
 
-          <!-- Thẻ Tổng Kết Ngày & Tháng Tự Động -->
+          <!-- Thẻ Tổng Kết Ngày & Tháng Tự Động (Bố cục chuẩn App Ngân Hàng - Cố định kết cấu) -->
           <div class="work-summary-hero-card" role="region" aria-label="Tổng kết doanh thu và chi tiêu">
-            <div class="work-summary-top-row">
-              <div>
-                <span class="work-summary-eyebrow" id="work-summary-date-label">Tổng kết ngày</span>
-                <div class="work-summary-total-line">
-                  <span id="work-day-revenue" class="work-huge-money font-tabular">0đ</span>
-                  <span id="work-day-job-count" class="work-job-count-pill font-tabular">0 đơn</span>
-                </div>
-              </div>
-              <div class="work-net-box">
-                <span class="work-net-label">Thực còn (Đã thu &minus; Chi)</span>
-                <span id="work-day-net" class="work-net-val font-tabular">0đ</span>
-              </div>
+            <!-- Hàng 1: Nhãn tiêu đề (Trái) & Số lượng đơn (Phải) - Luôn cố định 1 dòng -->
+            <div class="work-bank-header-row">
+              <span class="work-summary-eyebrow" id="work-summary-date-label">Tổng doanh thu hôm nay</span>
+              <span id="work-day-job-count" class="work-job-count-pill font-tabular">0 đơn</span>
             </div>
 
-            <!-- 3 Ô Chỉ Số Chính Trong Ngày: Đã thu (TT) | Khách nợ (CTT) | Chi tiêu -->
+            <!-- Hàng 2: Số tiền tổng doanh thu chiếm trọn 1 dòng riêng biệt, tự co giãn cỡ chữ khi số lớn -->
+            <div class="work-bank-balance-row">
+              <span id="work-day-revenue" class="work-huge-money font-tabular">0đ</span>
+            </div>
+
+            <!-- Hàng 3: Thanh Thực Còn (Đã thu - Chi) cố định Trái - Phải như dòng số dư khả dụng ngân hàng -->
+            <div class="work-bank-net-bar">
+              <span class="work-net-label">Thực còn (Đã thu &minus; Chi)</span>
+              <span id="work-day-net" class="work-net-val font-tabular">0đ</span>
+            </div>
+
+            <!-- Hàng 4: 3 Ô Chỉ Số Chính Trong Ngày (Cố định chiều cao, số tự rút gọn thông minh) -->
             <div class="work-summary-grid-3">
               <div class="work-stat-mini-box stat-paid">
                 <span class="work-stat-mini-label">
-                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
-                  <span>Thực thu (TT)</span>
+                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+                  <span>Thực thu</span>
                 </span>
                 <span id="work-day-paid" class="work-stat-mini-val font-tabular">0đ</span>
               </div>
               <div class="work-stat-mini-box stat-unpaid" onclick="switchWorkSubTab('unpaid')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')switchWorkSubTab('unpaid')">
                 <span class="work-stat-mini-label">
-                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-                  <span>Còn nợ (CTT)</span>
+                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                  <span>Còn nợ</span>
                 </span>
                 <span id="work-day-unpaid" class="work-stat-mini-val font-tabular">0đ</span>
               </div>
               <div class="work-stat-mini-box stat-expense" onclick="switchWorkSubTab('ledger')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')switchWorkSubTab('ledger')">
                 <span class="work-stat-mini-label">
-                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
-                  <span>Chi tiêu ngày</span>
+                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                  <span>Chi tiêu</span>
                 </span>
                 <span id="work-day-expense" class="work-stat-mini-val font-tabular">0đ</span>
               </div>
             </div>
 
-            <!-- Dòng phụ: Quỹ / Mượn / Trả nợ trong ngày (nếu có) + Luỹ kế Tháng -->
+            <!-- Dòng phụ: Quỹ / Mượn / Trả nợ trong ngày (nếu có) -->
             <div id="work-day-extra-badges" class="work-extra-badges-row" style="display: none;"></div>
 
-            <div class="work-month-strip">
-              <span id="work-month-label" class="work-month-title">Tháng này:</span>
-              <span class="work-month-metrics font-tabular">
-                Doanh thu <strong id="work-month-revenue">0đ</strong> &bull;
-                Đã thu <strong id="work-month-paid">0đ</strong> &bull;
-                Chi <strong id="work-month-expense">0đ</strong>
-              </span>
+            <!-- Hàng 5: Luỹ kế tháng chia lưới 3 cột cố định, không bao giờ bị rớt dòng -->
+            <div class="work-month-bank-footer">
+              <div class="work-month-footer-head">
+                <span id="work-month-label" class="work-month-title">Luỹ kế tháng này</span>
+                <span id="work-month-job-count" class="work-month-sub-badge font-tabular">0 đơn</span>
+              </div>
+              <div class="work-month-grid-3 font-tabular">
+                <div class="work-month-cell">
+                  <span class="work-month-cell-lbl">Doanh thu</span>
+                  <strong id="work-month-revenue" class="work-month-cell-val">0đ</strong>
+                </div>
+                <div class="work-month-cell">
+                  <span class="work-month-cell-lbl">Đã thu (TT)</span>
+                  <strong id="work-month-paid" class="work-month-cell-val">0đ</strong>
+                </div>
+                <div class="work-month-cell">
+                  <span class="work-month-cell-lbl">Chi tiêu</span>
+                  <strong id="work-month-expense" class="work-month-cell-val">0đ</strong>
+                </div>
+              </div>
             </div>
           </div>
 
-          <!-- Thanh Chuyển Đổi 3 Phân Khu (Đơn dịch vụ | Sổ nợ CTT | Thu chi & Quỹ) -->
+          <!-- Két Lưu Trữ Dữ Liệu Tài Chính Trên Máy Cá Nhân (Chống Mất Dữ Liệu Khi Redeploy) -->
+          <div class="work-vault-card" role="region" aria-label="Lưu trữ dữ liệu tài chính trên máy cá nhân">
+            <div class="work-vault-top">
+              <div class="work-vault-title-wrap">
+                <svg class="ui-inline-svg work-vault-shield" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+                <span class="work-vault-title">Lưu trên máy cá nhân</span>
+              </div>
+              <span id="work-vault-badge" class="work-vault-badge font-tabular">Đã lưu 0 mục</span>
+            </div>
+            <div id="work-vault-sub" class="work-vault-sub">
+              Tự động lưu vào bộ nhớ thiết bị &amp; khôi phục ngay sau mỗi lần redeploy web.
+            </div>
+            <div class="work-vault-actions">
+              <button type="button" class="btn-vault-action" onclick="exportFinanceVaultFile()" title="Tải file dữ liệu tài chính (.json) về máy cá nhân">
+                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <span>Lưu file về máy</span>
+              </button>
+              <label class="btn-vault-action" style="cursor: pointer;" title="Khôi phục dữ liệu tài chính từ file .json trên máy cá nhân">
+                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <span>Nạp file từ máy</span>
+                <input type="file" id="finance-vault-file-input" accept=".json" style="display: none;" onchange="importFinanceVaultFile(event)">
+              </label>
+              <button type="button" id="btn-work-link-disk" class="btn-vault-action" onclick="linkOrSyncLocalFinance()" title="Gắn file tự động lưu trên ổ cứng máy tính hoặc đồng bộ ngay">
+                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+                <span id="work-link-disk-label">Đồng bộ két</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Thanh Chuyển Đổi 3 Phân Khu (Luôn nằm trên 1 dòng duy nhất, không rớt chữ) -->
           <div class="work-subtab-bar" role="tablist" aria-label="Phân khu sổ công việc">
             <button type="button" id="work-subtab-btn-jobs" class="work-subtab-btn active" role="tab" aria-selected="true" onclick="switchWorkSubTab('jobs')">
-              <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
-              <span>Đơn dịch vụ</span>
+              <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
+              <span>Đơn việc</span>
               <span id="work-badge-day-jobs" class="work-subtab-count font-tabular">0</span>
             </button>
             <button type="button" id="work-subtab-btn-unpaid" class="work-subtab-btn" role="tab" aria-selected="false" onclick="switchWorkSubTab('unpaid')">
-              <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-              <span>Sổ nợ (CTT)</span>
+              <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+              <span>Sổ nợ</span>
               <span id="work-badge-unpaid-all" class="work-subtab-count badge-alert font-tabular">0</span>
             </button>
             <button type="button" id="work-subtab-btn-ledger" class="work-subtab-btn" role="tab" aria-selected="false" onclick="switchWorkSubTab('ledger')">
-              <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
-              <span>Thu chi &amp; Quỹ</span>
+              <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
+              <span>Thu &amp; Chi</span>
             </button>
           </div>
 
@@ -725,11 +770,11 @@
             <!-- Form Nhập Đơn Dịch Vụ Siêu Tốc Cho Điện Thoại -->
             <form id="work-job-form" class="work-quick-card" onsubmit="submitWorkJob(event)">
               <div class="work-card-title-row">
-                <h2 class="work-card-heading">+ Ghi đơn dịch vụ mới</h2>
+                <h2 class="work-card-heading">+ Ghi đơn mới</h2>
                 <!-- Chọn kênh liên hệ ZL / FB 1 chạm -->
                 <div class="work-channel-toggle" role="group" aria-label="Kênh liên hệ khách hàng">
-                  <button type="button" id="btn-ch-zl" class="work-ch-btn active" onclick="setWorkJobChannel('ZL')">Zalo (ZL)</button>
-                  <button type="button" id="btn-ch-fb" class="work-ch-btn" onclick="setWorkJobChannel('FB')">Facebook (FB)</button>
+                  <button type="button" id="btn-ch-zl" class="work-ch-btn active" onclick="setWorkJobChannel('ZL')">Zalo</button>
+                  <button type="button" id="btn-ch-fb" class="work-ch-btn" onclick="setWorkJobChannel('FB')">Facebook</button>
                 </div>
               </div>
               <input type="hidden" id="work-job-channel" value="ZL">
@@ -1176,6 +1221,6 @@
 
   <span id="today-date-badge" style="display: none;"></span>
 
-  <script src="/app.js?v=28"></script>
+  <script src="/app.js?v=30"></script>
 </body>
 </html>

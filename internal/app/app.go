@@ -276,6 +276,8 @@ func (s *Server) routes() {
 	m.HandleFunc("POST /api/push/subscribe", a(s.handlePushSubscribe))
 	m.HandleFunc("POST /api/push/test", a(s.handlePushTest))
 	m.HandleFunc("GET /api/work", a(s.handleGetWork))
+	m.HandleFunc("GET /api/work/vault", a(s.handleGetWorkVault))
+	m.HandleFunc("POST /api/work/vault", a(s.handleSyncWorkVault))
 	m.HandleFunc("POST /api/work/job", a(s.handlePostWorkJob))
 	m.HandleFunc("PUT /api/work/job/{id}", a(s.handlePutWorkJob))
 	m.HandleFunc("DELETE /api/work/job/{id}", a(s.handleDelWorkJob))

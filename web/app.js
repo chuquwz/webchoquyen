@@ -75,6 +75,7 @@
         showAppView();
         initMotivationSection();
         await loadToday();
+        syncFinanceVaultOnBoot();
       }
     } catch (e) {
       showLoginView();
@@ -1953,8 +1954,19 @@
   function formatShortK(amount) {
     const n = Number(amount) || 0;
     if (n === 0) return '0đ';
-    if (n % 1000 === 0) {
-      return (n / 1000).toLocaleString('vi-VN') + 'k';
+    const abs = Math.abs(n);
+    const sign = n < 0 ? '-' : '';
+    if (abs >= 1000000000) {
+      const ty = (abs / 1000000000).toLocaleString('vi-VN', { maximumFractionDigits: 2 });
+      return `${sign}${ty} tỷ`;
+    }
+    if (abs >= 1000000) {
+      const tr = (abs / 1000000).toLocaleString('vi-VN', { maximumFractionDigits: 2 });
+      return `${sign}${tr}tr`;
+    }
+    if (abs >= 1000) {
+      const k = (abs / 1000).toLocaleString('vi-VN', { maximumFractionDigits: 1 });
+      return `${sign}${k}k`;
     }
     return n.toLocaleString('vi-VN') + 'đ';
   }
@@ -1966,12 +1978,437 @@
     return dt.toISOString().slice(0, 10);
   }
 
+  // ---------- KÉT LƯU TRỮ DỮ LIỆU TÀI CHÍNH TRÊN MÁY CÁ NHÂN (LOCAL-FIRST + AUTO-HEAL REDEPLOY) ----------
+  const FINANCE_VAULT_KEY = 'qh_finance_vault_v1';
+  const FINANCE_IDB_NAME = 'QuyenFinanceVaultDB';
+  const FINANCE_IDB_STORE = 'kv';
+  let linkedFinanceFileHandle = null;
+  let idbHydrated = false;
+
+  function openFinanceIDB() {
+    return new Promise((resolve, reject) => {
+      if (!('indexedDB' in window)) return reject(new Error('No IndexedDB'));
+      const req = indexedDB.open(FINANCE_IDB_NAME, 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(FINANCE_IDB_STORE)) {
+          db.createObjectStore(FINANCE_IDB_STORE);
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function idbGet(key) {
+    try {
+      const db = await openFinanceIDB();
+      return await new Promise((resolve) => {
+        const tx = db.transaction(FINANCE_IDB_STORE, 'readonly');
+        const req = tx.objectStore(FINANCE_IDB_STORE).get(key);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => resolve(null);
+      });
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async function idbSet(key, val) {
+    try {
+      const db = await openFinanceIDB();
+      await new Promise((resolve) => {
+        const tx = db.transaction(FINANCE_IDB_STORE, 'readwrite');
+        tx.objectStore(FINANCE_IDB_STORE).put(val, key);
+        tx.oncomplete = () => resolve(true);
+        tx.onerror = () => resolve(false);
+      });
+    } catch (e) {}
+  }
+
+  function readFinanceVaultSync() {
+    try {
+      const raw = localStorage.getItem(FINANCE_VAULT_KEY);
+      if (!raw) return { db_id: '', updated_at: 0, dirty: false, jobs: [], ledger: [] };
+      const parsed = JSON.parse(raw);
+      return {
+        db_id: parsed.db_id || '',
+        updated_at: parsed.updated_at || 0,
+        dirty: Boolean(parsed.dirty),
+        jobs: Array.isArray(parsed.jobs) ? parsed.jobs : [],
+        ledger: Array.isArray(parsed.ledger) ? parsed.ledger : []
+      };
+    } catch (e) {
+      return { db_id: '', updated_at: 0, dirty: false, jobs: [], ledger: [] };
+    }
+  }
+
+  async function hydrateVaultFromIDB() {
+    if (idbHydrated) return readFinanceVaultSync();
+    idbHydrated = true;
+    const local = readFinanceVaultSync();
+    const idbVault = await idbGet('vault_main');
+    const savedHandle = await idbGet('file_handle');
+    if (savedHandle) {
+      linkedFinanceFileHandle = savedHandle;
+      updateLinkDiskButtonUI();
+    }
+    if (idbVault && Array.isArray(idbVault.jobs)) {
+      const localCount = (local.jobs ? local.jobs.length : 0) + (local.ledger ? local.ledger.length : 0);
+      const idbCount = idbVault.jobs.length + (Array.isArray(idbVault.ledger) ? idbVault.ledger.length : 0);
+      if (localCount === 0 && idbCount > 0) {
+        try {
+          localStorage.setItem(FINANCE_VAULT_KEY, JSON.stringify(idbVault));
+        } catch (e) {}
+        return idbVault;
+      }
+    }
+    return local;
+  }
+
+  async function writeToLinkedDiskFile(payload) {
+    if (!linkedFinanceFileHandle) return;
+    try {
+      if (linkedFinanceFileHandle.queryPermission) {
+        const perm = await linkedFinanceFileHandle.queryPermission({ mode: 'readwrite' });
+        if (perm !== 'granted') return;
+      }
+      const writable = await linkedFinanceFileHandle.createWritable();
+      await writable.write(JSON.stringify(payload, null, 2));
+      await writable.close();
+    } catch (e) {}
+  }
+
+  function saveFinanceVaultToDevice(vaultInput) {
+    const cur = readFinanceVaultSync();
+    const payload = {
+      app: 'QuyenHealth-FinanceVault',
+      version: 1,
+      db_id: vaultInput.db_id !== undefined ? vaultInput.db_id : cur.db_id,
+      updated_at: Date.now(),
+      dirty: Boolean(vaultInput.dirty),
+      jobs: Array.isArray(vaultInput.jobs) ? vaultInput.jobs : cur.jobs,
+      ledger: Array.isArray(vaultInput.ledger) ? vaultInput.ledger : cur.ledger
+    };
+    try {
+      localStorage.setItem(FINANCE_VAULT_KEY, JSON.stringify(payload));
+    } catch (e) {}
+    idbSet('vault_main', payload);
+    writeToLinkedDiskFile(payload);
+    renderFinanceVaultStatus(payload);
+    return payload;
+  }
+
+  function removeJobFromLocalVault(jobId) {
+    const cur = readFinanceVaultSync();
+    cur.jobs = (cur.jobs || []).filter(j => Number(j.id) !== Number(jobId));
+    saveFinanceVaultToDevice(cur);
+  }
+
+  function removeLedgerFromLocalVault(ledgerId) {
+    const cur = readFinanceVaultSync();
+    cur.ledger = (cur.ledger || []).filter(l => Number(l.id) !== Number(ledgerId));
+    saveFinanceVaultToDevice(cur);
+  }
+
+  function updateLinkDiskButtonUI() {
+    const lbl = document.getElementById('work-link-disk-label');
+    const btn = document.getElementById('btn-work-link-disk');
+    if (!lbl || !btn) return;
+    if (linkedFinanceFileHandle) {
+      lbl.textContent = 'Đã gắn ổ cứng';
+      btn.classList.add('is-linked');
+    } else if ('showSaveFilePicker' in window) {
+      lbl.textContent = 'Gắn file ổ cứng';
+      btn.classList.remove('is-linked');
+    } else {
+      lbl.textContent = 'Đồng bộ két';
+      btn.classList.remove('is-linked');
+    }
+  }
+
+  function renderFinanceVaultStatus(vaultOpt) {
+    const v = vaultOpt || readFinanceVaultSync();
+    const badgeEl = document.getElementById('work-vault-badge');
+    const subEl = document.getElementById('work-vault-sub');
+    const jobCount = (v.jobs || []).length;
+    const ledgerCount = (v.ledger || []).length;
+
+    if (badgeEl) {
+      badgeEl.textContent = `Đã lưu ${jobCount} đơn • ${ledgerCount} thu chi`;
+    }
+    if (subEl) {
+      const timeStr = v.updated_at
+        ? new Date(v.updated_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+        : '';
+      if (linkedFinanceFileHandle) {
+        subEl.textContent = `Đang tự động lưu kép vào trình duyệt & file ổ cứng máy cá nhân${timeStr ? ' (lúc ' + timeStr + ')' : ''}. Không lo mất dữ liệu khi redeploy.`;
+      } else {
+        subEl.textContent = `Đã khóa an toàn trên máy cá nhân${timeStr ? ' (cập nhật ' + timeStr + ')' : ''} — tự động khôi phục 100% mỗi khi redeploy web.`;
+      }
+    }
+    updateLinkDiskButtonUI();
+  }
+
+  async function syncFinanceVaultOnBoot() {
+    try {
+      const localVault = await hydrateVaultFromIDB();
+      renderFinanceVaultStatus(localVault);
+      const localHasData = (localVault.jobs && localVault.jobs.length > 0) || (localVault.ledger && localVault.ledger.length > 0);
+      const srv = await api('/api/work/vault');
+      const srvJobs = srv.jobs || [];
+      const srvLedger = srv.ledger || [];
+      const srvEmpty = srvJobs.length === 0 && srvLedger.length === 0;
+      const dbChanged = Boolean(localVault.db_id && srv.db_id && localVault.db_id !== srv.db_id);
+
+      if (localHasData && (srvEmpty || dbChanged || localVault.dirty)) {
+        const synced = await api('/api/work/vault', {
+          method: 'POST',
+          body: JSON.stringify({
+            mode: localVault.dirty ? 'replace' : 'merge',
+            jobs: localVault.jobs,
+            ledger: localVault.ledger
+          })
+        });
+        saveFinanceVaultToDevice({
+          db_id: synced.db_id || srv.db_id,
+          dirty: false,
+          jobs: synced.jobs || localVault.jobs,
+          ledger: synced.ledger || localVault.ledger
+        });
+        showToast('Đã tự động khôi phục dữ liệu tài chính từ máy cá nhân sau khi redeploy');
+      } else if (srvJobs.length > 0 || srvLedger.length > 0) {
+        saveFinanceVaultToDevice({
+          db_id: srv.db_id,
+          dirty: false,
+          jobs: srvJobs,
+          ledger: srvLedger
+        });
+      }
+    } catch (e) {}
+  }
+
+  function computeWorkFromLocalVault(targetDate) {
+    const v = readFinanceVaultSync();
+    const date = targetDate || workState.date || state.today || new Date().toISOString().slice(0, 10);
+    const month = date.slice(0, 7);
+    const allJobs = v.jobs || [];
+    const allLedger = v.ledger || [];
+
+    const dayJobs = allJobs.filter(j => j.date === date);
+    const dayLedger = allLedger.filter(l => l.date === date);
+
+    const calcSum = (jobsArr, ledgerArr) => {
+      const s = {
+        total_jobs: 0, paid_jobs: 0, unpaid_jobs: 0,
+        total_revenue: 0, paid_amount: 0, unpaid_amount: 0,
+        expense_amount: 0, net_cash: 0, fund_in: 0, fund_bal: 0,
+        borrow_amount: 0, repay_amount: 0
+      };
+      jobsArr.forEach(j => {
+        const p = Number(j.price) || 0;
+        s.total_jobs++;
+        s.total_revenue += p;
+        if (j.status === 'CTT') {
+          s.unpaid_jobs++;
+          s.unpaid_amount += p;
+        } else {
+          s.paid_jobs++;
+          s.paid_amount += p;
+        }
+      });
+      ledgerArr.forEach(l => {
+        const a = Number(l.amount) || 0;
+        if (l.category === 'expense') s.expense_amount += a;
+        if (l.category === 'fund_in') s.fund_in += a;
+        if (l.category === 'fund_bal') s.fund_bal = a;
+        if (l.category === 'borrow') s.borrow_amount += a;
+        if (l.category === 'repay') s.repay_amount += a;
+      });
+      s.net_cash = s.paid_amount - s.expense_amount;
+      return s;
+    };
+
+    const monthJobs = allJobs.filter(j => (j.date || '').startsWith(month + '-'));
+    const monthLedger = allLedger.filter(l => (l.date || '').startsWith(month + '-'));
+
+    const byCust = {};
+    let totalUnpaidAll = 0;
+    let totalUnpaidJobs = 0;
+    allJobs.filter(j => j.status === 'CTT').forEach(j => {
+      const key = (j.customer || '').trim().toLowerCase();
+      if (!byCust[key]) {
+        byCust[key] = { customer: j.customer, channel: j.channel || 'ZL', job_count: 0, total_amount: 0, jobs: [] };
+      }
+      byCust[key].job_count++;
+      byCust[key].total_amount += Number(j.price) || 0;
+      byCust[key].jobs.push(j);
+      totalUnpaidAll += Number(j.price) || 0;
+      totalUnpaidJobs++;
+    });
+
+    const byDate = {};
+    monthJobs.forEach(j => {
+      if (!byDate[j.date]) {
+        byDate[j.date] = { date: j.date, job_count: 0, total_revenue: 0, paid_amount: 0, unpaid_amount: 0, expense_amount: 0 };
+      }
+      byDate[j.date].job_count++;
+      byDate[j.date].total_revenue += Number(j.price) || 0;
+      if (j.status === 'CTT') byDate[j.date].unpaid_amount += Number(j.price) || 0;
+      else byDate[j.date].paid_amount += Number(j.price) || 0;
+    });
+    monthLedger.filter(l => l.category === 'expense').forEach(l => {
+      if (!byDate[l.date]) {
+        byDate[l.date] = { date: l.date, job_count: 0, total_revenue: 0, paid_amount: 0, unpaid_amount: 0, expense_amount: 0 };
+      }
+      byDate[l.date].expense_amount += Number(l.amount) || 0;
+    });
+
+    workState.date = date;
+    workState.month = month;
+    workState.today = state.today || date;
+    workState.jobs = dayJobs;
+    workState.ledger = dayLedger;
+    workState.daySummary = calcSum(dayJobs, dayLedger);
+    workState.monthSummary = calcSum(monthJobs, monthLedger);
+    workState.unpaidGroups = Object.values(byCust).sort((a, b) => b.total_amount - a.total_amount);
+    workState.totalUnpaidAll = totalUnpaidAll;
+    workState.totalUnpaidJobs = totalUnpaidJobs;
+    workState.recentDays = Object.values(byDate).sort((a, b) => (a.date < b.date ? 1 : -1));
+    renderFinanceVaultStatus(v);
+    renderWorkScreen();
+  }
+
+  window.exportFinanceVaultFile = function () {
+    const v = readFinanceVaultSync();
+    const dateStr = workState.today || state.today || new Date().toISOString().slice(0, 10);
+    const blob = new Blob([JSON.stringify(v, null, 2)], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `so-tai-chinh-quyen-${dateStr}.json`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 200);
+    showToast(`Đã lưu file tài chính (${(v.jobs || []).length} đơn, ${(v.ledger || []).length} thu chi) về máy cá nhân`);
+  };
+
+  window.importFinanceVaultFile = async function (e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const jobs = Array.isArray(parsed.jobs)
+        ? parsed.jobs
+        : (Array.isArray(parsed.work_jobs) ? parsed.work_jobs : null);
+      const ledger = Array.isArray(parsed.ledger)
+        ? parsed.ledger
+        : (Array.isArray(parsed.work_ledger) ? parsed.work_ledger : []);
+
+      if (!jobs) {
+        throw new Error('File không chứa dữ liệu Sổ công việc hợp lệ');
+      }
+      if (!confirm(`Khôi phục ${jobs.length} đơn dịch vụ và ${ledger.length} khoản thu chi từ file vào máy cá nhân & server?`)) {
+        e.target.value = '';
+        return;
+      }
+
+      saveFinanceVaultToDevice({
+        dirty: true,
+        jobs,
+        ledger
+      });
+
+      const synced = await api('/api/work/vault', {
+        method: 'POST',
+        body: JSON.stringify({
+          mode: 'replace',
+          jobs,
+          ledger
+        })
+      });
+
+      saveFinanceVaultToDevice({
+        db_id: synced.db_id || '',
+        dirty: false,
+        jobs: synced.jobs || jobs,
+        ledger: synced.ledger || ledger
+      });
+
+      showToast(`Đã nạp thành công ${jobs.length} đơn & ${ledger.length} khoản thu chi!`);
+      await loadWorkData(workState.date);
+    } catch (err) {
+      showToast('Lỗi nạp file: ' + (err.message || 'File không hợp lệ'), true);
+    }
+    e.target.value = '';
+  };
+
+  window.linkOrSyncLocalFinance = async function () {
+    if ('showSaveFilePicker' in window) {
+      try {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: 'so-tai-chinh-quyen.json',
+          types: [{
+            description: 'Dữ liệu Sổ Tài Chính Quyền (JSON)',
+            accept: { 'application/json': ['.json'] }
+          }]
+        });
+        linkedFinanceFileHandle = handle;
+        await idbSet('file_handle', handle);
+        const v = readFinanceVaultSync();
+        await writeToLinkedDiskFile(v);
+        renderFinanceVaultStatus(v);
+        showToast('Đã gắn file trên ổ cứng! Mọi thay đổi tài chính sẽ tự động ghi trực tiếp vào file này.');
+        return;
+      } catch (err) {
+        if (err && err.name === 'AbortError') return;
+      }
+    }
+
+    await syncFinanceVaultOnBoot();
+    const v = readFinanceVaultSync();
+    showToast(`Đã đồng bộ & lưu an toàn ${(v.jobs || []).length} đơn, ${(v.ledger || []).length} thu chi trên máy này`);
+  };
+
   async function loadWorkData(targetDate) {
+    await hydrateVaultFromIDB();
     const dateParam = targetDate || workState.date || state.today || '';
     const monthParam = dateParam ? dateParam.slice(0, 7) : '';
     const qs = dateParam ? `?date=${encodeURIComponent(dateParam)}&month=${encodeURIComponent(monthParam)}` : '';
     try {
-      const data = await api('/api/work' + qs);
+      let data = await api('/api/work' + qs);
+      const localVault = readFinanceVaultSync();
+      const localHasData = (localVault.jobs && localVault.jobs.length > 0) || (localVault.ledger && localVault.ledger.length > 0);
+      const srvJobs = data.vault_jobs || [];
+      const srvLedger = data.vault_ledger || [];
+      const srvEmpty = srvJobs.length === 0 && srvLedger.length === 0;
+      const dbChanged = Boolean(localVault.db_id && data.db_id && localVault.db_id !== data.db_id);
+
+      // Nếu server vừa bị reset do Redeploy (hoặc đang có dữ liệu lưu trên máy cá nhân chưa đẩy lên), tự động khôi phục ngay lập tức
+      if (localHasData && (srvEmpty || dbChanged || localVault.dirty)) {
+        await api('/api/work/vault', {
+          method: 'POST',
+          body: JSON.stringify({
+            mode: localVault.dirty ? 'replace' : 'merge',
+            jobs: localVault.jobs,
+            ledger: localVault.ledger
+          })
+        });
+        data = await api('/api/work' + qs);
+        showToast('Đã tự động khôi phục dữ liệu tài chính từ máy cá nhân');
+      }
+
+      saveFinanceVaultToDevice({
+        db_id: data.db_id || localVault.db_id,
+        dirty: false,
+        jobs: data.vault_jobs || [],
+        ledger: data.vault_ledger || []
+      });
+
       workState.date = data.date || state.today;
       workState.month = data.month || workState.date.slice(0, 7);
       workState.today = data.today || state.today;
@@ -1986,7 +2423,10 @@
       workState.suggestions = data.suggestions || { customers: [], services: [] };
 
       renderWorkScreen();
-    } catch (e) {}
+    } catch (e) {
+      // Nếu server đang khởi động lại trong lúc Redeploy, hiển thị trực tiếp từ bộ nhớ máy cá nhân
+      computeWorkFromLocalVault(dateParam);
+    }
   }
 
   function renderWorkScreen() {
@@ -2018,8 +2458,13 @@
       if (el) el.textContent = val;
     };
 
-    setTxt('work-summary-date-label', workState.date === workState.today ? 'Tổng kết hôm nay' : `Tổng kết ngày ${formatVNDate(workState.date)}`);
-    setTxt('work-day-revenue', formatVND(ds.total_revenue || 0));
+    const revFormatted = formatVND(ds.total_revenue || 0);
+    setTxt('work-summary-date-label', workState.date === workState.today ? 'Tổng doanh thu hôm nay' : `Doanh thu ngày ${formatVNDate(workState.date)}`);
+    setTxt('work-day-revenue', revFormatted);
+    const revEl = document.getElementById('work-day-revenue');
+    if (revEl) {
+      revEl.classList.toggle('is-long', revFormatted.length >= 12);
+    }
     setTxt('work-day-job-count', `${ds.total_jobs || 0} đơn`);
     setTxt('work-day-net', formatVND(ds.net_cash || 0));
     setTxt('work-day-paid', formatShortK(ds.paid_amount || 0));
@@ -2043,11 +2488,12 @@
       }
     }
 
-    // Month strip
+    // Month strip (3-column banking footer)
     if (workState.month) {
       const mParts = workState.month.split('-');
-      setTxt('work-month-label', `Tháng ${parseInt(mParts[1], 10)}/${mParts[0]} (${ms.total_jobs || 0} đơn):`);
+      setTxt('work-month-label', `Luỹ kế Tháng ${parseInt(mParts[1], 10)}/${mParts[0]}`);
     }
+    setTxt('work-month-job-count', `${ms.total_jobs || 0} đơn`);
     setTxt('work-month-revenue', formatShortK(ms.total_revenue || 0));
     setTxt('work-month-paid', formatShortK(ms.paid_amount || 0));
     setTxt('work-month-expense', formatShortK(ms.expense_amount || 0));
@@ -2196,11 +2642,12 @@
     }
 
     const price = rawPrice < 1000 ? rawPrice * 1000 : rawPrice;
+    const jobDate = workState.date || state.today || new Date().toISOString().slice(0, 10);
     try {
       await api('/api/work/job', {
         method: 'POST',
         body: JSON.stringify({
-          date: workState.date || state.today,
+          date: jobDate,
           customer,
           channel,
           service,
@@ -2214,7 +2661,29 @@
       document.querySelectorAll('#work-job-form .btn-price-chip').forEach(b => b.classList.remove('active'));
       showToast(`Đã lưu đơn ${customer} (${formatShortK(price)} - ${status})`);
       await loadWorkData(workState.date);
-    } catch (err) {}
+    } catch (err) {
+      // Dự phòng khi server đang redeploy: lưu trực tiếp vào máy cá nhân
+      const v = readFinanceVaultSync();
+      v.jobs.push({
+        id: Date.now(),
+        date: jobDate,
+        customer,
+        channel,
+        service,
+        price,
+        status,
+        note: '',
+        ts: Math.floor(Date.now() / 1000)
+      });
+      v.dirty = true;
+      saveFinanceVaultToDevice(v);
+      document.getElementById('work-job-service').value = '';
+      document.getElementById('work-job-price').value = '';
+      updateWorkPricePreview('');
+      document.querySelectorAll('#work-job-form .btn-price-chip').forEach(b => b.classList.remove('active'));
+      showToast(`Đã lưu đơn ${customer} vào máy cá nhân (tự đồng bộ khi mạng/server sẵn sàng)`);
+      computeWorkFromLocalVault(jobDate);
+    }
   };
 
   function renderWorkJobsList() {
@@ -2332,6 +2801,7 @@
     if (!confirm('Xoá đơn dịch vụ này khỏi sổ công việc? Thao tác này không thể hoàn tác.')) return;
     try {
       await api('/api/work/job/' + jobId, { method: 'DELETE' });
+      removeJobFromLocalVault(jobId);
       showToast('Đã xoá đơn dịch vụ');
       await loadWorkData(workState.date);
     } catch (e) {}
@@ -2495,11 +2965,12 @@
     }
 
     const amount = rawAmt < 1000 ? rawAmt * 1000 : rawAmt;
+    const ledgerDate = workState.date || state.today || new Date().toISOString().slice(0, 10);
     try {
       await api('/api/work/ledger', {
         method: 'POST',
         body: JSON.stringify({
-          date: workState.date || state.today,
+          date: ledgerDate,
           category,
           amount,
           note
@@ -2509,7 +2980,23 @@
       document.getElementById('work-ledger-note').value = '';
       showToast('Đã lưu khoản mục vào sổ');
       await loadWorkData(workState.date);
-    } catch (err) {}
+    } catch (err) {
+      const v = readFinanceVaultSync();
+      v.ledger.push({
+        id: Date.now(),
+        date: ledgerDate,
+        category,
+        amount,
+        note,
+        ts: Math.floor(Date.now() / 1000)
+      });
+      v.dirty = true;
+      saveFinanceVaultToDevice(v);
+      document.getElementById('work-ledger-amount').value = '';
+      document.getElementById('work-ledger-note').value = '';
+      showToast('Đã lưu khoản mục vào máy cá nhân');
+      computeWorkFromLocalVault(ledgerDate);
+    }
   };
 
   function getLedgerCatLabel(cat) {
@@ -2556,6 +3043,7 @@
     if (!confirm('Xoá khoản mục thu chi này?')) return;
     try {
       await api('/api/work/ledger/' + id, { method: 'DELETE' });
+      removeLedgerFromLocalVault(id);
       showToast('Đã xoá khoản mục');
       await loadWorkData(workState.date);
     } catch (e) {}

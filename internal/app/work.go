@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 )
 
@@ -439,9 +440,12 @@ func (s *Server) handleGetWork(w http.ResponseWriter, r *http.Request) {
 	unpaidGroups, totalUnpaidAll, totalUnpaidJobs := s.queryUnpaidGroups()
 	recentDays := s.queryMonthDaysBrief(month)
 	customers, services := s.workSuggestions()
+	allJobs := s.queryAllWorkJobs()
+	allLedger := s.queryAllWorkLedger()
 
 	writeJSON(w, 200, map[string]any{
 		"ok":                true,
+		"db_id":             s.dbInstanceID(),
 		"date":              date,
 		"month":             month,
 		"today":             s.today(),
@@ -453,6 +457,8 @@ func (s *Server) handleGetWork(w http.ResponseWriter, r *http.Request) {
 		"total_unpaid_all":  totalUnpaidAll,
 		"total_unpaid_jobs": totalUnpaidJobs,
 		"recent_days":       recentDays,
+		"vault_jobs":        allJobs,
+		"vault_ledger":      allLedger,
 		"suggestions": map[string]any{
 			"customers": customers,
 			"services":  services,
@@ -826,4 +832,235 @@ func (s *Server) handleExportWorkCSV(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(200)
 	_, _ = w.Write(buf.Bytes())
 }
+
+// ---------- Đồng bộ & Lưu trữ dữ liệu tài chính trên máy cá nhân (Chống mất dữ liệu khi Redeploy) ----------
+
+func (s *Server) dbInstanceID() string {
+	var id string
+	err := s.db.QueryRow(`SELECT value FROM settings WHERE key='_db_instance_id'`).Scan(&id)
+	if err == nil && id != "" {
+		return id
+	}
+	id = fmt.Sprintf("db_%d", time.Now().UnixNano())
+	_, _ = s.db.Exec(`INSERT INTO settings(key,value) VALUES('_db_instance_id',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`, id)
+	return id
+}
+
+func (s *Server) queryAllWorkJobs() []workJob {
+	rows, err := s.db.Query(`SELECT id, date, customer, channel, service, price, status, note, ts FROM work_jobs ORDER BY date ASC, id ASC`)
+	if err != nil {
+		return []workJob{}
+	}
+	defer rows.Close()
+	out := []workJob{}
+	for rows.Next() {
+		var j workJob
+		if rows.Scan(&j.ID, &j.Date, &j.Customer, &j.Channel, &j.Service, &j.Price, &j.Status, &j.Note, &j.Ts) == nil {
+			out = append(out, j)
+		}
+	}
+	return out
+}
+
+func (s *Server) queryAllWorkLedger() []workLedger {
+	rows, err := s.db.Query(`SELECT id, date, category, amount, note, ts FROM work_ledger ORDER BY date ASC, id ASC`)
+	if err != nil {
+		return []workLedger{}
+	}
+	defer rows.Close()
+	out := []workLedger{}
+	for rows.Next() {
+		var l workLedger
+		if rows.Scan(&l.ID, &l.Date, &l.Category, &l.Amount, &l.Note, &l.Ts) == nil {
+			out = append(out, l)
+		}
+	}
+	return out
+}
+
+// GET /api/work/vault
+func (s *Server) handleGetWorkVault(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, 200, map[string]any{
+		"ok":     true,
+		"db_id":  s.dbInstanceID(),
+		"jobs":   s.queryAllWorkJobs(),
+		"ledger": s.queryAllWorkLedger(),
+	})
+}
+
+// POST /api/work/vault
+func (s *Server) handleSyncWorkVault(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Mode   string       `json:"mode"` // "replace" hoặc "merge"
+		Jobs   []workJob    `json:"jobs"`
+		Ledger []workLedger `json:"ledger"`
+	}
+	if !readJSON(w, r, &in) {
+		return
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		serverErr(w, err)
+		return
+	}
+	defer tx.Rollback()
+
+	mode := strings.ToLower(strings.TrimSpace(in.Mode))
+	if mode == "replace" {
+		if _, err := tx.Exec(`DELETE FROM work_jobs`); err != nil {
+			serverErr(w, err)
+			return
+		}
+		if _, err := tx.Exec(`DELETE FROM work_ledger`); err != nil {
+			serverErr(w, err)
+			return
+		}
+		for _, j := range in.Jobs {
+			cust := strings.TrimSpace(j.Customer)
+			svc := strings.TrimSpace(j.Service)
+			price := normalizeVND(j.Price)
+			if !validDate(j.Date) || cust == "" || svc == "" || price < 1000 {
+				continue
+			}
+			ts := j.Ts
+			if ts <= 0 {
+				ts = s.now().Unix()
+			}
+			if _, err := tx.Exec(
+				`INSERT INTO work_jobs(date, customer, channel, service, price, status, note, ts) VALUES(?,?,?,?,?,?,?,?)`,
+				j.Date, cust, validChannel(j.Channel), svc, price, validJobStatus(j.Status), strings.TrimSpace(j.Note), ts,
+			); err != nil {
+				serverErr(w, err)
+				return
+			}
+		}
+		for _, l := range in.Ledger {
+			amt := normalizeVND(l.Amount)
+			if !validDate(l.Date) || !validLedgerCategory(l.Category) || amt < 1000 {
+				continue
+			}
+			ts := l.Ts
+			if ts <= 0 {
+				ts = s.now().Unix()
+			}
+			if _, err := tx.Exec(
+				`INSERT INTO work_ledger(date, category, amount, note, ts) VALUES(?,?,?,?,?)`,
+				l.Date, l.Category, amt, strings.TrimSpace(l.Note), ts,
+			); err != nil {
+				serverErr(w, err)
+				return
+			}
+		}
+	} else {
+		// Chế độ "merge" thông minh: khôi phục toàn bộ bản ghi từ máy cá nhân lên server sau khi redeploy mà không tạo bản trùng
+		existingJobs := map[string]struct {
+			id     int64
+			status string
+		}{}
+		jrows, err := tx.Query(`SELECT id, date, customer, channel, service, price, status, ts FROM work_jobs`)
+		if err == nil {
+			for jrows.Next() {
+				var id, ts int64
+				var d, cust, ch, svc, st string
+				var pr int
+				if jrows.Scan(&id, &d, &cust, &ch, &svc, &pr, &st, &ts) == nil {
+					sig := fmt.Sprintf("%s|%s|%s|%s|%d|%d", d, strings.ToLower(strings.TrimSpace(cust)), validChannel(ch), strings.ToLower(strings.TrimSpace(svc)), normalizeVND(pr), ts)
+					existingJobs[sig] = struct {
+						id     int64
+						status string
+					}{id: id, status: st}
+				}
+			}
+			jrows.Close()
+		}
+
+		for _, j := range in.Jobs {
+			cust := strings.TrimSpace(j.Customer)
+			svc := strings.TrimSpace(j.Service)
+			price := normalizeVND(j.Price)
+			if !validDate(j.Date) || cust == "" || svc == "" || price < 1000 {
+				continue
+			}
+			ts := j.Ts
+			if ts <= 0 {
+				ts = s.now().Unix()
+			}
+			ch := validChannel(j.Channel)
+			st := validJobStatus(j.Status)
+			sig := fmt.Sprintf("%s|%s|%s|%s|%d|%d", j.Date, strings.ToLower(cust), ch, strings.ToLower(svc), price, ts)
+			if ex, ok := existingJobs[sig]; ok {
+				if ex.status != st {
+					_, _ = tx.Exec(`UPDATE work_jobs SET status=? WHERE id=?`, st, ex.id)
+				}
+				continue
+			}
+			res, err := tx.Exec(
+				`INSERT INTO work_jobs(date, customer, channel, service, price, status, note, ts) VALUES(?,?,?,?,?,?,?,?)`,
+				j.Date, cust, ch, svc, price, st, strings.TrimSpace(j.Note), ts,
+			)
+			if err != nil {
+				serverErr(w, err)
+				return
+			}
+			newID, _ := res.LastInsertId()
+			existingJobs[sig] = struct {
+				id     int64
+				status string
+			}{id: newID, status: st}
+		}
+
+		existingLedger := map[string]bool{}
+		lrows, err := tx.Query(`SELECT date, category, amount, note, ts FROM work_ledger`)
+		if err == nil {
+			for lrows.Next() {
+				var d, cat, note string
+				var amt int
+				var ts int64
+				if lrows.Scan(&d, &cat, &amt, &note, &ts) == nil {
+					sig := fmt.Sprintf("%s|%s|%d|%s|%d", d, cat, normalizeVND(amt), strings.ToLower(strings.TrimSpace(note)), ts)
+					existingLedger[sig] = true
+				}
+			}
+			lrows.Close()
+		}
+
+		for _, l := range in.Ledger {
+			amt := normalizeVND(l.Amount)
+			if !validDate(l.Date) || !validLedgerCategory(l.Category) || amt < 1000 {
+				continue
+			}
+			ts := l.Ts
+			if ts <= 0 {
+				ts = s.now().Unix()
+			}
+			note := strings.TrimSpace(l.Note)
+			sig := fmt.Sprintf("%s|%s|%d|%s|%d", l.Date, l.Category, amt, strings.ToLower(note), ts)
+			if existingLedger[sig] {
+				continue
+			}
+			if _, err := tx.Exec(
+				`INSERT INTO work_ledger(date, category, amount, note, ts) VALUES(?,?,?,?,?)`,
+				l.Date, l.Category, amt, note, ts,
+			); err != nil {
+				serverErr(w, err)
+				return
+			}
+			existingLedger[sig] = true
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		serverErr(w, err)
+		return
+	}
+
+	writeJSON(w, 200, map[string]any{
+		"ok":     true,
+		"db_id":  s.dbInstanceID(),
+		"jobs":   s.queryAllWorkJobs(),
+		"ledger": s.queryAllWorkLedger(),
+	})
+}
+
 

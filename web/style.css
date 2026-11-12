@@ -2104,7 +2104,7 @@ body:not(.is-logged-in) #app-bottom-nav {
   transform: scale(0.96);
 }
 
-/* Summary Hero Card */
+/* Summary Hero Card (Banking App Fixed Structure) */
 .work-summary-hero-card {
   background-color: #FFFFFF;
   border: 1.5px solid #DFEAE0;
@@ -2114,13 +2114,12 @@ body:not(.is-logged-in) #app-bottom-nav {
   margin-bottom: 14px;
 }
 
-.work-summary-top-row {
+.work-bank-header-row {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-bottom: 12px;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
 }
 
 .work-summary-eyebrow {
@@ -2130,28 +2129,39 @@ body:not(.is-logged-in) #app-bottom-nav {
   color: var(--text-sub);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
-.work-summary-total-line {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 2px;
+.work-bank-balance-row {
+  margin: 4px 0 12px;
+  min-width: 0;
 }
 
 .work-huge-money {
-  font-size: 24px;
+  display: block;
+  font-size: clamp(21px, 6.2vw, 27px);
   font-weight: 800;
   color: var(--text-main);
   letter-spacing: -0.02em;
   line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.work-huge-money.is-long {
+  font-size: clamp(18px, 5.2vw, 22px);
 }
 
 .work-job-count-pill {
   display: inline-flex;
   align-items: center;
-  padding: 3px 9px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 3px 10px;
   border-radius: var(--radius-pill);
   background-color: #E8F6DE;
   color: #254516;
@@ -2165,25 +2175,35 @@ body:not(.is-logged-in) #app-bottom-nav {
   border: 1px solid #FECACA;
 }
 
-.work-net-box {
+.work-bank-net-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: nowrap;
   background-color: #F4F9F1;
   border: 1px solid #DCEAD5;
   border-radius: 14px;
-  padding: 7px 11px;
-  text-align: right;
+  padding: 9px 12px;
+  margin-bottom: 10px;
 }
 
 .work-net-label {
-  display: block;
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 600;
-  color: var(--text-sub);
+  color: #3F473C;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .work-net-val {
   font-size: 15px;
   font-weight: 800;
   color: #1E3B13;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .work-summary-grid-3 {
@@ -2194,10 +2214,12 @@ body:not(.is-logged-in) #app-bottom-nav {
 
 .work-stat-mini-box {
   border-radius: 14px;
-  padding: 10px 8px;
+  padding: 9px 10px;
+  min-height: 58px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  justify-content: space-between;
+  gap: 4px;
   min-width: 0;
 }
 
@@ -2270,36 +2292,183 @@ body:not(.is-logged-in) #app-bottom-nav {
   background-color: #F5F8F4;
   color: var(--text-main);
   border: 1px solid #E0E8DC;
+  white-space: nowrap;
 }
 
-.work-month-strip {
-  margin-top: 10px;
-  padding-top: 9px;
+.work-month-bank-footer {
+  margin-top: 12px;
+  padding-top: 10px;
   border-top: 1px solid #EDF2EB;
+}
+
+.work-month-footer-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  font-size: 11.5px;
-  color: var(--text-sub);
+  gap: 8px;
+  margin-bottom: 6px;
 }
 
 .work-month-title {
+  font-size: 11.5px;
   font-weight: 700;
-  color: var(--text-main);
+  color: var(--text-sub);
+  white-space: nowrap;
 }
 
-.work-month-metrics strong {
-  color: var(--text-main);
-  font-weight: 800;
+.work-month-sub-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  white-space: nowrap;
 }
 
-/* Segmented Sub-tabs */
-.work-subtab-bar {
+.work-month-grid-3 {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
+  background-color: #F8FAF7;
+  border: 1px solid #E6EFE3;
+  border-radius: 12px;
+  padding: 8px 10px;
+}
+
+.work-month-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.work-month-cell + .work-month-cell {
+  border-left: 1px solid #E4ECE1;
+  padding-left: 8px;
+}
+
+.work-month-cell-lbl {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.work-month-cell-val {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Personal Device Vault Card (Chống mất dữ liệu khi Redeploy) */
+.work-vault-card {
+  background-color: #FFFFFF;
+  border: 1.5px solid #D9E8D2;
+  border-radius: 20px;
+  padding: 11px 13px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 10px rgba(30, 59, 19, 0.03);
+}
+
+.work-vault-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.work-vault-title-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.work-vault-shield {
+  color: #215211;
+  flex-shrink: 0;
+}
+
+.work-vault-title {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #1A3A0E;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.work-vault-badge {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background-color: #E8F6DE;
+  color: #1A3A0E;
+  border: 1px solid #C2E5AF;
+  white-space: nowrap;
+}
+
+.work-vault-sub {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-sub);
+  margin-top: 4px;
+  line-height: 1.35;
+}
+
+.work-vault-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.btn-vault-action {
+  height: 34px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background-color: #F4F8F2;
+  border: 1px solid #D5E4CE;
+  color: #1E3B13;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  white-space: nowrap;
+  min-width: 0;
+  cursor: pointer;
+  transition: transform 0.15s ease-out, background-color 0.15s ease-out;
+}
+
+.btn-vault-action span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btn-vault-action:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.btn-vault-action.is-linked {
+  background-color: #E8F6DE;
+  border-color: #6CA844;
+  color: #16330B;
+}
+
+/* Segmented Sub-tabs (Strictly 1 single line, never wraps) */
+.work-subtab-bar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
   background-color: #EFF4ED;
   padding: 5px;
   border-radius: 18px;
@@ -2307,7 +2476,7 @@ body:not(.is-logged-in) #app-bottom-nav {
 }
 
 .work-subtab-btn {
-  min-height: 40px;
+  height: 40px;
   border: none;
   border-radius: 13px;
   background: transparent;
@@ -2315,11 +2484,12 @@ body:not(.is-logged-in) #app-bottom-nav {
   font-family: inherit;
   font-size: 12px;
   font-weight: 700;
-  padding: 6px 6px;
+  padding: 0 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 4px;
+  white-space: nowrap;
   cursor: pointer;
   min-width: 0;
   transition: background-color 0.15s ease-out, color 0.15s ease-out, transform 0.15s ease-out;
@@ -2347,6 +2517,7 @@ body:not(.is-logged-in) #app-bottom-nav {
   color: #1E3B13;
   font-size: 10.5px;
   font-weight: 800;
+  flex-shrink: 0;
 }
 
 .work-subtab-count.badge-alert {
@@ -2376,13 +2547,17 @@ body:not(.is-logged-in) #app-bottom-nav {
   justify-content: space-between;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .work-card-heading {
   font-size: 15px;
   font-weight: 800;
   color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .work-channel-toggle {
@@ -2592,23 +2767,24 @@ body:not(.is-logged-in) #app-bottom-nav {
 }
 
 .work-job-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
 }
 
 .work-job-cust-wrap {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   min-width: 0;
 }
 
 .work-stt-badge {
   display: inline-flex;
   align-items: center;
+  flex-shrink: 0;
   gap: 4px;
   font-size: 11px;
   font-weight: 800;
@@ -2619,6 +2795,7 @@ body:not(.is-logged-in) #app-bottom-nav {
 }
 
 .work-ch-badge {
+  flex-shrink: 0;
   font-size: 10.5px;
   font-weight: 800;
   padding: 2px 7px;
@@ -2640,14 +2817,19 @@ body:not(.is-logged-in) #app-bottom-nav {
   font-size: 14.5px;
   font-weight: 800;
   color: var(--text-main);
-  overflow-wrap: break-word;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .work-job-price-val {
-  font-size: 16px;
+  font-size: 15.5px;
   font-weight: 800;
   color: var(--text-main);
   white-space: nowrap;
+  text-align: right;
+  flex-shrink: 0;
 }
 
 .work-job-bottom {
@@ -2656,6 +2838,8 @@ body:not(.is-logged-in) #app-bottom-nav {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+  padding-top: 6px;
+  border-top: 1px dashed #EDF2EB;
 }
 
 .work-job-service-name {
@@ -2663,14 +2847,17 @@ body:not(.is-logged-in) #app-bottom-nav {
   font-weight: 600;
   color: #3D443A;
   overflow-wrap: break-word;
-  flex: 1;
-  min-width: 140px;
+  min-width: 0;
+  width: 100%;
+  margin-bottom: 2px;
 }
 
 .work-job-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 6px;
+  width: 100%;
 }
 
 .btn-status-toggle {

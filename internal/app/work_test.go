@@ -151,5 +151,42 @@ func TestWorkFlowAndExport(t *testing.T) {
 	if resp.DaySummary.PaidAmount != 280000 || resp.DaySummary.UnpaidAmount != 0 || len(resp.UnpaidGroups) != 0 {
 		t.Fatalf("expected all paid after pay-customer, got %+v", resp.DaySummary)
 	}
+
+	// 6. Kiểm tra đồng bộ Két Tài Chính Máy Cá Nhân (/api/work/vault) khi Redeploy sang DB mới
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "GET", "/api/work/vault", nil))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 GET /api/work/vault, got %d", w.Code)
+	}
+	var vault struct {
+		DBID   string       `json:"db_id"`
+		Jobs   []workJob    `json:"jobs"`
+		Ledger []workLedger `json:"ledger"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &vault)
+	if len(vault.Jobs) != 2 || len(vault.Ledger) != 2 || vault.DBID == "" {
+		t.Fatalf("unexpected vault content: %+v", vault)
+	}
+
+	// Tạo server mới hoàn toàn (mô phỏng container mới sau khi Redeploy trên Koyeb)
+	freshSrv := newTestServer(t)
+	freshH := freshSrv.Handler()
+
+	w = httptest.NewRecorder()
+	freshH.ServeHTTP(w, authedReq(freshSrv, "POST", "/api/work/vault", map[string]any{
+		"mode":   "merge",
+		"jobs":   vault.Jobs,
+		"ledger": vault.Ledger,
+	}))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 POST /api/work/vault on fresh server, got %d: %s", w.Code, w.Body.String())
+	}
+
+	w = httptest.NewRecorder()
+	freshH.ServeHTTP(w, authedReq(freshSrv, "GET", "/api/work?date="+today, nil))
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp.DaySummary.TotalRevenue != 280000 || resp.DaySummary.NetCash != 270000 {
+		t.Fatalf("expected restored revenue 280000 and net 270000 on fresh server, got %+v", resp.DaySummary)
+	}
 }
 
