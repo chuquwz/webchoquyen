@@ -326,31 +326,11 @@
     }
 
     if (avatarBox) {
-      if (isDev) {
-        avatarBox.innerHTML = `
-          <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="#2B5719" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-          </svg>`;
-      } else {
-        avatarBox.innerHTML = `
-          <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="#2B5719" stroke-width="2">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-          </svg>`;
-      }
+      avatarBox.innerHTML = `<img src="/icons/icon-192.png?v=31" alt="Phùng Văn Quyền" class="app-face-logo">`;
     }
 
     if (topAvatar) {
-      if (isDev) {
-        topAvatar.innerHTML = `
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#2B5719" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-          </svg>`;
-      } else {
-        topAvatar.innerHTML = `
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#2B5719" stroke-width="2">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-          </svg>`;
-      }
+      topAvatar.innerHTML = `<img src="/icons/icon-192.png?v=31" alt="Phùng Văn Quyền" class="app-face-logo">`;
     }
   }
 
@@ -1909,7 +1889,8 @@
     date: '',
     month: '',
     today: '',
-    subTab: 'jobs', // 'jobs' | 'unpaid' | 'ledger'
+    heroScope: 'day', // 'day' | 'month'
+    subTab: 'jobs', // 'jobs' | 'unpaid' | 'ledger' | 'month'
     jobs: [],
     ledger: [],
     daySummary: {},
@@ -2450,35 +2431,52 @@
       todayBtn.style.opacity = workState.date === workState.today ? '0.55' : '1';
     }
 
-    // 2. Summary Hero Card
+    // 2. Summary Hero Card (Hỗ trợ chuyển nhanh Theo ngày / Cả tháng)
     const ds = workState.daySummary || {};
     const ms = workState.monthSummary || {};
+    const isMonthScope = workState.heroScope === 'month';
+    const activeSum = isMonthScope ? ms : ds;
     const setTxt = (id, val) => {
       const el = document.getElementById(id);
       if (el) el.textContent = val;
     };
 
-    const revFormatted = formatVND(ds.total_revenue || 0);
-    setTxt('work-summary-date-label', workState.date === workState.today ? 'Tổng doanh thu hôm nay' : `Doanh thu ngày ${formatVNDate(workState.date)}`);
+    const btnScopeDay = document.getElementById('btn-hero-scope-day');
+    const btnScopeMonth = document.getElementById('btn-hero-scope-month');
+    if (btnScopeDay) btnScopeDay.classList.toggle('active', !isMonthScope);
+    if (btnScopeMonth) btnScopeMonth.classList.toggle('active', isMonthScope);
+
+    let monthHuman = workState.month || '';
+    if (workState.month) {
+      const mParts = workState.month.split('-');
+      monthHuman = `Tháng ${parseInt(mParts[1], 10)}/${mParts[0]}`;
+    }
+
+    const revFormatted = formatVND(activeSum.total_revenue || 0);
+    if (isMonthScope) {
+      setTxt('work-summary-date-label', `Tổng doanh thu ${monthHuman}`);
+    } else {
+      setTxt('work-summary-date-label', workState.date === workState.today ? 'Tổng doanh thu hôm nay' : `Doanh thu ngày ${formatVNDate(workState.date)}`);
+    }
     setTxt('work-day-revenue', revFormatted);
     const revEl = document.getElementById('work-day-revenue');
     if (revEl) {
       revEl.classList.toggle('is-long', revFormatted.length >= 12);
     }
-    setTxt('work-day-job-count', `${ds.total_jobs || 0} đơn`);
-    setTxt('work-day-net', formatVND(ds.net_cash || 0));
-    setTxt('work-day-paid', formatShortK(ds.paid_amount || 0));
-    setTxt('work-day-unpaid', formatShortK(ds.unpaid_amount || 0));
-    setTxt('work-day-expense', formatShortK(ds.expense_amount || 0));
+    setTxt('work-day-job-count', `${activeSum.total_jobs || 0} đơn`);
+    setTxt('work-day-net', formatVND(activeSum.net_cash || 0));
+    setTxt('work-day-paid', formatShortK(activeSum.paid_amount || 0));
+    setTxt('work-day-unpaid', formatShortK(activeSum.unpaid_amount || 0));
+    setTxt('work-day-expense', formatShortK(activeSum.expense_amount || 0));
 
     // Extra badges (Nộp quỹ, Số quỹ, Mượn, Trả nợ)
     const extraEl = document.getElementById('work-day-extra-badges');
     if (extraEl) {
       const pills = [];
-      if (ds.fund_in > 0) pills.push(`<span class="work-extra-pill font-tabular">${workIconSVG('fund_in', 13)} <span>Nộp quỹ: ${formatShortK(ds.fund_in)}</span></span>`);
-      if (ds.fund_bal > 0) pills.push(`<span class="work-extra-pill font-tabular">${workIconSVG('fund_bal', 13)} <span>Số quỹ: ${formatShortK(ds.fund_bal)}</span></span>`);
-      if (ds.borrow_amount > 0) pills.push(`<span class="work-extra-pill font-tabular">${workIconSVG('borrow', 13)} <span>Mượn: ${formatShortK(ds.borrow_amount)}</span></span>`);
-      if (ds.repay_amount > 0) pills.push(`<span class="work-extra-pill font-tabular">${workIconSVG('repay', 13)} <span>Trả nợ: ${formatShortK(ds.repay_amount)}</span></span>`);
+      if (activeSum.fund_in > 0) pills.push(`<span class="work-extra-pill font-tabular">${workIconSVG('fund_in', 13)} <span>Nộp quỹ: ${formatShortK(activeSum.fund_in)}</span></span>`);
+      if (activeSum.fund_bal > 0) pills.push(`<span class="work-extra-pill font-tabular">${workIconSVG('fund_bal', 13)} <span>Số quỹ: ${formatShortK(activeSum.fund_bal)}</span></span>`);
+      if (activeSum.borrow_amount > 0) pills.push(`<span class="work-extra-pill font-tabular">${workIconSVG('borrow', 13)} <span>Mượn: ${formatShortK(activeSum.borrow_amount)}</span></span>`);
+      if (activeSum.repay_amount > 0) pills.push(`<span class="work-extra-pill font-tabular">${workIconSVG('repay', 13)} <span>Trả nợ: ${formatShortK(activeSum.repay_amount)}</span></span>`);
       if (pills.length > 0) {
         extraEl.style.display = 'flex';
         extraEl.innerHTML = pills.join('');
@@ -2488,15 +2486,13 @@
       }
     }
 
-    // Month strip (3-column banking footer)
-    if (workState.month) {
-      const mParts = workState.month.split('-');
-      setTxt('work-month-label', `Luỹ kế Tháng ${parseInt(mParts[1], 10)}/${mParts[0]}`);
-    }
-    setTxt('work-month-job-count', `${ms.total_jobs || 0} đơn`);
+    // Month strip (4-column banking footer)
+    setTxt('work-month-label', `Tổng kết ${monthHuman}`);
+    setTxt('work-month-job-count', `${ms.total_jobs || 0} đơn • Chi tiết →`);
     setTxt('work-month-revenue', formatShortK(ms.total_revenue || 0));
     setTxt('work-month-paid', formatShortK(ms.paid_amount || 0));
     setTxt('work-month-expense', formatShortK(ms.expense_amount || 0));
+    setTxt('work-month-net', formatShortK(ms.net_cash || 0));
 
     // Subtab badges
     setTxt('work-badge-day-jobs', String(workState.jobs.length));
@@ -2507,12 +2503,28 @@
     renderWorkMonthDays();
     renderWorkUnpaidGroups();
     renderWorkLedgerList();
+    renderWorkMonthReport();
   }
+
+  window.setWorkHeroScope = function (scope) {
+    workState.heroScope = scope === 'month' ? 'month' : 'day';
+    renderWorkScreen();
+  };
 
   window.stepWorkDate = function (delta) {
     const base = workState.date || state.today;
     const nextDate = shiftDateStr(base, delta);
     loadWorkData(nextDate);
+  };
+
+  window.stepWorkMonth = function (deltaMonths) {
+    const curMonth = workState.month || (workState.date || state.today).slice(0, 7);
+    const parts = curMonth.split('-').map(Number);
+    const dt = new Date(Date.UTC(parts[0], parts[1] - 1 + deltaMonths, 1));
+    const nextMonthStr = dt.toISOString().slice(0, 7);
+    const todayStr = workState.today || state.today || '';
+    const targetDate = todayStr.startsWith(nextMonthStr) ? todayStr : `${nextMonthStr}-01`;
+    loadWorkData(targetDate);
   };
 
   window.onWorkDateChange = function (val) {
@@ -2525,7 +2537,7 @@
 
   window.switchWorkSubTab = function (sub) {
     workState.subTab = sub;
-    ['jobs', 'unpaid', 'ledger'].forEach(k => {
+    ['jobs', 'unpaid', 'ledger', 'month'].forEach(k => {
       const btn = document.getElementById('work-subtab-btn-' + k);
       const pane = document.getElementById('work-subpane-' + k);
       if (btn) {
@@ -2818,6 +2830,7 @@
 
     container.innerHTML = days.map(d => {
       const isSelected = d.date === workState.date;
+      const netDay = (d.paid_amount || 0) - (d.expense_amount || 0);
       return `
         <button type="button" class="work-day-brief-row font-tabular" style="${isSelected ? 'border-color: #6CA844; background-color: #F2F9EE;' : ''}" onclick="loadWorkData('${d.date}')">
           <div>
@@ -2830,10 +2843,145 @@
           </div>
           <div style="text-align: right;">
             <span style="font-size: 14.5px; font-weight: 800; color: #1E3B13;">${formatShortK(d.total_revenue)}</span>
+            <div style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); margin-top: 1px;">Còn ${formatShortK(netDay)}</div>
           </div>
         </button>
       `;
     }).join('');
+  }
+
+  function renderWorkMonthReport() {
+    const ms = workState.monthSummary || {};
+    const days = workState.recentDays || [];
+    const activeDaysCount = days.length;
+    const jobDaysCount = days.filter(d => (d.job_count || 0) > 0).length;
+
+    let monthLabel = workState.month || '';
+    if (workState.month) {
+      const parts = workState.month.split('-');
+      monthLabel = `Tháng ${parseInt(parts[1], 10)}/${parts[0]}`;
+    }
+
+    const setTxt = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = val;
+    };
+
+    setTxt('work-mview-nav-title', monthLabel);
+    setTxt('work-mview-eyebrow', `TỔNG DOANH THU ${monthLabel.toUpperCase()}`);
+    setTxt('work-mview-badge', `${ms.total_jobs || 0} đơn • ${activeDaysCount} ngày`);
+
+    const revStr = formatVND(ms.total_revenue || 0);
+    setTxt('work-mview-revenue', revStr);
+    const mRevEl = document.getElementById('work-mview-revenue');
+    if (mRevEl) {
+      mRevEl.classList.toggle('is-long', revStr.length >= 12);
+    }
+
+    setTxt('work-mview-net', formatVND(ms.net_cash || 0));
+    setTxt('work-mview-paid', formatShortK(ms.paid_amount || 0));
+    setTxt('work-mview-paid-sub', `${ms.paid_jobs || 0} đơn đã thu`);
+    setTxt('work-mview-unpaid', formatShortK(ms.unpaid_amount || 0));
+    setTxt('work-mview-unpaid-sub', `${ms.unpaid_jobs || 0} đơn nợ`);
+    setTxt('work-mview-expense', formatShortK(ms.expense_amount || 0));
+    const avgExp = activeDaysCount > 0 ? Math.round((ms.expense_amount || 0) / activeDaysCount) : 0;
+    setTxt('work-mview-expense-sub', avgExp > 0 ? `TB ${formatShortK(avgExp)}/ngày` : 'Phát sinh tháng');
+
+    const avgRev = jobDaysCount > 0 ? Math.round((ms.total_revenue || 0) / jobDaysCount) : 0;
+    setTxt('work-mview-avg-day', formatShortK(avgRev));
+    setTxt('work-mview-avg-sub', `${jobDaysCount} ngày có đơn`);
+
+    setTxt('work-mview-fund', formatShortK(ms.fund_in || 0));
+    setTxt('work-mview-fund-sub', `Số quỹ: ${formatShortK(ms.fund_bal || 0)}`);
+
+    setTxt('work-mview-loan', formatShortK(ms.borrow_amount || 0));
+    setTxt('work-mview-loan-sub', `Trả nợ: ${formatShortK(ms.repay_amount || 0)}`);
+    setTxt('work-mview-export-btn-txt', `Xuất bảng tổng kết ${monthLabel} ra Excel (.csv)`);
+
+    // 1. Thống kê theo Khách hàng trong tháng
+    const custListEl = document.getElementById('work-month-customers-list');
+    const custCountEl = document.getElementById('work-mview-cust-count');
+    if (custListEl) {
+      const vault = readFinanceVaultSync();
+      const mPrefix = (workState.month || '') + '-';
+      const monthJobs = (vault.jobs || []).filter(j => (j.date || '').startsWith(mPrefix));
+      const byCust = {};
+      monthJobs.forEach(j => {
+        const key = (j.customer || '').trim().toLowerCase();
+        if (!key) return;
+        if (!byCust[key]) {
+          byCust[key] = {
+            customer: j.customer,
+            channel: j.channel || 'ZL',
+            count: 0,
+            total: 0,
+            paid: 0,
+            unpaid: 0
+          };
+        }
+        const p = Number(j.price) || 0;
+        byCust[key].count++;
+        byCust[key].total += p;
+        if (j.status === 'CTT') byCust[key].unpaid += p;
+        else byCust[key].paid += p;
+      });
+
+      const custArr = Object.values(byCust).sort((a, b) => b.total - a.total);
+      if (custCountEl) custCountEl.textContent = `${custArr.length} khách hàng`;
+
+      if (custArr.length === 0) {
+        custListEl.innerHTML = `<div class="empty-state-box">Chưa có đơn hàng nào trong ${monthLabel}.</div>`;
+      } else {
+        custListEl.innerHTML = custArr.map((c, idx) => `
+          <div class="work-month-cust-card font-tabular">
+            <div style="min-width: 0; flex: 1;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span class="work-stt-badge">#${idx + 1}</span>
+                <span class="work-ch-badge ${c.channel === 'FB' ? 'ch-fb' : 'ch-zl'}">${escapeHTML(c.channel)}</span>
+                <strong class="work-job-cust-name">${escapeHTML(c.customer)}</strong>
+              </div>
+              <div style="font-size: 11.5px; color: var(--text-sub); margin-top: 3px;">
+                ${c.count} đơn &bull; Đã thu ${formatShortK(c.paid)}
+                ${c.unpaid > 0 ? ` &bull; <span style="color:#B45309;font-weight:700;">Nợ ${formatShortK(c.unpaid)}</span>` : ''}
+              </div>
+            </div>
+            <div style="text-align: right; flex-shrink: 0;">
+              <strong style="font-size: 14.5px; font-weight: 800; color: #1E3B13;">${formatVND(c.total)}</strong>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+
+    // 2. Bảng kê từng ngày trong tháng
+    const fullDaysEl = document.getElementById('work-month-full-days-list');
+    const daysCountEl = document.getElementById('work-mview-days-count');
+    if (daysCountEl) daysCountEl.textContent = `${days.length} ngày phát sinh`;
+    if (fullDaysEl) {
+      if (days.length === 0) {
+        fullDaysEl.innerHTML = `<div class="empty-state-box">Chưa có dữ liệu ngày làm việc nào trong ${monthLabel}.</div>`;
+      } else {
+        fullDaysEl.innerHTML = days.map(d => {
+          const netDay = (d.paid_amount || 0) - (d.expense_amount || 0);
+          return `
+            <button type="button" class="work-day-brief-row font-tabular" onclick="loadWorkData('${d.date}'); switchWorkSubTab('jobs');">
+              <div style="min-width: 0; flex: 1;">
+                <strong style="font-size: 13.5px; color: var(--text-main);">${formatVNDate(d.date)} (${getDayOfWeekVN(d.date)})</strong>
+                <div style="font-size: 11.5px; color: var(--text-sub); margin-top: 2px;">
+                  ${d.job_count} đơn &bull; Thu ${formatShortK(d.paid_amount)}
+                  ${d.unpaid_amount > 0 ? ` &bull; <span style="color:#B45309;font-weight:700;">Nợ ${formatShortK(d.unpaid_amount)}</span>` : ''}
+                  ${d.expense_amount > 0 ? ` &bull; Chi ${formatShortK(d.expense_amount)}` : ''}
+                </div>
+              </div>
+              <div style="text-align: right; flex-shrink: 0;">
+                <span style="font-size: 14px; font-weight: 800; color: #1E3B13;">${formatVND(d.total_revenue)}</span>
+                <div style="font-size: 11px; font-weight: 700; color: #2B5719; margin-top: 1px;">Thực còn: ${formatShortK(netDay)}</div>
+              </div>
+            </button>
+          `;
+        }).join('');
+      }
+    }
   }
 
   function renderWorkUnpaidGroups() {

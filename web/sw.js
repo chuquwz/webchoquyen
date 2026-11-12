@@ -1,12 +1,12 @@
-const CACHE_NAME = 'quyenhealth-v30';
+const CACHE_NAME = 'quyenhealth-v32';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/style.css?v=30',
-  '/app.js?v=30',
+  '/style.css?v=32',
+  '/app.js?v=32',
   '/manifest.webmanifest',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png'
+  '/icons/icon-192.png?v=31',
+  '/icons/icon-512.png?v=31'
 ];
 
 self.addEventListener('install', (event) => {

@@ -208,13 +208,24 @@ a:focus-visible,
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background-color: #E2F0D6;
-  border: 1.5px solid #D2E7C2;
+  background-color: #FFFFFF;
+  border: 2px solid #88C459;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(43, 87, 25, 0.12);
+}
+
+.app-face-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  display: block;
+  border-radius: inherit;
 }
 
 .user-name-stack {
@@ -1204,11 +1215,14 @@ a:focus-visible,
   width: 58px;
   height: 58px;
   border-radius: 50%;
-  background-color: var(--color-tile-mint);
-  border: 2px solid #D2E7C2;
+  background-color: #FFFFFF;
+  border: 2px solid #88C459;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: 0 3px 10px rgba(43, 87, 25, 0.12);
 }
 
 .profile-name {
@@ -1504,13 +1518,16 @@ input[type="time"].form-input {
 }
 
 .login-brand-icon {
-  width: 64px;
-  height: 64px;
+  width: 76px;
+  height: 76px;
   border-radius: 50%;
-  background-color: var(--color-tile-mint);
+  background-color: #FFFFFF;
+  border: 2.5px solid #88C459;
+  box-shadow: 0 6px 18px rgba(43, 87, 25, 0.14);
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
   margin-bottom: 16px;
 }
 
@@ -2299,6 +2316,64 @@ body:not(.is-logged-in) #app-bottom-nav {
   margin-top: 12px;
   padding-top: 10px;
   border-top: 1px solid #EDF2EB;
+  cursor: pointer;
+}
+
+.work-hero-scope-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid #EEF3EC;
+  flex-wrap: nowrap;
+}
+
+.work-hero-scope-toggle {
+  display: inline-flex;
+  background-color: #EFF4ED;
+  border-radius: 10px;
+  padding: 2px;
+  border: 1px solid #DFEAE0;
+}
+
+.work-scope-btn {
+  height: 28px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  color: #4A5246;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease-out, color 0.15s ease-out;
+}
+
+.work-scope-btn.active {
+  background-color: #FFFFFF;
+  color: #1A3A0E;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.btn-hero-month-detail {
+  height: 28px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background-color: #F4F8F2;
+  border: 1px solid #D5E4CE;
+  color: #1E3B13;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+  cursor: pointer;
 }
 
 .work-month-footer-head {
@@ -2319,18 +2394,18 @@ body:not(.is-logged-in) #app-bottom-nav {
 .work-month-sub-badge {
   font-size: 11px;
   font-weight: 700;
-  color: var(--text-muted);
+  color: #215211;
   white-space: nowrap;
 }
 
-.work-month-grid-3 {
+.work-month-grid-4 {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
   background-color: #F8FAF7;
   border: 1px solid #E6EFE3;
   border-radius: 12px;
-  padding: 8px 10px;
+  padding: 8px 9px;
 }
 
 .work-month-cell {
@@ -2342,11 +2417,11 @@ body:not(.is-logged-in) #app-bottom-nav {
 
 .work-month-cell + .work-month-cell {
   border-left: 1px solid #E4ECE1;
-  padding-left: 8px;
+  padding-left: 6px;
 }
 
 .work-month-cell-lbl {
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--text-muted);
   white-space: nowrap;
@@ -2355,12 +2430,16 @@ body:not(.is-logged-in) #app-bottom-nav {
 }
 
 .work-month-cell-val {
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 800;
   color: var(--text-main);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.work-month-cell-val.is-net {
+  color: #1A3A0E;
 }
 
 /* Personal Device Vault Card (Chống mất dữ liệu khi Redeploy) */
@@ -2467,10 +2546,10 @@ body:not(.is-logged-in) #app-bottom-nav {
 /* Segmented Sub-tabs (Strictly 1 single line, never wraps) */
 .work-subtab-bar {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 5px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
   background-color: #EFF4ED;
-  padding: 5px;
+  padding: 4px;
   border-radius: 18px;
   margin-bottom: 14px;
 }
@@ -2482,17 +2561,139 @@ body:not(.is-logged-in) #app-bottom-nav {
   background: transparent;
   color: #4A5246;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 700;
-  padding: 0 6px;
+  padding: 0 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 3px;
   white-space: nowrap;
   cursor: pointer;
   min-width: 0;
   transition: background-color 0.15s ease-out, color 0.15s ease-out, transform 0.15s ease-out;
+}
+
+/* Monthly Report Subpane (Phân khu 4: Báo cáo tổng kết cả tháng) */
+.work-month-nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background-color: #FFFFFF;
+  border: 1px solid var(--border-card);
+  border-radius: 20px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow-card);
+}
+
+.work-month-picker-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+
+.work-month-nav-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-main);
+  white-space: nowrap;
+}
+
+.work-month-nav-sub {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-sub);
+  white-space: nowrap;
+}
+
+.work-month-statement-card {
+  background-color: #FFFFFF;
+  border: 1.5px solid #DCE8D6;
+  border-radius: 24px;
+  padding: 16px;
+  box-shadow: 0 6px 22px rgba(30, 59, 19, 0.06);
+}
+
+.work-mview-grid-6 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 2px;
+}
+
+.work-mview-box {
+  background-color: #F8FAF7;
+  border: 1px solid #E2EAE0;
+  border-radius: 13px;
+  padding: 8px 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.work-mview-box.box-paid {
+  background-color: #F2F9EE;
+  border-color: #D0E8C2;
+}
+
+.work-mview-box.box-unpaid {
+  background-color: #FFF8F1;
+  border-color: #FCD9B6;
+}
+
+.work-mview-box.box-expense {
+  background-color: #F8FAFC;
+  border-color: #E2E8F0;
+}
+
+.work-mview-box-lbl {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #4A5246;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.work-mview-box-val {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.box-paid .work-mview-box-val {
+  color: #1E4611;
+}
+
+.box-unpaid .work-mview-box-val {
+  color: #B45309;
+}
+
+.work-mview-box-sub {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.work-month-cust-card {
+  background-color: #FFFFFF;
+  border: 1px solid #E2EAE0;
+  border-radius: 16px;
+  padding: 11px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
 }
 
 .work-subtab-btn:not(:disabled):active {
