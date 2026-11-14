@@ -87,6 +87,7 @@ type backupGlucose struct {
 }
 
 func (s *Server) handleBackup(w http.ResponseWriter, r *http.Request) {
+	s.pruneOldHealthData(s.today())
 	b := backupData{
 		Version:  1,
 		ExportAt: s.now().Unix(),
@@ -200,12 +201,14 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	today := s.today()
+
 	if _, err := tx.Exec(`DELETE FROM water_log`); err != nil {
 		serverErr(w, err)
 		return
 	}
 	for _, x := range b.Water {
-		if x.Ml < 1 || x.Ml > 5000 || !validDate(x.Date) {
+		if x.Date != today || x.Ml < 1 || x.Ml > 5000 || !validDate(x.Date) {
 			continue
 		}
 		var cid any
@@ -228,8 +231,12 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if _, err := tx.Exec(`DELETE FROM med_log`); err != nil {
+		serverErr(w, err)
+		return
+	}
 	for _, x := range b.Med {
-		if !validDate(x.Date) {
+		if x.Date != today || !validDate(x.Date) {
 			continue
 		}
 		t := x.Taken
@@ -245,8 +252,12 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if _, err := tx.Exec(`DELETE FROM meal_plan`); err != nil {
+		serverErr(w, err)
+		return
+	}
 	for _, x := range b.Meals {
-		if !validDate(x.Date) || !validSlot(x.Slot) {
+		if x.Date != today || !validDate(x.Date) || !validSlot(x.Slot) {
 			continue
 		}
 		var items []meals.Item
@@ -264,15 +275,6 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
 	if _, err := tx.Exec(`DELETE FROM glucose_log`); err != nil {
 		serverErr(w, err)
 		return
-	}
-	for _, x := range b.Glucose {
-		if x.Mmol < 1 || x.Mmol > 40 || !validDate(x.Date) {
-			continue
-		}
-		if _, err := tx.Exec(`INSERT INTO glucose_log(ts,date,mmol,ctx) VALUES(?,?,?,?)`, x.Ts, x.Date, x.Mmol, x.Ctx); err != nil {
-			serverErr(w, err)
-			return
-		}
 	}
 
 	if b.WorkJobs != nil {
@@ -527,8 +529,9 @@ func (s *Server) tick(now time.Time) []string {
 	date := nowVN.Format("2006-01-02")
 	var fired []string
 
-	// Dọn notif_log cũ hơn 7 ngày
+	// Dọn notif_log cũ hơn 7 ngày và chỉ giữ dữ liệu sức khoẻ ngày hôm nay
 	_, _ = s.db.Exec(`DELETE FROM notif_log WHERE ts < ?`, now.Add(-7*24*time.Hour).Unix())
+	s.pruneOldHealthData(date)
 
 	// 1. Nhắc đo cân nặng buổi sáng (hỗ trợ nhiều mốc tự chọn)
 	weightTimes := parseHMList(set["remind_weight_times"], set["t_weight"])

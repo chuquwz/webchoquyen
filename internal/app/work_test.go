@@ -296,7 +296,7 @@ func TestMealChecklistDefault3Meals(t *testing.T) {
 		t.Fatalf("expected 200 POST /api/meals/check swapped, got %d: %s", w.Code, w.Body.String())
 	}
 
-	// 3. GET /api/meals?days=7 trả về đủ 21 dòng (3 bữa/ngày * 7 ngày) và phản ánh trạng thái đã lưu
+	// 3. GET /api/meals chỉ trả về đúng 3 bữa của ngày hôm nay và phản ánh trạng thái đã lưu
 	w = httptest.NewRecorder()
 	h.ServeHTTP(w, authedReq(srv, "GET", "/api/meals?days=7", nil))
 	if w.Code != 200 {
@@ -309,13 +309,16 @@ func TestMealChecklistDefault3Meals(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &mealsResp); err != nil {
 		t.Fatalf("unmarshal /api/meals: %v", err)
 	}
-	if mealsResp.MealsTarget != 3 || len(mealsResp.Rows) != 21 {
-		t.Fatalf("expected target=3 and 21 rows for 7 days, got target=%d len=%d", mealsResp.MealsTarget, len(mealsResp.Rows))
+	if mealsResp.MealsTarget != 3 || len(mealsResp.Rows) != 3 {
+		t.Fatalf("expected target=3 and 3 rows for today only, got target=%d len=%d", mealsResp.MealsTarget, len(mealsResp.Rows))
 	}
 
 	foundBreakfast := false
 	foundLunch := false
 	for _, r := range mealsResp.Rows {
+		if r.Date != today {
+			t.Fatalf("expected only today (%s) rows, got %s", today, r.Date)
+		}
 		if r.Date == today && r.Slot == "breakfast" {
 			foundBreakfast = true
 			if r.Status != "done" || r.Note != "Trứng luộc/hấp, Khoai lang/Ngô luộc" {
@@ -331,6 +334,64 @@ func TestMealChecklistDefault3Meals(t *testing.T) {
 	}
 	if !foundBreakfast || !foundLunch {
 		t.Fatalf("expected today's breakfast and lunch in /api/meals rows")
+	}
+}
+
+func TestPruneOldHealthDataKeepsWeightHistory(t *testing.T) {
+	srv := newTestServer(t)
+	h := srv.Handler()
+	today := srv.today()
+	yesterday := addDays(today, -1)
+
+	// Ghi dữ liệu sức khoẻ ngày hôm qua và lịch sử cân nặng nhiều ngày
+	if _, err := srv.db.Exec(`INSERT INTO water_log(ts, date, ml) VALUES(?, ?, ?)`, 1000, yesterday, 500); err != nil {
+		t.Fatalf("insert old water: %v", err)
+	}
+	if _, err := srv.db.Exec(`INSERT INTO med_log(date, taken, ts) VALUES(?, ?, ?)`, yesterday, 2, 1000); err != nil {
+		t.Fatalf("insert old med: %v", err)
+	}
+	if _, err := srv.db.Exec(`INSERT INTO meal_plan(date, slot, items_json, kcal, status, actual_note, updated_at) VALUES(?, 'breakfast', '[]', 0, 'done', '', 1000)`, yesterday); err != nil {
+		t.Fatalf("insert old meal: %v", err)
+	}
+	if _, err := srv.db.Exec(`INSERT INTO weight_log(date, kg, ts) VALUES(?, ?, ?), (?, ?, ?)`, yesterday, 97.5, 1000, today, 97.0, 2000); err != nil {
+		t.Fatalf("insert weights: %v", err)
+	}
+
+	// Gọi GET /api/today -> tự động xoá nước/thuốc/bữa ăn ngày cũ nhưng giữ toàn bộ cân nặng
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "GET", "/api/today", nil))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 GET /api/today, got %d", w.Code)
+	}
+
+	var cnt int
+	_ = srv.db.QueryRow(`SELECT COUNT(*) FROM water_log WHERE date=?`, yesterday).Scan(&cnt)
+	if cnt != 0 {
+		t.Fatalf("expected old water_log deleted, got %d", cnt)
+	}
+	_ = srv.db.QueryRow(`SELECT COUNT(*) FROM med_log WHERE date=?`, yesterday).Scan(&cnt)
+	if cnt != 0 {
+		t.Fatalf("expected old med_log deleted, got %d", cnt)
+	}
+	_ = srv.db.QueryRow(`SELECT COUNT(*) FROM meal_plan WHERE date=?`, yesterday).Scan(&cnt)
+	if cnt != 0 {
+		t.Fatalf("expected old meal_plan deleted, got %d", cnt)
+	}
+	_ = srv.db.QueryRow(`SELECT COUNT(*) FROM weight_log`).Scan(&cnt)
+	if cnt != 2 {
+		t.Fatalf("expected both yesterday and today weight_log preserved, got %d", cnt)
+	}
+
+	var todayResp struct {
+		Weight struct {
+			Rows []weightRow `json:"rows"`
+		} `json:"weight"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &todayResp); err != nil {
+		t.Fatalf("unmarshal /api/today weight rows: %v", err)
+	}
+	if len(todayResp.Weight.Rows) != 2 {
+		t.Fatalf("expected 2 weight rows in /api/today, got %d", len(todayResp.Weight.Rows))
 	}
 }
 

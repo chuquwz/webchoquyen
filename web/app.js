@@ -20,8 +20,6 @@
     todayWeight: null,
     todayMeals: [],
     mealsTarget: 3,
-    mealDate: '',
-    mealPlan: [],
     mealDayRows: [],
     weights: [],
     activeTab: 'today'
@@ -71,7 +69,6 @@
   async function init() {
     registerServiceWorker();
     setupRouting();
-    renderCalendarDays();
     try {
       const me = await api('/api/me');
       if (me && me.ok) {
@@ -270,25 +267,53 @@
       return `${parts[2]}/${parts[1]}/${parts[0]}`;
     }
 
-    function getDayOfWeekVN(dStr) {
-      const days = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
-      const d = new Date(dStr + 'T00:00:00');
-      return days[d.getDay()];
+    function formatDayMonth(dStr) {
+      if (!dStr) return '';
+      const parts = String(dStr).split('-');
+      if (parts.length < 3) return dStr;
+      return `${parts[2]}/${parts[1]}`;
+    }
+
+    function formatTimeHM(tsSec) {
+      const d = tsSec ? new Date(Number(tsSec) * 1000) : new Date();
+      if (Number.isNaN(d.getTime())) return '';
+      return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
+    }
+
+    function formatDayMonthTime(dStr, tsSec) {
+      const dm = formatDayMonth(dStr);
+      const hm = tsSec ? formatTimeHM(tsSec) : '';
+      if (dm && hm) return `${dm} • ${hm}`;
+      return dm ? `Ngày ${dm}` : hm;
     }
 
     function getMedDoseStorageKey(dateStr) {
       return 'qh_med_doses_' + (dateStr || state.today || 'today');
     }
 
+    function pruneOldMedDoseStorage(activeDate) {
+      const keepKey = getMedDoseStorageKey(activeDate || state.today);
+      try {
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith('qh_med_doses_') && k !== keepKey) {
+            localStorage.removeItem(k);
+          }
+        }
+      } catch (_) { }
+    }
+
     function persistMedDosesTaken() {
       try {
         if (state.today) {
+          pruneOldMedDoseStorage(state.today);
           localStorage.setItem(getMedDoseStorageKey(state.today), JSON.stringify(state.medDosesTaken));
         }
       } catch (_) { }
     }
 
     function reconcileMedDosesTaken(target, serverCount) {
+      pruneOldMedDoseStorage(state.today);
       const count = Math.min(target, Math.max(0, serverCount || 0));
       let doses = null;
       if (state.today) {
@@ -371,16 +396,18 @@
 
         if (data.weight) {
           state.todayWeight = data.weight.today;
+          state.weights = Array.isArray(data.weight.rows) ? data.weight.rows : [];
           if (data.weight.last) {
             state.currentWeight = data.weight.last.kg;
           } else if (state.settings.start_weight) {
             state.currentWeight = parseFloat(state.settings.start_weight);
           }
+        } else {
+          state.weights = [];
         }
 
         state.todayMeals = data.meals || [];
         state.mealsTarget = data.meals_target || (state.todayMeals.length > 0 ? state.todayMeals.length : 3);
-        if (!state.mealDate) state.mealDate = state.today;
 
         renderTodayHeader();
         renderWaterWidget();
@@ -427,7 +454,7 @@
     function renderTodayHeader() {
       const badge = document.getElementById('today-date-badge');
       if (badge) {
-        badge.textContent = `${getDayOfWeekVN(state.today)}, ${formatVNDate(state.today)}`;
+        badge.textContent = `Ngày ${formatDayMonth(state.today)} • ${formatTimeHM()}`;
       }
       const nameEl = document.getElementById('user-display-name');
       if (nameEl) {
@@ -683,8 +710,8 @@
       if (entriesCount) {
         if (state.waterEntries.length > 0) {
           const last = state.waterEntries[state.waterEntries.length - 1];
-          const timeStr = new Date(last.ts * 1000).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-          entriesCount.textContent = `Lần gần nhất: +${last.ml}ml lúc ${timeStr}`;
+          const timeStr = formatTimeHM(last.ts);
+          entriesCount.textContent = `Gần nhất: +${last.ml}ml • ${formatDayMonth(state.today)} lúc ${timeStr}`;
         } else {
           entriesCount.textContent = '';
         }
@@ -959,7 +986,55 @@
           sub.textContent = 'Cân vào sáng sớm sau khi vệ sinh cá nhân, trước khi ăn sáng.';
         }
       }
+      renderWeightModalHistory();
       renderDailyHealthScore();
+    }
+
+    function renderWeightModalHistory() {
+      const listEl = document.getElementById('weight-modal-history-list');
+      const countEl = document.getElementById('weight-modal-history-count');
+      if (!listEl) return;
+
+      const list = Array.isArray(state.weights)
+        ? state.weights.slice().sort((a, b) => String(a.date).localeCompare(String(b.date)))
+        : [];
+      if (countEl) {
+        countEl.textContent = `${list.length} lần đo`;
+      }
+      if (list.length === 0) {
+        listEl.innerHTML = '<div style="font-size: 12.5px; color: var(--text-muted); padding: 6px 0;">Chưa có lịch sử cân nặng nào được lưu.</div>';
+        return;
+      }
+
+      let html = '';
+      for (let i = list.length - 1; i >= 0; i--) {
+        const item = list[i];
+        let diffHtml = '<span style="color: var(--text-muted); font-size: 12px;">Mốc đầu</span>';
+        if (i > 0) {
+          const prev = list[i - 1];
+          const diff = Math.round((item.kg - prev.kg) * 10) / 10;
+          if (diff > 0) {
+            diffHtml = `<span style="color: #B91C1C; font-weight: 700; font-size: 12px;">+${diff.toFixed(1)} kg</span>`;
+          } else if (diff < 0) {
+            diffHtml = `<span style="color: #2B5719; font-weight: 700; font-size: 12px;">${diff.toFixed(1)} kg</span>`;
+          } else {
+            diffHtml = '<span style="color: var(--text-sub); font-size: 12px;">0.0 kg</span>';
+          }
+        }
+        const dm = formatDayMonth(item.date);
+        const hm = item.ts ? formatTimeHM(item.ts) : '';
+        const baseDate = item.date === state.today ? `Hôm nay (${dm})` : `Ngày ${dm}`;
+        const dateLabel = hm ? `${baseDate} • ${hm}` : baseDate;
+        html += `
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: ${item.date === state.today ? '#EEF7E8' : '#F9FBF8'}; border: 1px solid var(--border-subtle);">
+          <span class="font-tabular" style="font-size: 12.5px; color: var(--text-sub); font-weight: ${item.date === state.today ? '700' : '500'};">${escapeHtml(dateLabel)}</span>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            ${diffHtml}
+            <strong style="font-size: 13.5px; color: var(--text-main);">${Number(item.kg).toFixed(1)} kg</strong>
+          </div>
+        </div>`;
+      }
+      listEl.innerHTML = html;
     }
 
     window.adjustWeight = function (delta) {
@@ -998,10 +1073,13 @@
         return;
       }
       try {
-        await api('/api/weight', {
+        const res = await api('/api/weight', {
           method: 'POST',
           body: JSON.stringify({ kg, date: state.today })
         });
+        if (res && Array.isArray(res.rows)) {
+          state.weights = res.rows;
+        }
         state.todayWeight = kg;
         state.currentWeight = kg;
         renderWeightStepper();
@@ -1165,127 +1243,45 @@
           item.note = note;
         }
       };
-      updateRow(state.mealPlan);
       updateRow(state.mealDayRows);
       if (date === state.today) {
         updateRow(state.todayMeals);
       }
     }
 
-    // --- CALENDAR DAY STRIP CHO MÀN HÌNH TỔNG QUAN ---
-    function renderCalendarDays() {
-      const container = document.getElementById('calendar-days-container');
-      if (!container) return;
-
-      const todayDate = new Date();
-      const daysArr = [];
-      const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
-
-      // Lấy 5 ngày quanh hôm nay (-2 đến +2)
-      for (let offset = -2; offset <= 2; offset++) {
-        const d = new Date(todayDate);
-        d.setDate(todayDate.getDate() + offset);
-        daysArr.push({
-          name: dayNames[d.getDay()],
-          num: d.getDate(),
-          isToday: offset === 0
-        });
-      }
-
-      container.innerHTML = daysArr.map(item => `
-      <div class="day-capsule ${item.isToday ? 'active' : ''}" onclick="selectCalendarDay(this, ${item.num})">
-        <span class="day-name">${item.name}</span>
-        <span class="day-num">${item.num}</span>
-      </div>
-    `).join('');
-
-      const monthEl = document.getElementById('current-month-display');
-      if (monthEl) {
-        const monthNames = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
-        monthEl.textContent = `${monthNames[todayDate.getMonth()]}, ${todayDate.getFullYear()}`;
-      }
-    }
-
-    window.selectCalendarDay = function (el, dayNum) {
-      document.querySelectorAll('.day-capsule').forEach(c => c.classList.remove('active'));
-      el.classList.add('active');
-      showToast(`Đã chọn ngày ${dayNum}`);
-    };
-
-    window.openCalendarPicker = function () {
-      showToast('Chọn ngày để xem dữ liệu');
-    };
-
     window.openNotificationsModal = function () {
       showToast('Tất cả chỉ số sức khoẻ hôm nay đang được theo dõi ổn định!');
     };
 
-    // ================= 2. CHECKLIST ĂN ĐÚNG THỰC PHẨM GIẢM CÂN =================
-    async function loadMeals(targetDate) {
-      const activeDate = targetDate || state.mealDate || state.today;
-      state.mealDate = activeDate;
-
+    // ================= 2. CHECKLIST ĂN ĐÚNG THỰC PHẨM GIẢM CÂN (CHỈ HÔM NAY) =================
+    async function loadMeals() {
       const container = document.getElementById('meals-list-container');
       if (!container) return;
-      container.innerHTML = '<div style="text-align: center; padding: 24px 0; color: var(--text-muted); font-size: 13px;">Đang tải checklist bữa ăn...</div>';
+      container.innerHTML = '<div style="text-align: center; padding: 24px 0; color: var(--text-muted); font-size: 13px;">Đang tải checklist bữa ăn hôm nay...</div>';
 
       try {
-        const weekData = await api('/api/meals?days=7');
-        if (weekData.today) {
-          state.today = weekData.today;
+        const data = await api('/api/meals');
+        if (data.today) {
+          state.today = data.today;
         }
-        state.mealPlan = weekData.rows || [];
-        if (weekData.meals_target) {
-          state.mealsTarget = weekData.meals_target;
-        }
-
-        const dayRowsFromWeek = state.mealPlan.filter(m => m.date === activeDate);
-        if (dayRowsFromWeek.length > 0) {
-          state.mealDayRows = dayRowsFromWeek;
-        } else {
-          const dayData = await api(`/api/meals?from=${encodeURIComponent(activeDate)}&days=1`);
-          state.mealDayRows = dayData.rows || defaultMealsForDate(activeDate);
+        const rows = (data.rows && data.rows.length > 0) ? data.rows : defaultMealsForDate(state.today);
+        state.mealDayRows = rows;
+        state.todayMeals = rows.map(r => Object.assign({}, r));
+        if (data.meals_target) {
+          state.mealsTarget = data.meals_target;
         }
 
-        if (activeDate === state.today) {
-          state.todayMeals = state.mealDayRows.map(r => Object.assign({}, r));
-          renderMealsWidget();
-          renderDailyHealthScore();
-        }
-
+        renderMealsWidget();
+        renderDailyHealthScore();
         renderMealChecklistScreen();
       } catch (e) {
-        container.innerHTML = '<div style="text-align: center; color: #ef4444; padding: 20px;">Không tải được checklist bữa ăn. Vui lòng thử lại.</div>';
+        container.innerHTML = '<div style="text-align: center; color: #ef4444; padding: 20px;">Không tải được checklist bữa ăn hôm nay. Vui lòng thử lại.</div>';
       }
-    }
-
-    window.stepMealDate = function (delta) {
-      const base = state.mealDate || state.today;
-      const nextDate = shiftDateStr(base, delta);
-      loadMeals(nextDate);
-    };
-
-    window.onMealDateChange = function (val) {
-      if (val) loadMeals(val);
-    };
-
-    window.jumpMealToday = function () {
-      loadMeals(state.today);
-    };
-
-    function getMealHumanDateLabel(dateStr) {
-      if (!dateStr) return '';
-      if (dateStr === state.today) return 'Hôm nay';
-      if (dateStr === shiftDateStr(state.today, -1)) return 'Hôm qua';
-      if (dateStr === shiftDateStr(state.today, 1)) return 'Ngày mai';
-      return `${getDayOfWeekVN(dateStr)} (${formatVNDate(dateStr)})`;
     }
 
     function findMealRow(date, slot) {
       const inDay = (state.mealDayRows || []).find(m => m.date === date && m.slot === slot);
       if (inDay) return inDay;
-      const inPlan = (state.mealPlan || []).find(m => m.date === date && m.slot === slot);
-      if (inPlan) return inPlan;
       if (date === state.today) {
         return (state.todayMeals || []).find(m => m.slot === slot);
       }
@@ -1293,24 +1289,11 @@
     }
 
     function renderMealChecklistScreen() {
-      const activeDate = state.mealDate || state.today;
-
-      const dateInput = document.getElementById('meal-date-input');
-      if (dateInput) dateInput.value = activeDate;
-
-      const humanEl = document.getElementById('meal-date-human');
-      if (humanEl) humanEl.textContent = getMealHumanDateLabel(activeDate);
-
-      const todayBtn = document.getElementById('btn-meal-today');
-      if (todayBtn) {
-        const isToday = activeDate === state.today;
-        todayBtn.disabled = isToday;
-        todayBtn.style.opacity = isToday ? '0.55' : '1';
-      }
+      const activeDate = state.today;
 
       let dayRows = (state.mealDayRows || []).filter(m => m.date === activeDate);
       if (dayRows.length === 0) {
-        dayRows = (state.mealPlan || []).filter(m => m.date === activeDate);
+        dayRows = (state.todayMeals || []).filter(m => !m.date || m.date === activeDate);
       }
       if (dayRows.length === 0) {
         dayRows = defaultMealsForDate(activeDate);
@@ -1420,71 +1403,7 @@
           </div>`;
         }).join('');
       }
-
-      renderMealsHistory();
     }
-
-    function renderMealsHistory() {
-      const container = document.getElementById('meals-history-container');
-      const summaryEl = document.getElementById('meals-history-summary');
-      if (!container) return;
-
-      const rows = state.mealPlan || [];
-      if (rows.length === 0) {
-        container.innerHTML = '<div class="empty-state-box">Chưa có dữ liệu 7 ngày gần nhất.</div>';
-        if (summaryEl) summaryEl.textContent = '0/21 bữa đạt';
-        return;
-      }
-
-      const byDate = {};
-      let totalDone = 0;
-      let totalSlots = 0;
-      rows.forEach(r => {
-        if (!byDate[r.date]) byDate[r.date] = [];
-        byDate[r.date].push(r);
-        totalSlots++;
-        if (r.status === 'done') totalDone++;
-      });
-
-      if (summaryEl) {
-        summaryEl.textContent = `${totalDone}/${totalSlots} bữa đạt`;
-      }
-
-      const activeDate = state.mealDate || state.today;
-      const dates = Object.keys(byDate).sort((a, b) => b.localeCompare(a));
-
-      container.innerHTML = dates.map(d => {
-        const list = byDate[d];
-        const dayDone = list.filter(m => m.status === 'done').length;
-        const isSelected = d === activeDate;
-        const dayLabel = d === state.today
-          ? `Hôm nay (${formatVNDate(d).slice(0, 5)})`
-          : (d === shiftDateStr(state.today, -1)
-            ? `Hôm qua (${formatVNDate(d).slice(0, 5)})`
-            : `${getDayOfWeekVN(d)} (${formatVNDate(d).slice(0, 5)})`);
-
-        const slotPills = list.map(m => {
-          const meta = MEAL_SLOT_META[m.slot] || { short: m.slot };
-          const stCls = m.status === 'done' ? 'is-done' : (m.status === 'swapped' ? 'is-swapped' : 'is-pending');
-          const stIcon = m.status === 'done' ? '✓' : (m.status === 'swapped' ? '⚠' : '•');
-          return `<span class="meal-hist-pill ${stCls}">${stIcon} ${meta.short}</span>`;
-        }).join('');
-
-        return `
-        <button type="button" class="meal-history-row ${isSelected ? 'active' : ''}" onclick="loadMealsFromHistory('${d}')">
-          <div class="meal-hist-left">
-            <span class="meal-hist-date font-tabular">${dayLabel}</span>
-            <span class="meal-hist-count font-tabular">${dayDone}/${list.length} bữa đạt</span>
-          </div>
-          <div class="meal-hist-pills">${slotPills}</div>
-        </button>`;
-      }).join('');
-    }
-
-    window.loadMealsFromHistory = function (date) {
-      loadMeals(date);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
 
     window.toggleMealFoodChip = async function (date, slot, chipIndex) {
       const chips = MEAL_FOOD_CHIPS[slot] || [];
@@ -1977,56 +1896,6 @@
         }
       } catch (e) {
         showToast('Lỗi gửi thử chuông: ' + e.message, true);
-      }
-    };
-
-    // --- BÁO CÁO TUẦN ---
-    window.viewWeeklyReport = async function () {
-      openModal('modal-report');
-      const container = document.getElementById('report-content');
-      container.innerHTML = 'Đang tính toán số liệu 7 ngày qua...';
-      try {
-        const data = await api('/api/report?days=7');
-        const days = data.days || [];
-        const weights = data.weights || [];
-
-        let totalWater = 0;
-        let medCount = 0;
-        let totalDoneMeals = 0;
-        let totalPlannedMeals = 0;
-
-        days.forEach(d => {
-          totalWater += d.water;
-          if (d.med) medCount++;
-          totalDoneMeals += d.meals_done;
-          totalPlannedMeals += d.meals_total;
-        });
-
-        const avgWater = Math.round(totalWater / Math.max(1, days.length));
-        const mealRate = totalPlannedMeals > 0 ? Math.round((totalDoneMeals / totalPlannedMeals) * 100) : 0;
-        const medRate = Math.round((medCount / Math.max(1, days.length)) * 100);
-
-        let weightChange = 'Chưa có đủ số liệu';
-        if (weights.length >= 2) {
-          const diff = weights[weights.length - 1].kg - weights[0].kg;
-          weightChange = `${diff > 0 ? '+' : ''}${diff.toFixed(1)} kg (${weights[0].kg}kg &rarr; ${weights[weights.length - 1].kg}kg)`;
-        }
-
-        container.innerHTML = `
-        <div style="background: #F7FAF6; border: 1px solid var(--border-card); padding: 16px; border-radius: 18px; margin-bottom: 16px;">
-          <div style="font-size: 15px; font-weight: 700; margin-bottom: 10px;">Tóm tắt tuân thủ 7 ngày</div>
-          <div style="margin-bottom: 6px;"><strong>Nước lọc TB:</strong> <span style="font-weight:700;">${avgWater.toLocaleString('vi-VN')} ml / ngày</span> (chuẩn 2.500ml)</div>
-          <div style="margin-bottom: 6px;"><strong>Ăn đúng giảm cân:</strong> <span style="font-weight:700;">${mealRate}%</span> bữa chính</div>
-          <div style="margin-bottom: 6px;"><strong>Uống thuốc đều:</strong> <span style="font-weight:700;">${medRate}%</span> (${medCount}/7 ngày)</div>
-          <div><strong>Cân nặng thay đổi:</strong> <strong style="color: var(--color-score-ring);">${weightChange}</strong></div>
-        </div>
-        <div style="color: var(--text-muted); font-size: 12px; margin-bottom: 14px; line-height: 1.5;">
-          * Báo cáo này để đưa Bác sĩ xem trong mỗi lần tái khám định kỳ theo dõi gan.
-        </div>
-        <button class="btn-green-pill" style="width: 100%;" onclick="window.print()">In hoặc Lưu PDF</button>
-      `;
-      } catch (e) {
-        container.innerHTML = '<div style="color: #ef4444;">Lỗi tải báo cáo.</div>';
       }
     };
 
@@ -2765,11 +2634,11 @@
       const humanEl = document.getElementById('work-date-human');
       if (humanEl) {
         if (workState.date === workState.today) {
-          humanEl.textContent = `Hôm nay (${getDayOfWeekVN(workState.date)})`;
+          humanEl.textContent = `Hôm nay (${formatDayMonth(workState.date)})`;
         } else if (workState.date === shiftDateStr(workState.today, -1)) {
-          humanEl.textContent = `Hôm qua (${getDayOfWeekVN(workState.date)})`;
+          humanEl.textContent = `Hôm qua (${formatDayMonth(workState.date)})`;
         } else {
-          humanEl.textContent = `${getDayOfWeekVN(workState.date)} - ${formatVNDate(workState.date)}`;
+          humanEl.textContent = `Ngày ${formatDayMonth(workState.date)}`;
         }
       }
 
@@ -3085,7 +2954,10 @@
             <span class="work-job-price-val font-tabular">${formatVND(j.price)}</span>
           </div>
           <div class="work-job-bottom">
-            <span class="work-job-service-name">${escapeHTML(j.service)}</span>
+            <div style="width: 100%; min-width: 0;">
+              <span class="work-job-service-name">${escapeHTML(j.service)}</span>
+              <div class="font-tabular" style="font-size: 11.5px; color: var(--text-sub); margin-top: 2px;">${escapeHTML(formatDayMonthTime(j.date || workState.date, j.ts))}</div>
+            </div>
             <div class="work-job-actions">
               <button type="button" class="btn-status-toggle ${stClass}" onclick="toggleWorkJobStatus(${j.id}, '${isCTT ? 'TT' : 'CTT'}')" aria-label="Đổi trạng thái thanh toán đơn ${escapeHTML(j.customer)}">
                 ${stLabel}
@@ -3181,7 +3053,7 @@
         return `
         <button type="button" class="work-day-brief-row font-tabular" style="${isSelected ? 'border-color: #6CA844; background-color: #F2F9EE;' : ''}" onclick="loadWorkData('${d.date}')">
           <div>
-            <strong style="font-size: 13.5px; color: var(--text-main);">${formatVNDate(d.date)} (${getDayOfWeekVN(d.date)})</strong>
+            <strong style="font-size: 13.5px; color: var(--text-main);">Ngày ${formatDayMonth(d.date)}</strong>
             <div style="font-size: 11.5px; color: var(--text-sub); margin-top: 2px;">
               ${d.job_count} đơn &bull; Đã thu ${formatShortK(d.paid_amount)}
               ${d.unpaid_amount > 0 ? ` &bull; <span style="color:#B45309;font-weight:700;">Nợ ${formatShortK(d.unpaid_amount)}</span>` : ''}
@@ -3313,7 +3185,7 @@
             return `
             <button type="button" class="work-day-brief-row font-tabular" onclick="loadWorkData('${d.date}'); switchWorkSubTab('jobs');">
               <div style="min-width: 0; flex: 1;">
-                <strong style="font-size: 13.5px; color: var(--text-main);">${formatVNDate(d.date)} (${getDayOfWeekVN(d.date)})</strong>
+                <strong style="font-size: 13.5px; color: var(--text-main);">Ngày ${formatDayMonth(d.date)}</strong>
                 <div style="font-size: 11.5px; color: var(--text-sub); margin-top: 2px;">
                   ${d.job_count} đơn &bull; Thu ${formatShortK(d.paid_amount)}
                   ${d.unpaid_amount > 0 ? ` &bull; <span style="color:#B45309;font-weight:700;">Nợ ${formatShortK(d.unpaid_amount)}</span>` : ''}
@@ -3522,7 +3394,10 @@
       <div class="work-job-card">
         <div class="work-job-top">
           <div>
-            <span class="work-stt-badge">${getLedgerCatLabel(item.category)}</span>
+            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+              <span class="work-stt-badge">${getLedgerCatLabel(item.category)}</span>
+              <span class="font-tabular" style="font-size: 11.5px; color: var(--text-sub);">${escapeHTML(formatDayMonthTime(item.date || workState.date, item.ts))}</span>
+            </div>
             <div class="work-job-cust-name" style="margin-top: 5px;">${escapeHTML(item.note)}</div>
           </div>
           <div style="display: flex; align-items: center; gap: 8px;">

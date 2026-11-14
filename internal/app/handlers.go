@@ -172,6 +172,18 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 	s.handleGetSettings(w, r)
 }
 
+// pruneOldHealthData xoá dữ liệu sức khoẻ của các ngày cũ (nước, thuốc, bữa ăn, đường huyết),
+// chỉ giữ lại dữ liệu sức khoẻ của ngày hôm nay và toàn bộ lịch sử cân nặng (weight_log).
+func (s *Server) pruneOldHealthData(today string) {
+	if today == "" {
+		today = s.today()
+	}
+	_, _ = s.db.Exec(`DELETE FROM water_log WHERE date <> ?`, today)
+	_, _ = s.db.Exec(`DELETE FROM med_log WHERE date <> ?`, today)
+	_, _ = s.db.Exec(`DELETE FROM meal_plan WHERE date <> ?`, today)
+	_, _ = s.db.Exec(`DELETE FROM glucose_log`)
+}
+
 // ---------- nước ----------
 
 type waterEntry struct {
@@ -211,10 +223,12 @@ func (s *Server) handleAddWater(w http.ResponseWriter, r *http.Request) {
 		httpErr(w, 400, "Lượng nước phải từ 1 đến 2000 ml")
 		return
 	}
+	today := s.today()
+	s.pruneOldHealthData(today)
 	now := s.now()
 	ts := now.Unix()
-	if in.Ts > now.Add(-48*time.Hour).Unix() && in.Ts <= now.Add(5*time.Minute).Unix() {
-		ts = in.Ts // hàng đợi offline gửi lại với thời điểm thật
+	if in.Ts > now.Add(-24*time.Hour).Unix() && in.Ts <= now.Add(5*time.Minute).Unix() && s.dateOf(in.Ts) == today {
+		ts = in.Ts // hàng đợi offline cùng ngày gửi lại với thời điểm thật
 	}
 	var cid any
 	if in.Cid != "" {
@@ -224,11 +238,11 @@ func (s *Server) handleAddWater(w http.ResponseWriter, r *http.Request) {
 		}
 		cid = in.Cid
 	}
-	if _, err := s.db.Exec(`INSERT OR IGNORE INTO water_log(cid, ts, date, ml) VALUES(?,?,?,?)`, cid, ts, s.dateOf(ts), in.Ml); err != nil {
+	if _, err := s.db.Exec(`INSERT OR IGNORE INTO water_log(cid, ts, date, ml) VALUES(?,?,?,?)`, cid, ts, today, in.Ml); err != nil {
 		serverErr(w, err)
 		return
 	}
-	entries, total := s.waterEntries(s.today())
+	entries, total := s.waterEntries(today)
 	writeJSON(w, 200, map[string]any{"total": total, "entries": entries})
 }
 
@@ -238,11 +252,13 @@ func (s *Server) handleDelWater(w http.ResponseWriter, r *http.Request) {
 		httpErr(w, 400, "id không hợp lệ")
 		return
 	}
-	if _, err := s.db.Exec(`DELETE FROM water_log WHERE id=?`, id); err != nil {
+	today := s.today()
+	s.pruneOldHealthData(today)
+	if _, err := s.db.Exec(`DELETE FROM water_log WHERE id=? AND date=?`, id, today); err != nil {
 		serverErr(w, err)
 		return
 	}
-	entries, total := s.waterEntries(s.today())
+	entries, total := s.waterEntries(today)
 	writeJSON(w, 200, map[string]any{"total": total, "entries": entries})
 }
 
@@ -251,19 +267,20 @@ func (s *Server) handleDelWater(w http.ResponseWriter, r *http.Request) {
 type weightRow struct {
 	Date string  `json:"date"`
 	Kg   float64 `json:"kg"`
+	Ts   int64   `json:"ts"`
 }
 
 func (s *Server) weights(days int) []weightRow {
 	from := addDays(s.today(), -days+1)
 	out := []weightRow{}
-	rows, err := s.db.Query(`SELECT date, kg FROM weight_log WHERE date>=? ORDER BY date`, from)
+	rows, err := s.db.Query(`SELECT date, kg, COALESCE(ts, 0) FROM weight_log WHERE date>=? ORDER BY date`, from)
 	if err != nil {
 		return out
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var x weightRow
-		if rows.Scan(&x.Date, &x.Kg) == nil {
+		if rows.Scan(&x.Date, &x.Kg, &x.Ts) == nil {
 			out = append(out, x)
 		}
 	}
@@ -300,7 +317,7 @@ func (s *Server) handlePostWeight(w http.ResponseWriter, r *http.Request) {
 		serverErr(w, err)
 		return
 	}
-	writeJSON(w, 200, map[string]any{"rows": s.weights(90), "target_kcal": s.targetKcal(s.settings())})
+	writeJSON(w, 200, map[string]any{"rows": s.weights(3650), "target_kcal": s.targetKcal(s.settings())})
 }
 
 func (s *Server) handleDelWeight(w http.ResponseWriter, r *http.Request) {
@@ -313,7 +330,7 @@ func (s *Server) handleDelWeight(w http.ResponseWriter, r *http.Request) {
 		serverErr(w, err)
 		return
 	}
-	writeJSON(w, 200, map[string]any{"rows": s.weights(90)})
+	writeJSON(w, 200, map[string]any{"rows": s.weights(3650)})
 }
 
 // ---------- thuốc ----------
@@ -357,13 +374,8 @@ func (s *Server) handlePutMed(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &in) {
 		return
 	}
-	if in.Date == "" {
-		in.Date = s.today()
-	}
-	if !validDate(in.Date) || in.Date > s.today() {
-		httpErr(w, 400, "ngày không hợp lệ")
-		return
-	}
+	today := s.today()
+	s.pruneOldHealthData(today)
 	set := s.settings()
 	times := s.medScheduleTimes(set)
 	target := s.medTargetCount(set)
@@ -381,12 +393,12 @@ func (s *Server) handlePutMed(w http.ResponseWriter, r *http.Request) {
 		t = target
 	}
 	if _, err := s.db.Exec(`INSERT INTO med_log(date,taken,ts) VALUES(?,?,?) ON CONFLICT(date) DO UPDATE SET taken=excluded.taken, ts=excluded.ts`,
-		in.Date, t, s.now().Unix()); err != nil {
+		today, t, s.now().Unix()); err != nil {
 		serverErr(w, err)
 		return
 	}
 	writeJSON(w, 200, map[string]any{
-		"date":         in.Date,
+		"date":         today,
 		"taken_count":  t,
 		"target_count": target,
 		"taken":        t >= target,
@@ -395,26 +407,17 @@ func (s *Server) handlePutMed(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleGetMed(w http.ResponseWriter, r *http.Request) {
-	days := queryInt(r, "days", 30, 1, 366)
-	from := addDays(s.today(), -days+1)
+	today := s.today()
+	s.pruneOldHealthData(today)
 	set := s.settings()
 	target := s.medTargetCount(set)
+	cnt := s.medTakenCount(today)
 	out := []string{}
 	counts := map[string]int{}
-	rows, err := s.db.Query(`SELECT date, taken FROM med_log WHERE date>=? AND taken>0 ORDER BY date`, from)
-	if err != nil {
-		serverErr(w, err)
-		return
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var d string
-		var cnt int
-		if rows.Scan(&d, &cnt) == nil {
-			counts[d] = cnt
-			if cnt >= target {
-				out = append(out, d)
-			}
+	if cnt > 0 {
+		counts[today] = cnt
+		if cnt >= target {
+			out = append(out, today)
 		}
 	}
 	writeJSON(w, 200, map[string]any{
@@ -422,7 +425,7 @@ func (s *Server) handleGetMed(w http.ResponseWriter, r *http.Request) {
 		"counts":       counts,
 		"target_count": target,
 		"times":        s.medScheduleTimes(set),
-		"today":        s.today(),
+		"today":        today,
 	})
 }
 
@@ -597,22 +600,11 @@ func toPlan(rows []mealRow) map[string]meals.Day {
 }
 
 func (s *Server) handleGetMeals(w http.ResponseWriter, r *http.Request) {
-	days := queryInt(r, "days", 7, 1, 31)
-	from := r.URL.Query().Get("from")
-	var to string
-	if from == "" {
-		to = s.today()
-		from = addDays(to, -days+1)
-	} else {
-		if !validDate(from) {
-			httpErr(w, 400, "ngày không hợp lệ")
-			return
-		}
-		to = addDays(from, days-1)
-	}
+	today := s.today()
+	s.pruneOldHealthData(today)
 	set := s.settings()
 	slots := activeMealSlots(set)
-	rows, err := s.loadChecklistMeals(s.db, from, to, slots)
+	rows, err := s.loadChecklistMeals(s.db, today, today, slots)
 	if err != nil {
 		serverErr(w, err)
 		return
@@ -620,7 +612,7 @@ func (s *Server) handleGetMeals(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{
 		"rows":         rows,
 		"target_kcal":  s.targetKcal(set),
-		"today":        s.today(),
+		"today":        today,
 		"meals_target": len(slots),
 	})
 }
@@ -767,10 +759,12 @@ func (s *Server) handleCheckMeal(w http.ResponseWriter, r *http.Request) {
 	if !readJSON(w, r, &in) {
 		return
 	}
-	if !validDate(in.Date) || !validSlot(in.Slot) {
+	if !validSlot(in.Slot) {
 		httpErr(w, 400, "dữ liệu không hợp lệ")
 		return
 	}
+	today := s.today()
+	s.pruneOldHealthData(today)
 	switch in.Status {
 	case "pending", "done", "swapped":
 	default:
@@ -792,11 +786,11 @@ func (s *Server) handleCheckMeal(w http.ResponseWriter, r *http.Request) {
 	itemsJSON, _ := json.Marshal(items)
 	if _, err := s.db.Exec(`INSERT INTO meal_plan(date,slot,items_json,kcal,status,actual_note,updated_at) VALUES(?,?,?,0,?,?,?)
 		ON CONFLICT(date,slot) DO UPDATE SET items_json=excluded.items_json, status=excluded.status, actual_note=excluded.actual_note, updated_at=excluded.updated_at`,
-		in.Date, in.Slot, string(itemsJSON), in.Status, note, s.now().Unix()); err != nil {
+		today, in.Slot, string(itemsJSON), in.Status, note, s.now().Unix()); err != nil {
 		serverErr(w, err)
 		return
 	}
-	writeJSON(w, 200, map[string]any{"date": in.Date, "slot": in.Slot, "status": in.Status, "note": note, "items": items})
+	writeJSON(w, 200, map[string]any{"date": today, "slot": in.Slot, "status": in.Status, "note": note, "items": items})
 }
 
 func (s *Server) handleShopping(w http.ResponseWriter, r *http.Request) {
@@ -831,10 +825,11 @@ func (s *Server) handleShopping(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleToday(w http.ResponseWriter, r *http.Request) {
 	date := s.today()
+	s.pruneOldHealthData(date)
 	set := s.settings()
 	entries, total := s.waterEntries(date)
 
-	ws := s.weights(400)
+	ws := s.weights(3650)
 	var todayKg *float64
 	var last, prev *weightRow
 	for i := range ws {
@@ -865,7 +860,7 @@ func (s *Server) handleToday(w http.ResponseWriter, r *http.Request) {
 		"settings":    set,
 		"target_kcal": s.targetKcal(set),
 		"water":       map[string]any{"total": total, "entries": entries},
-		"weight":      map[string]any{"today": todayKg, "last": last, "prev": prev, "first": firstOrNil(ws)},
+		"weight":      map[string]any{"today": todayKg, "last": last, "prev": prev, "first": firstOrNil(ws), "rows": ws},
 		"med": map[string]any{
 			"taken":        medCount >= medTarget,
 			"taken_count":  medCount,
@@ -885,12 +880,13 @@ func firstOrNil(ws []weightRow) *weightRow {
 	return &ws[0]
 }
 
-// ---------- báo cáo tuần ----------
+// ---------- báo cáo hôm nay ----------
 
 func (s *Server) handleReport(w http.ResponseWriter, r *http.Request) {
-	days := queryInt(r, "days", 7, 1, 31)
+	const days = 1
 	to := s.today()
-	from := addDays(to, -days+1)
+	s.pruneOldHealthData(to)
+	from := to
 	set := s.settings()
 	medTarget := s.medTargetCount(set)
 	type dayRep struct {
@@ -905,12 +901,9 @@ func (s *Server) handleReport(w http.ResponseWriter, r *http.Request) {
 	}
 	idx := map[string]*dayRep{}
 	out := make([]*dayRep, 0, days)
-	for i := 0; i < days; i++ {
-		d := addDays(from, i)
-		dr := &dayRep{Date: d, MedTarget: medTarget, Total: 3}
-		idx[d] = dr
-		out = append(out, dr)
-	}
+	dr := &dayRep{Date: to, MedTarget: medTarget, Total: 3}
+	idx[to] = dr
+	out = append(out, dr)
 	if rows, err := s.db.Query(`SELECT date, SUM(ml) FROM water_log WHERE date>=? AND date<=? GROUP BY date`, from, to); err == nil {
 		for rows.Next() {
 			var d string
@@ -946,11 +939,8 @@ func (s *Server) handleReport(w http.ResponseWriter, r *http.Request) {
 		}
 		rows.Close()
 	}
-	var wRows []weightRow
-	for _, x := range s.weights(days) {
-		wRows = append(wRows, x)
-	}
-	writeJSON(w, 200, map[string]any{"days": out, "weights": wRows, "glucose": s.glucose(days),
+	wRows := s.weights(3650)
+	writeJSON(w, 200, map[string]any{"days": out, "weights": wRows, "glucose": []glucoseRow{},
 		"water_min": fnum(set, "water_min"), "water_max": fnum(set, "water_max")})
 }
 
