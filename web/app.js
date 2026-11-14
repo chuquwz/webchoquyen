@@ -452,10 +452,6 @@
     }
 
     function renderTodayHeader() {
-      const badge = document.getElementById('today-date-badge');
-      if (badge) {
-        badge.textContent = `Ngày ${formatDayMonth(state.today)} • ${formatTimeHM()}`;
-      }
       const nameEl = document.getElementById('user-display-name');
       if (nameEl) {
         if (state.currentUser === 'dev') {
@@ -1218,10 +1214,6 @@
         renderMealsWidget();
         renderDailyHealthScore();
       }
-    };
-
-    window.openNotificationsModal = function () {
-      showToast('Tất cả chỉ số sức khoẻ hôm nay đang được theo dõi ổn định!');
     };
 
     // ================= 4. CÀI ĐẶT & NHẮC NHỞ =================
