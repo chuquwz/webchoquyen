@@ -37,6 +37,16 @@ CREATE TABLE IF NOT EXISTS work_jobs (
   ts INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_work_jobs_date ON work_jobs(date);
 CREATE INDEX IF NOT EXISTS idx_work_jobs_status ON work_jobs(status);
+CREATE TABLE IF NOT EXISTS work_job_payments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  job_id INTEGER NOT NULL,
+  date TEXT NOT NULL,
+  amount INTEGER NOT NULL,
+  note TEXT NOT NULL DEFAULT '',
+  ts INTEGER NOT NULL,
+  FOREIGN KEY(job_id) REFERENCES work_jobs(id) ON DELETE CASCADE);
+CREATE INDEX IF NOT EXISTS idx_work_job_pay_job ON work_job_payments(job_id);
+CREATE INDEX IF NOT EXISTS idx_work_job_pay_date ON work_job_payments(date);
 CREATE TABLE IF NOT EXISTS work_ledger (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   date TEXT NOT NULL,

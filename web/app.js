@@ -575,6 +575,20 @@
           medSummary.style.color = '#C2410C';
         }
       }
+      const mealsSummary = document.getElementById('summary-meals-display');
+      if (mealsSummary) {
+        const mealsTarget = MEAL_SLOT_ORDER.length;
+        if (doneMealsCount >= mealsTarget) {
+          mealsSummary.textContent = `Đủ ${mealsTarget}/${mealsTarget} bữa`;
+          mealsSummary.style.color = '#2B5719';
+        } else if (doneMealsCount > 0) {
+          mealsSummary.textContent = `${doneMealsCount}/${mealsTarget} bữa`;
+          mealsSummary.style.color = '#9A4A08';
+        } else {
+          mealsSummary.textContent = `0/${mealsTarget} bữa`;
+          mealsSummary.style.color = '#9A4A08';
+        }
+      }
     }
 
     // Mở modal giải thích chi tiết điểm tuân thủ hôm nay
@@ -1126,6 +1140,11 @@
         note: ''
       });
     }
+
+    window.openMealsModal = function () {
+      renderMealsWidget();
+      openModal('modal-meals');
+    };
 
     function renderMealsWidget() {
       const mealsList = normalizeTodayHealthyMeals();
@@ -1801,10 +1820,11 @@
 
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
-        document.querySelectorAll('.modal-overlay.open').forEach(el => {
-          if (el.id) window.closeModal(el.id);
-          else el.classList.remove('open');
-        });
+        const openModals = Array.from(document.querySelectorAll('.modal-overlay.open'));
+        if (openModals.length === 0) return;
+        const topModal = openModals[openModals.length - 1];
+        if (topModal.id) window.closeModal(topModal.id);
+        else topModal.classList.remove('open');
       }
     });
 
@@ -1817,34 +1837,123 @@
       today: '',
       heroScope: 'day', // 'day' | 'month'
       ledgerScope: 'day', // 'day' | 'month'
-      subTab: 'jobs', // 'jobs' | 'unpaid' | 'month'
+      subTab: 'jobs', // 'jobs' | 'unpaid'
       jobs: [],
       ledger: [],
+      allBorrows: [],
+      borrowFilter: 'all', // 'all' | 'unpaid' | 'settled'
       dayRepayments: [],
       daySummary: {},
       monthSummary: {},
       unpaidGroups: [],
+      debtGroups: [],
+      debtFilter: 'all',
       totalUnpaidAll: 0,
       totalUnpaidJobs: 0,
       recentDays: [],
       suggestions: { customers: [], services: [] }
     };
 
-    function getBorrowTotals(item) {
-      const orig = Math.max(0, Number(item && item.amount) || 0);
-      const reps = Array.isArray(item && item.repayments) ? item.repayments : [];
-      const sumReps = reps.reduce((acc, r) => acc + Math.max(0, Number(r && r.amount) || 0), 0);
-      const paid = reps.length > 0
-        ? sumReps
-        : Math.max(0, Number(item && item.paid_amount) || 0);
+    function getInstallmentTotals(origRaw, installmentsRaw, fallbackPaidRaw) {
+      const orig = Math.max(0, Number(origRaw) || 0);
+      const installments = Array.isArray(installmentsRaw) ? installmentsRaw : [];
+      const sumPaid = installments.reduce((acc, r) => acc + Math.max(0, Number(r && r.amount) || 0), 0);
+      const paid = installments.length > 0
+        ? sumPaid
+        : Math.max(0, Number(fallbackPaidRaw) || 0);
       const remaining = Math.max(0, orig - paid);
       const overpaid = Math.max(0, paid - orig);
-      return { orig, paid, remaining, overpaid, repayments: reps };
+      return { orig, paid, remaining, overpaid, installments };
+    }
+
+    function getBorrowTotals(item) {
+      const t = getInstallmentTotals(item && item.amount, item && item.repayments, item && item.paid_amount);
+      return { orig: t.orig, paid: t.paid, remaining: t.remaining, overpaid: t.overpaid, repayments: t.installments };
+    }
+
+    function getDebtJobTotals(job) {
+      const orig = Math.max(0, Number(job && job.price) || 0);
+      const pays = Array.isArray(job && job.payments) ? job.payments : [];
+      const isTT = Boolean(job && job.status === 'TT');
+      if (pays.length > 0) {
+        const t = getInstallmentTotals(orig, pays, job && job.paid_amount);
+        return {
+          orig: t.orig,
+          paid: t.paid,
+          remaining: isTT ? 0 : t.remaining,
+          overpaid: t.overpaid,
+          payments: pays
+        };
+      }
+      return {
+        orig,
+        paid: isTT ? orig : 0,
+        remaining: isTT ? 0 : orig,
+        overpaid: 0,
+        payments: []
+      };
+    }
+
+    function findDebtJobById(jobId) {
+      const target = Number(jobId);
+      const scan = (list) => {
+        for (const x of (list || [])) {
+          if (x && Number(x.id) === target) return x;
+        }
+        return null;
+      };
+      let found = scan(workState.jobs);
+      if (found) return found;
+      for (const grpList of [workState.debtGroups, workState.unpaidGroups]) {
+        for (const g of (grpList || [])) {
+          found = scan(g && g.jobs);
+          if (found) return found;
+        }
+      }
+      const vault = readFinanceVaultSync();
+      return scan(vault.jobs);
+    }
+
+    function getAllBorrowItems() {
+      const vault = readFinanceVaultSync();
+      const vBorrows = Array.isArray(vault.ledger)
+        ? vault.ledger.filter(l => l && l.category === 'borrow')
+        : [];
+      if (vBorrows.length > 0) return vBorrows;
+      return Array.isArray(workState.allBorrows) ? workState.allBorrows : [];
+    }
+
+    function getGlobalBorrowSummary() {
+      const items = getAllBorrowItems();
+      let orig = 0;
+      let paid = 0;
+      let remaining = 0;
+      let unpaidCount = 0;
+      let settledCount = 0;
+      items.forEach(item => {
+        const t = getBorrowTotals(item);
+        orig += t.orig;
+        paid += t.paid;
+        remaining += t.remaining;
+        if (t.orig > 0 && t.remaining <= 0) settledCount++;
+        else unpaidCount++;
+      });
+      return {
+        items,
+        totalCount: items.length,
+        unpaidCount,
+        settledCount,
+        orig,
+        paid,
+        remaining
+      };
     }
 
     function findBorrowLedgerItem(ledgerId) {
       const targetId = Number(ledgerId);
       if (!targetId) return null;
+      const inAll = getAllBorrowItems().find(l => Number(l.id) === targetId);
+      if (inAll) return inAll;
       const inState = (workState.ledger || []).find(l => Number(l.id) === targetId);
       if (inState) return inState;
       const v = readFinanceVaultSync();
@@ -2029,9 +2138,91 @@
       return payload;
     }
 
-    function removeJobFromLocalVault(jobId) {
+    function removeJobFromLocalVault(jobId, opts = {}) {
       const cur = readFinanceVaultSync();
       cur.jobs = (cur.jobs || []).filter(j => Number(j.id) !== Number(jobId));
+      if (opts.dirty) cur.dirty = true;
+      saveFinanceVaultToDevice(cur);
+    }
+
+    function normalizeVaultJobAfterPaymentEdit(j, nextPays) {
+      nextPays.sort((a, b) => (a.date === b.date ? (Number(a.id) - Number(b.id)) : (a.date < b.date ? -1 : 1)));
+      const paid = nextPays.reduce((s, p) => s + Math.max(0, Number(p.amount) || 0), 0);
+      const orig = Math.max(0, Number(j.price) || 0);
+      const rem = Math.max(0, orig - paid);
+      return {
+        ...j,
+        payments: nextPays,
+        paid_amount: paid,
+        remaining_amount: rem,
+        status: rem === 0 ? 'TT' : 'CTT'
+      };
+    }
+
+    function addJobPaymentToLocalVault(jobId, payment, opts = {}) {
+      const cur = readFinanceVaultSync();
+      const targetId = Number(jobId);
+      const list = cur.jobs || [];
+      let found = false;
+      const updated = list.map(j => {
+        if (Number(j.id) !== targetId) return j;
+        found = true;
+        const nextPays = Array.isArray(j.payments) ? [...j.payments] : [];
+        const payId = Number(payment.id);
+        if (!payId || !nextPays.some(p => Number(p.id) === payId)) {
+          nextPays.push(payment);
+        }
+        return normalizeVaultJobAfterPaymentEdit(j, nextPays);
+      });
+      if (!found) {
+        const fallback = findDebtJobById(targetId);
+        if (fallback) {
+          const nextPays = Array.isArray(fallback.payments) ? [...fallback.payments, payment] : [payment];
+          updated.push(normalizeVaultJobAfterPaymentEdit(fallback, nextPays));
+        }
+      }
+      cur.jobs = updated;
+      if (opts.dirty) cur.dirty = true;
+      saveFinanceVaultToDevice(cur);
+    }
+
+    function removeJobPaymentFromLocalVault(paymentId, opts = {}) {
+      const cur = readFinanceVaultSync();
+      const targetPayId = Number(paymentId);
+      cur.jobs = (cur.jobs || []).map(j => {
+        if (!Array.isArray(j.payments) || !j.payments.some(p => Number(p.id) === targetPayId)) {
+          return j;
+        }
+        const nextPays = j.payments.filter(p => Number(p.id) !== targetPayId);
+        return normalizeVaultJobAfterPaymentEdit(j, nextPays);
+      });
+      if (opts.dirty) cur.dirty = true;
+      saveFinanceVaultToDevice(cur);
+    }
+
+    function payCustomerDebtInLocalVault(customerName, opts = {}) {
+      const cur = readFinanceVaultSync();
+      const targetCust = (customerName || '').trim().toLowerCase();
+      const todayStr = workState.today || state.today || new Date().toISOString().slice(0, 10);
+      const nowTs = Math.floor(Date.now() / 1000);
+      let seq = Date.now();
+      cur.jobs = (cur.jobs || []).map(j => {
+        if ((j.customer || '').trim().toLowerCase() !== targetCust || j.status !== 'CTT') return j;
+        const nextPays = Array.isArray(j.payments) ? [...j.payments] : [];
+        const dt = getDebtJobTotals(j);
+        if (dt.remaining > 0) {
+          nextPays.push({
+            id: ++seq,
+            job_id: j.id,
+            date: todayStr,
+            amount: dt.remaining,
+            note: 'Trả hết nợ',
+            ts: nowTs
+          });
+        }
+        return normalizeVaultJobAfterPaymentEdit(j, nextPays);
+      });
+      if (opts.dirty) cur.dirty = true;
       saveFinanceVaultToDevice(cur);
     }
 
@@ -2192,7 +2383,7 @@
       const dayJobs = allJobs.filter(j => j.date === date);
       const dayLedger = allLedger.filter(l => l.date === date);
 
-      const calcSum = (jobsArr, ledgerArr, repayMatchFn) => {
+      const calcSum = (jobsArr, ledgerArr, payMatchFn) => {
         const s = {
           total_jobs: 0, paid_jobs: 0, unpaid_jobs: 0,
           total_revenue: 0, paid_amount: 0, unpaid_amount: 0,
@@ -2200,10 +2391,18 @@
           borrow_amount: 0, repay_amount: 0
         };
         jobsArr.forEach(j => {
-          const p = Number(j.price) || 0;
+          const p = Math.max(0, Number(j.price) || 0);
           s.total_jobs++;
           s.total_revenue += p;
-          if (j.status === 'CTT') {
+          const dt = getDebtJobTotals(j);
+          if (dt.payments.length > 0) {
+            if (dt.remaining > 0) {
+              s.unpaid_jobs++;
+              s.unpaid_amount += dt.remaining;
+            } else {
+              s.paid_jobs++;
+            }
+          } else if (j.status === 'CTT') {
             s.unpaid_jobs++;
             s.unpaid_amount += p;
           } else {
@@ -2219,11 +2418,19 @@
           if (l.category === 'borrow') s.borrow_amount += getBorrowTotals(l).remaining;
           if (l.category === 'repay') s.repay_amount += a;
         });
-        if (typeof repayMatchFn === 'function') {
+        if (typeof payMatchFn === 'function') {
+          allJobs.forEach(j => {
+            if (!Array.isArray(j.payments)) return;
+            j.payments.forEach(pm => {
+              if (pm && payMatchFn(pm.date || '')) {
+                s.paid_amount += Math.max(0, Number(pm.amount) || 0);
+              }
+            });
+          });
           allLedger.forEach(l => {
             if (l.category !== 'borrow' || !Array.isArray(l.repayments)) return;
             l.repayments.forEach(r => {
-              if (r && repayMatchFn(r.date || '')) {
+              if (r && payMatchFn(r.date || '')) {
                 s.repay_amount += Math.max(0, Number(r.amount) || 0);
               }
             });
@@ -2262,44 +2469,107 @@
       const byCust = {};
       let totalUnpaidAll = 0;
       let totalUnpaidJobs = 0;
-      allJobs.filter(j => j.status === 'CTT').forEach(j => {
+      allJobs.filter(j => j.status === 'CTT' || (Array.isArray(j.payments) && j.payments.length > 0)).forEach(j => {
+        const dt = getDebtJobTotals(j);
+        const nj = {
+          ...j,
+          paid_amount: dt.paid,
+          remaining_amount: dt.remaining,
+          payments: dt.payments
+        };
         const key = (j.customer || '').trim().toLowerCase();
         if (!byCust[key]) {
-          byCust[key] = { customer: j.customer, channel: j.channel || 'ZL', job_count: 0, total_amount: 0, jobs: [] };
+          byCust[key] = {
+            customer: j.customer,
+            channel: j.channel || 'ZL',
+            job_count: 0,
+            total_job_count: 0,
+            settled_count: 0,
+            total_amount: 0,
+            original_amount: 0,
+            paid_amount: 0,
+            settled: false,
+            jobs: []
+          };
         }
-        byCust[key].job_count++;
-        byCust[key].total_amount += Number(j.price) || 0;
-        byCust[key].jobs.push(j);
-        totalUnpaidAll += Number(j.price) || 0;
-        totalUnpaidJobs++;
+        const g = byCust[key];
+        g.total_job_count++;
+        g.original_amount += dt.orig;
+        g.paid_amount += dt.paid;
+        if (dt.remaining > 0) {
+          g.job_count++;
+          g.total_amount += dt.remaining;
+          totalUnpaidAll += dt.remaining;
+          totalUnpaidJobs++;
+        } else {
+          g.settled_count++;
+        }
+        g.jobs.push(nj);
       });
 
+      const debtGroups = Object.values(byCust).map(g => {
+        g.settled = g.total_amount === 0 && g.total_job_count > 0;
+        g.jobs.sort((a, b) => {
+          const ra = (a.remaining_amount || 0) > 0 ? 0 : 1;
+          const rb = (b.remaining_amount || 0) > 0 ? 0 : 1;
+          if (ra !== rb) return ra - rb;
+          if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+          return (Number(b.id) || 0) - (Number(a.id) || 0);
+        });
+        return g;
+      }).sort((a, b) => {
+        if (a.settled !== b.settled) return a.settled ? 1 : -1;
+        if (b.total_amount !== a.total_amount) return b.total_amount - a.total_amount;
+        return b.original_amount - a.original_amount;
+      });
+      const unpaidGroups = debtGroups.filter(g => g.total_amount > 0);
+
       const byDate = {};
-      monthJobs.forEach(j => {
-        if (!byDate[j.date]) {
-          byDate[j.date] = { date: j.date, job_count: 0, total_revenue: 0, paid_amount: 0, unpaid_amount: 0, expense_amount: 0 };
+      const ensureDateBrief = d => {
+        if (!byDate[d]) {
+          byDate[d] = { date: d, job_count: 0, total_revenue: 0, paid_amount: 0, unpaid_amount: 0, expense_amount: 0 };
         }
-        byDate[j.date].job_count++;
-        byDate[j.date].total_revenue += Number(j.price) || 0;
-        if (j.status === 'CTT') byDate[j.date].unpaid_amount += Number(j.price) || 0;
-        else byDate[j.date].paid_amount += Number(j.price) || 0;
+        return byDate[d];
+      };
+      monthJobs.forEach(j => {
+        const row = ensureDateBrief(j.date);
+        const dt = getDebtJobTotals(j);
+        row.job_count++;
+        row.total_revenue += dt.orig;
+        if (dt.payments.length > 0) {
+          row.unpaid_amount += dt.remaining;
+        } else if (j.status === 'CTT') {
+          row.unpaid_amount += dt.orig;
+        } else {
+          row.paid_amount += dt.orig;
+        }
+      });
+      allJobs.forEach(j => {
+        if (!Array.isArray(j.payments)) return;
+        j.payments.forEach(pm => {
+          if (pm && (pm.date || '').startsWith(month + '-')) {
+            ensureDateBrief(pm.date).paid_amount += Math.max(0, Number(pm.amount) || 0);
+          }
+        });
       });
       monthLedger.filter(l => l.category === 'expense').forEach(l => {
-        if (!byDate[l.date]) {
-          byDate[l.date] = { date: l.date, job_count: 0, total_revenue: 0, paid_amount: 0, unpaid_amount: 0, expense_amount: 0 };
-        }
-        byDate[l.date].expense_amount += Number(l.amount) || 0;
+        ensureDateBrief(l.date).expense_amount += Number(l.amount) || 0;
       });
 
       workState.date = date;
       workState.month = month;
       workState.today = state.today || date;
-      workState.jobs = dayJobs;
+      workState.jobs = dayJobs.map(j => {
+        const dt = getDebtJobTotals(j);
+        return { ...j, paid_amount: dt.paid, remaining_amount: dt.remaining, payments: dt.payments };
+      });
       workState.ledger = dayLedger;
+      workState.allBorrows = allLedger.filter(l => l && l.category === 'borrow');
       workState.dayRepayments = dayRepayments;
       workState.daySummary = calcSum(dayJobs, dayLedger, d => d === date);
       workState.monthSummary = calcSum(monthJobs, monthLedger, d => d.startsWith(month + '-'));
-      workState.unpaidGroups = Object.values(byCust).sort((a, b) => b.total_amount - a.total_amount);
+      workState.debtGroups = debtGroups;
+      workState.unpaidGroups = unpaidGroups;
       workState.totalUnpaidAll = totalUnpaidAll;
       workState.totalUnpaidJobs = totalUnpaidJobs;
       workState.recentDays = Object.values(byDate).sort((a, b) => (a.date < b.date ? 1 : -1));
@@ -2442,10 +2712,12 @@
         workState.today = data.today || state.today;
         workState.jobs = data.jobs || [];
         workState.ledger = data.ledger || [];
+        workState.allBorrows = (data.vault_ledger || []).filter(l => l && l.category === 'borrow');
         workState.dayRepayments = data.day_repayments || [];
         workState.daySummary = data.day_summary || {};
         workState.monthSummary = data.month_summary || {};
         workState.unpaidGroups = data.unpaid_groups || [];
+        workState.debtGroups = Array.isArray(data.debt_groups) ? data.debt_groups : (data.unpaid_groups || []);
         workState.totalUnpaidAll = data.total_unpaid_all || 0;
         workState.totalUnpaidJobs = data.total_unpaid_jobs || 0;
         workState.recentDays = data.recent_days || [];
@@ -2525,7 +2797,6 @@
       renderWorkJobsList();
       renderWorkMonthDays();
       renderWorkUnpaidGroups();
-      renderWorkMonthReport();
       renderLedgerScreen();
     }
 
@@ -2545,16 +2816,6 @@
       loadWorkData(nextDate);
     };
 
-    window.stepWorkMonth = function (deltaMonths) {
-      const curMonth = workState.month || (workState.date || state.today).slice(0, 7);
-      const parts = curMonth.split('-').map(Number);
-      const dt = new Date(Date.UTC(parts[0], parts[1] - 1 + deltaMonths, 1));
-      const nextMonthStr = dt.toISOString().slice(0, 7);
-      const todayStr = workState.today || state.today || '';
-      const targetDate = todayStr.startsWith(nextMonthStr) ? todayStr : `${nextMonthStr}-01`;
-      loadWorkData(targetDate);
-    };
-
     window.onWorkDateChange = function (val) {
       if (val) loadWorkData(val);
     };
@@ -2568,8 +2829,9 @@
         switchTab('ledger');
         return;
       }
+      if (sub !== 'jobs' && sub !== 'unpaid') sub = 'jobs';
       workState.subTab = sub;
-      ['jobs', 'unpaid', 'month'].forEach(k => {
+      ['jobs', 'unpaid'].forEach(k => {
         const btn = document.getElementById('work-subtab-btn-' + k);
         const pane = document.getElementById('work-subpane-' + k);
         if (btn) {
@@ -2763,12 +3025,16 @@
       }
 
       container.innerHTML = jobs.map((j, idx) => {
+        const dt = getDebtJobTotals(j);
         const isCTT = j.status === 'CTT';
         const chClass = j.channel === 'FB' ? 'ch-fb' : 'ch-zl';
         const stClass = isCTT ? 'st-ctt' : 'st-tt';
         const stLabel = isCTT
-          ? `${workIconSVG('clock', 13)} <span>Nợ (CTT) • Bấm để thu</span>`
+          ? `${workIconSVG('clock', 13)} <span>${dt.paid > 0 ? `Còn nợ ${formatShortK(dt.remaining)} • Trả tiếp` : 'Nợ (CTT) • Bấm để thu'}</span>`
           : `${workIconSVG('check', 13)} <span>Đã thu (TT)</span>`;
+        const partialSub = dt.paid > 0 && isCTT
+          ? ` &bull; Đã trả ${formatShortK(dt.paid)}/${formatShortK(dt.orig)}`
+          : '';
 
         return `
         <div class="work-job-card ${isCTT ? 'is-unpaid' : ''}">
@@ -2783,10 +3049,10 @@
           <div class="work-job-bottom">
             <div style="width: 100%; min-width: 0;">
               <span class="work-job-service-name">${escapeHTML(j.service)}</span>
-              <div class="font-tabular" style="font-size: 11.5px; color: var(--text-sub); margin-top: 2px;">${escapeHTML(formatDayMonthTime(j.date || workState.date, j.ts))}</div>
+              <div class="font-tabular" style="font-size: 11.5px; color: var(--text-sub); margin-top: 2px;">${escapeHTML(formatDayMonthTime(j.date || workState.date, j.ts))}${partialSub}</div>
             </div>
             <div class="work-job-actions">
-              <button type="button" class="btn-status-toggle ${stClass}" onclick="toggleWorkJobStatus(${j.id}, '${isCTT ? 'TT' : 'CTT'}')" aria-label="Đổi trạng thái thanh toán đơn ${escapeHTML(j.customer)}">
+              <button type="button" class="btn-status-toggle ${stClass}" onclick="${isCTT && dt.paid > 0 ? `openDebtJobPayModal(${j.id})` : `toggleWorkJobStatus(${j.id}, '${isCTT ? 'TT' : 'CTT'}')`}" aria-label="${isCTT && dt.paid > 0 ? 'Trả tiền đơn' : 'Đổi trạng thái thanh toán đơn'} ${escapeHTML(j.customer)}">
                 ${stLabel}
               </button>
               <button type="button" class="btn-job-icon" onclick="openEditWorkJobModal(${j.id})" aria-label="Sửa đơn ${escapeHTML(j.customer)}">Sửa</button>
@@ -2810,16 +3076,7 @@
     };
 
     window.openEditWorkJobModal = function (jobId) {
-      let job = (workState.jobs || []).find(x => x.id === jobId);
-      if (!job) {
-        for (const g of (workState.unpaidGroups || [])) {
-          const found = (g.jobs || []).find(x => x.id === jobId);
-          if (found) {
-            job = found;
-            break;
-          }
-        }
-      }
+      const job = findDebtJobById(jobId);
       if (!job) return;
 
       document.getElementById('edit-job-id').value = job.id;
@@ -2855,14 +3112,26 @@
       } catch (err) { }
     };
 
-    window.deleteWorkJob = async function (jobId) {
-      if (!confirm('Xoá đơn dịch vụ này khỏi sổ công việc? Thao tác này không thể hoàn tác.')) return;
+    window.deleteWorkJob = async function (jobId, opts = {}) {
+      const confirmMsg = opts.fromDebt
+        ? 'Xoá toàn bộ đơn nợ này và tất cả các lần trả tiền đã lưu? Thao tác này không thể hoàn tác.'
+        : 'Xoá đơn dịch vụ này khỏi sổ công việc? Thao tác này không thể hoàn tác.';
+      if (!confirm(confirmMsg)) return;
       try {
         await api('/api/work/job/' + jobId, { method: 'DELETE' });
-        removeJobFromLocalVault(jobId);
-        showToast('Đã xoá đơn dịch vụ');
+        removeJobFromLocalVault(jobId, { dirty: false });
+        if (opts.closePayModal) closeModal('modal-pay-debt-job');
+        showToast(opts.fromDebt ? 'Đã xoá đơn nợ' : 'Đã xoá đơn dịch vụ');
         await loadWorkData(workState.date);
-      } catch (e) { }
+      } catch (err) {
+        if (err && typeof err.status === 'number' && err.status >= 400 && err.status < 500) {
+          return;
+        }
+        removeJobFromLocalVault(jobId, { dirty: true });
+        if (opts.closePayModal) closeModal('modal-pay-debt-job');
+        showToast(opts.fromDebt ? 'Đã xoá đơn nợ trên máy cá nhân' : 'Đã xoá đơn dịch vụ trên máy cá nhân');
+        computeWorkFromLocalVault(workState.date);
+      }
     };
 
     function renderWorkMonthDays() {
@@ -2896,138 +3165,23 @@
       }).join('');
     }
 
-    function renderWorkMonthReport() {
-      const ms = workState.monthSummary || {};
-      const days = workState.recentDays || [];
-      const activeDaysCount = days.length;
-      const jobDaysCount = days.filter(d => (d.job_count || 0) > 0).length;
+    window.setDebtListFilter = function (filter) {
+      if (!['all', 'unpaid', 'settled'].includes(filter)) filter = 'all';
+      workState.debtFilter = filter;
+      renderWorkUnpaidGroups();
+    };
 
-      let monthLabel = workState.month || '';
-      if (workState.month) {
-        const parts = workState.month.split('-');
-        monthLabel = `Tháng ${parseInt(parts[1], 10)}/${parts[0]}`;
+    function findDebtGroupByKeyOrIdx(custEncOrIdx) {
+      const allGroups = (workState.debtGroups && workState.debtGroups.length > 0)
+        ? workState.debtGroups
+        : (workState.unpaidGroups || []);
+      if (typeof custEncOrIdx === 'number' && Number.isInteger(custEncOrIdx)) {
+        return (workState.unpaidGroups || allGroups)[custEncOrIdx] || null;
       }
-
-      const setTxt = (id, val) => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = val;
-      };
-
-      setTxt('work-mview-nav-title', monthLabel);
-      setTxt('work-mview-eyebrow', `TỔNG DOANH THU ${monthLabel.toUpperCase()}`);
-      setTxt('work-mview-badge', `${ms.total_jobs || 0} đơn • ${activeDaysCount} ngày`);
-
-      const revStr = formatVND(ms.total_revenue || 0);
-      setTxt('work-mview-revenue', revStr);
-      const mRevEl = document.getElementById('work-mview-revenue');
-      if (mRevEl) {
-        mRevEl.classList.toggle('is-long', revStr.length >= 12);
-      }
-
-      setTxt('work-mview-net', formatVND(ms.net_cash || 0));
-      setTxt('work-mview-paid', formatShortK(ms.paid_amount || 0));
-      setTxt('work-mview-paid-sub', `${ms.paid_jobs || 0} đơn đã thu`);
-      setTxt('work-mview-unpaid', formatShortK(ms.unpaid_amount || 0));
-      setTxt('work-mview-unpaid-sub', `${ms.unpaid_jobs || 0} đơn nợ`);
-      setTxt('work-mview-expense', formatShortK(ms.expense_amount || 0));
-      const avgExp = activeDaysCount > 0 ? Math.round((ms.expense_amount || 0) / activeDaysCount) : 0;
-      setTxt('work-mview-expense-sub', avgExp > 0 ? `TB ${formatShortK(avgExp)}/ngày` : 'Phát sinh tháng');
-
-      const avgRev = jobDaysCount > 0 ? Math.round((ms.total_revenue || 0) / jobDaysCount) : 0;
-      setTxt('work-mview-avg-day', formatShortK(avgRev));
-      setTxt('work-mview-avg-sub', `${jobDaysCount} ngày có đơn`);
-
-      setTxt('work-mview-fund', formatShortK(ms.fund_in || 0));
-      setTxt('work-mview-fund-sub', `Số quỹ: ${formatShortK(ms.fund_bal || 0)}`);
-
-      setTxt('work-mview-loan', formatShortK(ms.borrow_amount || 0));
-      setTxt('work-mview-loan-sub', `Trả nợ: ${formatShortK(ms.repay_amount || 0)}`);
-      setTxt('work-mview-export-btn-txt', `Xuất bảng tổng kết ${monthLabel} ra Excel (.csv)`);
-
-      // 1. Thống kê theo Khách hàng trong tháng
-      const custListEl = document.getElementById('work-month-customers-list');
-      const custCountEl = document.getElementById('work-mview-cust-count');
-      if (custListEl) {
-        const vault = readFinanceVaultSync();
-        const mPrefix = (workState.month || '') + '-';
-        const monthJobs = (vault.jobs || []).filter(j => (j.date || '').startsWith(mPrefix));
-        const byCust = {};
-        monthJobs.forEach(j => {
-          const key = (j.customer || '').trim().toLowerCase();
-          if (!key) return;
-          if (!byCust[key]) {
-            byCust[key] = {
-              customer: j.customer,
-              channel: j.channel || 'ZL',
-              count: 0,
-              total: 0,
-              paid: 0,
-              unpaid: 0
-            };
-          }
-          const p = Number(j.price) || 0;
-          byCust[key].count++;
-          byCust[key].total += p;
-          if (j.status === 'CTT') byCust[key].unpaid += p;
-          else byCust[key].paid += p;
-        });
-
-        const custArr = Object.values(byCust).sort((a, b) => b.total - a.total);
-        if (custCountEl) custCountEl.textContent = `${custArr.length} khách hàng`;
-
-        if (custArr.length === 0) {
-          custListEl.innerHTML = `<div class="empty-state-box">Chưa có đơn hàng nào trong ${monthLabel}.</div>`;
-        } else {
-          custListEl.innerHTML = custArr.map((c, idx) => `
-          <div class="work-month-cust-card font-tabular">
-            <div style="min-width: 0; flex: 1;">
-              <div style="display: flex; align-items: center; gap: 6px;">
-                <span class="work-stt-badge">#${idx + 1}</span>
-                <span class="work-ch-badge ${c.channel === 'FB' ? 'ch-fb' : 'ch-zl'}">${escapeHTML(c.channel)}</span>
-                <strong class="work-job-cust-name">${escapeHTML(c.customer)}</strong>
-              </div>
-              <div style="font-size: 11.5px; color: var(--text-sub); margin-top: 3px;">
-                ${c.count} đơn &bull; Đã thu ${formatShortK(c.paid)}
-                ${c.unpaid > 0 ? ` &bull; <span style="color:#B45309;font-weight:700;">Nợ ${formatShortK(c.unpaid)}</span>` : ''}
-              </div>
-            </div>
-            <div style="text-align: right; flex-shrink: 0;">
-              <strong style="font-size: 14.5px; font-weight: 800; color: #1E3B13;">${formatVND(c.total)}</strong>
-            </div>
-          </div>
-        `).join('');
-        }
-      }
-
-      // 2. Bảng kê từng ngày trong tháng
-      const fullDaysEl = document.getElementById('work-month-full-days-list');
-      const daysCountEl = document.getElementById('work-mview-days-count');
-      if (daysCountEl) daysCountEl.textContent = `${days.length} ngày phát sinh`;
-      if (fullDaysEl) {
-        if (days.length === 0) {
-          fullDaysEl.innerHTML = `<div class="empty-state-box">Chưa có dữ liệu ngày làm việc nào trong ${monthLabel}.</div>`;
-        } else {
-          fullDaysEl.innerHTML = days.map(d => {
-            const netDay = (d.paid_amount || 0) - (d.expense_amount || 0);
-            return `
-            <button type="button" class="work-day-brief-row font-tabular" onclick="loadWorkData('${d.date}'); switchWorkSubTab('jobs');">
-              <div style="min-width: 0; flex: 1;">
-                <strong style="font-size: 13.5px; color: var(--text-main);">Ngày ${formatDayMonth(d.date)}</strong>
-                <div style="font-size: 11.5px; color: var(--text-sub); margin-top: 2px;">
-                  ${d.job_count} đơn &bull; Thu ${formatShortK(d.paid_amount)}
-                  ${d.unpaid_amount > 0 ? ` &bull; <span style="color:#B45309;font-weight:700;">Nợ ${formatShortK(d.unpaid_amount)}</span>` : ''}
-                  ${d.expense_amount > 0 ? ` &bull; Chi ${formatShortK(d.expense_amount)}` : ''}
-                </div>
-              </div>
-              <div style="text-align: right; flex-shrink: 0;">
-                <span style="font-size: 14px; font-weight: 800; color: #1E3B13;">${formatVND(d.total_revenue)}</span>
-                <div style="font-size: 11px; font-weight: 700; color: #2B5719; margin-top: 1px;">Thực còn: ${formatShortK(netDay)}</div>
-              </div>
-            </button>
-          `;
-          }).join('');
-        }
-      }
+      let decoded = String(custEncOrIdx || '');
+      try { decoded = decodeURIComponent(decoded); } catch (_) { }
+      const target = decoded.trim().toLowerCase();
+      return allGroups.find(g => (g.customer || '').trim().toLowerCase() === target) || null;
     }
 
     function renderWorkUnpaidGroups() {
@@ -3036,75 +3190,175 @@
       const listEl = document.getElementById('work-unpaid-groups-list');
       if (totalEl) totalEl.textContent = formatVND(workState.totalUnpaidAll || 0);
       if (countEl) countEl.textContent = `${workState.totalUnpaidJobs || 0} đơn nợ`;
+
+      const groups = Array.isArray(workState.debtGroups) && workState.debtGroups.length > 0
+        ? workState.debtGroups
+        : (workState.unpaidGroups || []);
+
+      let allJobsCount = 0;
+      let unpaidJobsCount = 0;
+      let settledJobsCount = 0;
+      groups.forEach(g => {
+        (g.jobs || []).forEach(j => {
+          allJobsCount++;
+          if (getDebtJobTotals(j).remaining > 0) unpaidJobsCount++;
+          else settledJobsCount++;
+        });
+      });
+
+      const setTxt = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val;
+      };
+      setTxt('debt-cnt-all', String(allJobsCount));
+      setTxt('debt-cnt-unpaid', String(unpaidJobsCount));
+      setTxt('debt-cnt-settled', String(settledJobsCount));
+
+      const filter = workState.debtFilter || 'all';
+      document.querySelectorAll('#debt-list-filters .borrow-filter-pill').forEach(btn => {
+        const active = btn.getAttribute('data-filter') === filter;
+        btn.classList.toggle('active', active);
+        btn.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+
       if (!listEl) return;
 
-      const groups = workState.unpaidGroups || [];
       if (groups.length === 0) {
         listEl.innerHTML = `
         <div class="empty-state-box" style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
           <span style="color: #2B5719;">${workIconSVG('shield_ok', 28)}</span>
-          <span>Không có khách hàng nào đang nợ (CTT). Tất cả các đơn đều đã thanh toán đủ.</span>
+          <span>Chưa có đơn nợ nào (Chưa thanh toán). Tất cả các đơn đều đã thu ngay.</span>
         </div>
       `;
         return;
       }
 
-      listEl.innerHTML = groups.map((g, gIdx) => {
+      const filteredGroups = groups.map(g => {
+        const matchedJobs = (g.jobs || []).filter(j => {
+          const isSettledJob = getDebtJobTotals(j).remaining <= 0;
+          if (filter === 'unpaid') return !isSettledJob;
+          if (filter === 'settled') return isSettledJob;
+          return true;
+        });
+        return matchedJobs.length > 0 ? { ...g, _visibleJobs: matchedJobs } : null;
+      }).filter(Boolean);
+
+      if (filteredGroups.length === 0) {
+        const emptyMsg = filter === 'unpaid'
+          ? 'Tuyệt vời! Tất cả các đơn trong Sổ nợ đều đã trả xong. Bấm tab "Đã trả xong" hoặc "Tất cả" để xem lại.'
+          : 'Chưa có đơn nợ nào đã trả xong.';
+        listEl.innerHTML = `<div class="empty-state-box">${emptyMsg}</div>`;
+        return;
+      }
+
+      listEl.innerHTML = filteredGroups.map(g => {
         const safeCust = escapeHTML(g.customer);
-        const itemsHtml = (g.jobs || []).map(j => `
-        <div class="work-debt-item-row font-tabular">
-          <div style="min-width: 0; flex: 1;">
-            <strong style="color: var(--text-main);">${formatVNDate(j.date).slice(0, 5)}</strong>:
-            <span>${escapeHTML(j.service)}</span>
+        const encCust = encodeURIComponent(g.customer || '');
+        const groupUnpaidAmt = Math.max(0, Number(g.total_amount) || 0);
+        const groupOrigAmt = Math.max(0, Number(g.original_amount) || groupUnpaidAmt);
+        const groupPaidAmt = Math.max(0, Number(g.paid_amount) || 0);
+        const groupSettled = groupUnpaidAmt === 0 && (g.total_job_count || (g.jobs || []).length) > 0;
+        const unpaidJobCnt = Number(g.job_count) || 0;
+        const totalJobCnt = Number(g.total_job_count) || (g.jobs || []).length;
+
+        const subText = groupSettled
+          ? `${totalJobCnt} đơn đều đã trả xong • Đã thu ${formatShortK(groupPaidAmt)}`
+          : (groupPaidAmt > 0
+            ? `${unpaidJobCnt}/${totalJobCnt} đơn chưa trả • Đã thu ${formatShortK(groupPaidAmt)}`
+            : `${unpaidJobCnt} đơn chưa thanh toán`);
+
+        const itemsHtml = g._visibleJobs.map(j => {
+          const dt = getDebtJobTotals(j);
+          const jobSettled = dt.remaining <= 0;
+          const badgeHtml = jobSettled
+            ? '<span class="work-debt-status-badge is-settled">&#10003; Đã trả xong</span>'
+            : (dt.paid > 0
+              ? '<span class="work-debt-status-badge">Đang trả góp</span>'
+              : '<span class="work-debt-status-badge">Chưa trả xong</span>');
+          const footHtml = buildInstallmentFootHTML(dt.orig, dt.paid, dt.remaining, dt.overpaid, dt.payments, j.date);
+
+          return `
+        <div class="work-debt-item-row font-tabular${jobSettled ? ' is-debt-settled' : ''}">
+          <div class="work-debt-item-top">
+            <div class="work-debt-item-main">
+              <div class="work-debt-item-title-line">
+                <strong>${formatVNDate(j.date).slice(0, 5)}</strong>:
+                <span>${escapeHTML(j.service)}</span>
+              </div>
+              <div class="work-debt-item-meta">
+                ${badgeHtml}
+                ${dt.paid > 0 ? `<span class="work-borrow-orig-sub">Gốc ${formatShortK(dt.orig)}${dt.overpaid > 0 ? ` • Thừa +${formatShortK(dt.overpaid)}` : ''}</span>` : ''}
+              </div>
+            </div>
+            <div class="work-debt-item-right">
+              <span class="work-debt-item-amt${jobSettled ? ' is-settled' : ''}">${jobSettled ? '0đ' : formatVND(dt.remaining)}</span>
+              <div class="work-debt-item-actions">
+                <button type="button" class="btn-ledger-repay${jobSettled ? ' is-settled' : ''}" onclick="openDebtJobPayModal(${Number(j.id)})" aria-label="${jobSettled ? 'Xem lịch sử trả tiền' : 'Trả tiền'} đơn ${escapeHTML(j.service)} của ${safeCust}">${jobSettled ? 'Lịch sử' : 'Trả tiền'}</button>
+                <button type="button" class="btn-job-icon btn-del" onclick="deleteWorkJob(${Number(j.id)}, { fromDebt: true })" aria-label="Xoá đơn nợ ${escapeHTML(j.service)} của ${safeCust}">Xoá</button>
+              </div>
+            </div>
           </div>
-          <div style="display: flex; align-items: center; gap: 6px;">
-            <strong style="color: #9A3412;">${formatShortK(j.price)}</strong>
-            <button type="button" class="btn-status-toggle st-tt" style="min-height: 28px; padding: 2px 8px; font-size: 11px;" onclick="toggleWorkJobStatus(${j.id}, 'TT')" aria-label="Thu tiền đơn ${escapeHTML(j.service)}">Thu đơn này</button>
-          </div>
+          ${footHtml}
         </div>
-      `).join('');
+      `;
+        }).join('');
 
         return `
-        <div class="work-debt-group-card">
+        <div class="work-debt-group-card${groupSettled ? ' is-debt-settled' : ''}">
           <div class="work-debt-group-header">
-            <div>
-              <div class="work-debt-cust-title">${safeCust} <span class="work-ch-badge ${g.channel === 'FB' ? 'ch-fb' : 'ch-zl'}">${escapeHTML(g.channel)}</span></div>
-              <span style="font-size: 11.5px; color: var(--text-sub);">${g.job_count} đơn chưa thanh toán</span>
+            <div style="min-width: 0;">
+              <div class="work-debt-cust-title">${safeCust} <span class="work-ch-badge ${g.channel === 'FB' ? 'ch-fb' : 'ch-zl'}">${escapeHTML(g.channel)}</span>${groupSettled ? ' <span class="work-borrow-settled-badge">&#10003; Đã trả xong</span>' : ''}</div>
+              <span style="font-size: 11.5px; color: var(--text-sub);">${subText}</span>
             </div>
-            <span class="work-debt-total-val font-tabular">${formatVND(g.total_amount)}</span>
+            <div class="work-ledger-amt-col font-tabular">
+              <span class="work-debt-total-val">${formatVND(groupUnpaidAmt)}</span>
+              ${groupPaidAmt > 0 ? `<span class="work-borrow-orig-sub">Gốc ${formatShortK(groupOrigAmt)}</span>` : ''}
+            </div>
           </div>
           <div class="work-debt-items-list">${itemsHtml}</div>
-          <div class="work-debt-group-actions">
-            <button type="button" class="btn-debt-copy" onclick="copyCustomerDebtText(${gIdx})">${workIconSVG('copy', 14)} <span>Copy báo nợ</span></button>
-            <button type="button" class="btn-debt-payall" onclick="payAllCustomerDebt(${gIdx})">${workIconSVG('check', 14)} <span>Đã thu hết (${formatShortK(g.total_amount)})</span></button>
+          <div class="work-debt-group-actions${groupSettled ? ' is-single' : ''}">
+            <button type="button" class="btn-debt-copy" onclick="copyCustomerDebtText('${encCust}')">${workIconSVG('copy', 14)} <span>${groupSettled ? 'Copy lịch sử trả' : 'Copy báo nợ'}</span></button>
+            ${groupSettled ? '' : `<button type="button" class="btn-debt-payall" onclick="payAllCustomerDebt('${encCust}')">${workIconSVG('check', 14)} <span>Đã thu hết (${formatShortK(groupUnpaidAmt)})</span></button>`}
           </div>
         </div>
       `;
       }).join('');
     }
 
-    window.copyCustomerDebtText = async function (groupIdx) {
-      const g = (workState.unpaidGroups || [])[groupIdx];
+    window.copyCustomerDebtText = async function (custEncOrIdx) {
+      const g = findDebtGroupByKeyOrIdx(custEncOrIdx);
       if (!g) return;
-      const lines = [`Gửi ${g.customer} danh sách đơn chưa thanh toán (${g.job_count} đơn):`];
-      (g.jobs || []).slice().reverse().forEach((j, idx) => {
+      const lines = g.settled
+        ? [`Gửi ${g.customer} xác nhận các đơn đã thanh toán xong (${g.total_job_count || (g.jobs || []).length} đơn):`]
+        : [`Gửi ${g.customer} danh sách đơn chưa thanh toán (${g.job_count} đơn):`];
+      const jobsToPrint = g.settled
+        ? (g.jobs || [])
+        : (g.jobs || []).filter(j => getDebtJobTotals(j).remaining > 0);
+      jobsToPrint.slice().reverse().forEach((j, idx) => {
         const dShort = formatVNDate(j.date).slice(0, 5);
-        lines.push(`${idx + 1}. Ngày ${dShort}: ${j.service} = ${formatShortK(j.price)}`);
+        const dt = getDebtJobTotals(j);
+        if (dt.remaining <= 0) {
+          lines.push(`${idx + 1}. Ngày ${dShort}: ${j.service} = Đã trả xong (${formatShortK(dt.paid)})`);
+        } else if (dt.paid > 0) {
+          lines.push(`${idx + 1}. Ngày ${dShort}: ${j.service} = Còn ${formatShortK(dt.remaining)} (Gốc ${formatShortK(dt.orig)}, đã trả ${formatShortK(dt.paid)})`);
+        } else {
+          lines.push(`${idx + 1}. Ngày ${dShort}: ${j.service} = ${formatShortK(dt.remaining)}`);
+        }
       });
-      lines.push(`Tổng cộng: ${formatVND(g.total_amount)}`);
+      lines.push(g.settled ? `Tổng đã thanh toán: ${formatVND(g.paid_amount || g.original_amount || 0)}` : `Tổng còn nợ: ${formatVND(g.total_amount)}`);
 
       const text = lines.join('\n');
       try {
         await navigator.clipboard.writeText(text);
-        showToast(`Đã copy báo nợ của ${g.customer} để dán gửi Zalo/FB`);
+        showToast(`Đã copy thông tin của ${g.customer} để dán gửi Zalo/FB`);
       } catch (e) {
         showToast('Không thể copy tự động trên trình duyệt này', true);
       }
     };
 
-    window.payAllCustomerDebt = async function (groupIdx) {
-      const g = (workState.unpaidGroups || [])[groupIdx];
-      if (!g) return;
+    window.payAllCustomerDebt = async function (custEncOrIdx) {
+      const g = findDebtGroupByKeyOrIdx(custEncOrIdx);
+      if (!g || g.total_amount <= 0) return;
       if (!confirm(`Xác nhận đã thu đủ ${formatVND(g.total_amount)} (${g.job_count} đơn) của khách "${g.customer}"?`)) return;
 
       try {
@@ -3114,7 +3368,14 @@
         });
         showToast(`Đã tất toán toàn bộ đơn nợ của ${g.customer}`);
         await loadWorkData(workState.date);
-      } catch (e) { }
+      } catch (err) {
+        if (err && typeof err.status === 'number' && err.status >= 400 && err.status < 500) {
+          return;
+        }
+        payCustomerDebtInLocalVault(g.customer, { dirty: true });
+        showToast(`Đã tất toán đơn nợ của ${g.customer} trên máy cá nhân`);
+        computeWorkFromLocalVault(workState.date);
+      }
     };
 
     // ================= PHÂN KHU 3: SỔ THU CHI / QUỸ / MƯỢN / TRẢ NỢ =================
@@ -3147,9 +3408,11 @@
       }
     };
 
-    window.openAddWorkLedgerModal = function () {
+    window.openAddWorkLedgerModal = function (presetCategory) {
       const hidden = document.getElementById('work-ledger-category');
-      if (hidden && !['expense', 'fund_in', 'borrow'].includes(hidden.value)) {
+      if (presetCategory && ['expense', 'fund_in', 'borrow'].includes(presetCategory)) {
+        setWorkLedgerCategory(presetCategory);
+      } else if (hidden && !['expense', 'fund_in', 'borrow'].includes(hidden.value)) {
         setWorkLedgerCategory('expense');
       }
       openModal('modal-add-work-ledger');
@@ -3270,7 +3533,9 @@
         if (el) el.textContent = val;
       };
 
-      const dayExtraRepays = (workState.dayRepayments || []).filter(r => r.borrow_date !== curDate);
+      const timedDayLedger = dayLedger.filter(l => l && l.category !== 'borrow');
+      const timedMonthLedger = monthLedger.filter(l => l && l.category !== 'borrow');
+      const globalBorrow = getGlobalBorrowSummary();
 
       setTxt(
         'ledger-summary-date-label',
@@ -3278,7 +3543,7 @@
           ? `Tổng chi tiêu ${monthHuman}`
           : (curDate === todayDate ? 'Tổng chi tiêu hôm nay' : `Chi tiêu ngày ${formatDayMonth(curDate)}`)
       );
-      setTxt('ledger-day-count-pill', `${isMonthScope ? monthLedger.length : (dayLedger.length + dayExtraRepays.length)} khoản`);
+      setTxt('ledger-day-count-pill', `${isMonthScope ? timedMonthLedger.length : timedDayLedger.length} khoản`);
 
       const expStr = formatVND(activeSum.expense_amount || 0);
       setTxt('ledger-hero-expense', expStr);
@@ -3287,7 +3552,7 @@
 
       setTxt('ledger-stat-expense', formatShortK(activeSum.expense_amount || 0));
       setTxt('ledger-stat-fund-in', formatShortK(activeSum.fund_in || 0));
-      setTxt('ledger-stat-borrow', formatShortK(activeSum.borrow_amount || 0));
+      setTxt('ledger-stat-borrow', formatShortK(globalBorrow.remaining));
       setTxt('ledger-stat-repay', formatShortK(activeSum.repay_amount || 0));
 
       const fundBalRow = document.getElementById('ledger-stat-fund-bal-row');
@@ -3301,145 +3566,251 @@
         }
       }
 
+      renderBorrowSummaryButton(globalBorrow);
       renderWorkLedgerList();
-      renderLedgerMonthDays(monthLedger, monthHuman, curMonth, allLedger);
+      renderLedgerMonthDays(timedMonthLedger, monthHuman);
+
+      const borrowModalEl = document.getElementById('modal-borrow-list');
+      if (borrowModalEl && borrowModalEl.classList.contains('open')) {
+        renderBorrowListModal();
+      }
+    }
+
+    function formatBorrowDateTime(dStr, tsSec) {
+      const fullDate = dStr ? formatVNDate(dStr) : '';
+      const hm = tsSec ? formatTimeHM(tsSec) : '';
+      if (fullDate && hm) return `${fullDate} • ${hm}`;
+      return fullDate || hm;
+    }
+
+    function buildInstallmentFootHTML(orig, paid, remaining, overpaid, installments, fallbackDate) {
+      const list = Array.isArray(installments) ? installments : [];
+      if (paid <= 0 && list.length === 0) return '';
+      const isSettled = remaining <= 0 && orig > 0;
+      const pct = orig > 0 ? Math.min(100, Math.round((paid / orig) * 100)) : 0;
+      return `
+        <div class="borrow-repay-card-foot">
+          <div class="borrow-repay-progress-head font-tabular">
+            <span>${isSettled ? 'Đã trả xong' : 'Đã trả'} ${formatShortK(paid)} / ${formatShortK(orig)}${overpaid > 0 ? ` (Thừa +${formatShortK(overpaid)})` : ''}${list.length > 0 ? ` (${list.length} lần)` : ''}</span>
+            <span>${pct}%</span>
+          </div>
+          <div class="borrow-repay-progress-track" aria-hidden="true">
+            <div class="borrow-repay-progress-fill" style="width: ${pct}%;"></div>
+          </div>
+          ${list.length > 0 ? `
+            <div class="borrow-repay-log-list">
+              ${list.map((r, idx) => {
+                const timeLbl = formatBorrowDateTime(r.date || fallbackDate, r.ts);
+                const rNote = (r.note || '').trim();
+                return `
+                  <div class="borrow-repay-log-row font-tabular">
+                    <div class="borrow-repay-log-meta">
+                      <span class="borrow-repay-step">Lần ${idx + 1}</span>
+                      <span>${escapeHTML(timeLbl)}</span>
+                      ${rNote ? `<span class="borrow-repay-log-note">&bull; ${escapeHTML(rNote)}</span>` : ''}
+                    </div>
+                    <span class="borrow-repay-log-amt">-${formatVND(r.amount)}</span>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    function buildBorrowCardHTML(item) {
+      const { orig, paid, remaining, overpaid, repayments } = getBorrowTotals(item);
+      const isSettled = remaining <= 0 && orig > 0;
+      const footHtml = buildInstallmentFootHTML(orig, paid, remaining, overpaid, repayments, item.date);
+
+      return `
+        <div class="work-job-card${isSettled ? ' is-borrow-settled' : ''}">
+          <div class="work-job-top">
+            <div style="min-width: 0; flex: 1;">
+              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                <span class="work-stt-badge">${getLedgerCatLabel('borrow')}</span>
+                <span class="font-tabular" style="font-size: 11.5px; color: var(--text-sub);">${escapeHTML(formatBorrowDateTime(item.date, item.ts))}</span>
+                ${isSettled ? '<span class="work-borrow-settled-badge">&#10003; Đã trả xong</span>' : ''}
+              </div>
+              <div class="work-job-cust-name work-ledger-note">${escapeHTML(item.note)}</div>
+            </div>
+            <div class="work-ledger-right">
+              <div class="work-ledger-amt-col font-tabular">
+                <span class="work-job-price-val font-tabular${isSettled ? ' is-settled-amt' : ''}">${formatVND(remaining)}</span>
+                ${paid > 0 ? `<span class="work-borrow-orig-sub">Gốc ${formatShortK(orig)}${overpaid > 0 ? ` • Thừa +${formatShortK(overpaid)}` : ''}</span>` : ''}
+              </div>
+              <div class="work-ledger-actions">
+                <button type="button" class="btn-ledger-repay${isSettled ? ' is-settled' : ''}" onclick="openRepayBorrowModal(${Number(item.id)})" aria-label="${isSettled ? 'Xem lịch sử trả tiền' : 'Trả tiền'} khoản mượn ${escapeHTML(item.note)}">${isSettled ? 'Lịch sử' : 'Trả tiền'}</button>
+                <button type="button" class="btn-job-icon btn-del" onclick="deleteWorkLedger(${Number(item.id)}, { isBorrow: true })" aria-label="Xoá khoản mượn ${escapeHTML(item.note)}">Xoá</button>
+              </div>
+            </div>
+          </div>
+          ${footHtml}
+        </div>
+      `;
+    }
+
+    function renderBorrowSummaryButton(summaryOpt) {
+      const sum = summaryOpt || getGlobalBorrowSummary();
+      const btn = document.getElementById('btn-open-borrow-list');
+      const badgeEl = document.getElementById('ledger-borrow-btn-badge');
+      const subEl = document.getElementById('ledger-borrow-btn-sub');
+      const totalEl = document.getElementById('ledger-borrow-btn-total');
+
+      const allSettled = sum.totalCount > 0 && sum.unpaidCount === 0;
+      if (btn) btn.classList.toggle('is-all-settled', allSettled);
+
+      if (badgeEl) {
+        badgeEl.classList.toggle('is-settled', allSettled);
+        if (sum.totalCount === 0) {
+          badgeEl.textContent = '0 khoản';
+        } else if (allSettled) {
+          badgeEl.textContent = '✓ Đã trả xong hết';
+        } else {
+          badgeEl.textContent = `${sum.unpaidCount} khoản chưa xong`;
+        }
+      }
+
+      if (subEl) {
+        if (sum.totalCount === 0) {
+          subEl.textContent = 'Chưa có khoản mượn nào • Bấm để thêm hoặc xem';
+        } else if (allSettled) {
+          subEl.textContent = `${sum.totalCount} khoản đều đã xong • Đã trả ${formatShortK(sum.paid)}`;
+        } else {
+          const parts = [`Tổng ${sum.totalCount} khoản`, `Gốc ${formatShortK(sum.orig)}`];
+          if (sum.paid > 0) parts.push(`Đã trả ${formatShortK(sum.paid)}`);
+          subEl.textContent = parts.join(' • ');
+        }
+      }
+
+      if (totalEl) {
+        totalEl.textContent = formatVND(sum.remaining);
+      }
+    }
+
+    window.setBorrowModalFilter = function (filter) {
+      if (!['all', 'unpaid', 'settled'].includes(filter)) filter = 'all';
+      workState.borrowFilter = filter;
+      renderBorrowListModal();
+    };
+
+    window.openBorrowListModal = function () {
+      renderBorrowListModal();
+      openModal('modal-borrow-list');
+    };
+
+    function renderBorrowListModal() {
+      const sum = getGlobalBorrowSummary();
+      const setTxt = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val;
+      };
+
+      setTxt('borrow-modal-total-rem', formatVND(sum.remaining));
+      setTxt('borrow-modal-total-paid', formatVND(sum.paid));
+      setTxt('borrow-modal-total-orig', formatVND(sum.orig));
+
+      const remEl = document.getElementById('borrow-modal-total-rem');
+      if (remEl) {
+        const isZero = sum.remaining <= 0;
+        remEl.classList.toggle('is-paid', isZero);
+        remEl.classList.toggle('is-remaining', !isZero);
+      }
+
+      setTxt('borrow-cnt-all', String(sum.totalCount));
+      setTxt('borrow-cnt-unpaid', String(sum.unpaidCount));
+      setTxt('borrow-cnt-settled', String(sum.settledCount));
+
+      const activeFilter = workState.borrowFilter || 'all';
+      document.querySelectorAll('#borrow-list-filters .borrow-filter-pill').forEach(btn => {
+        const isAct = btn.getAttribute('data-filter') === activeFilter;
+        btn.classList.toggle('active', isAct);
+        btn.setAttribute('aria-selected', isAct ? 'true' : 'false');
+      });
+
+      const listEl = document.getElementById('borrow-modal-list');
+      if (!listEl) return;
+
+      const sorted = [...sum.items].sort((a, b) => {
+        const ra = getBorrowTotals(a).remaining > 0 ? 0 : 1;
+        const rb = getBorrowTotals(b).remaining > 0 ? 0 : 1;
+        if (ra !== rb) return ra - rb;
+        const da = a.date || '';
+        const db = b.date || '';
+        if (da !== db) return da < db ? 1 : -1;
+        return (Number(b.id) || 0) - (Number(a.id) || 0);
+      });
+
+      const filtered = sorted.filter(item => {
+        const { orig, remaining } = getBorrowTotals(item);
+        const isSettled = remaining <= 0 && orig > 0;
+        if (activeFilter === 'unpaid') return !isSettled;
+        if (activeFilter === 'settled') return isSettled;
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        if (sum.totalCount === 0) {
+          listEl.innerHTML = `
+            <div class="empty-state-box">
+              Quyền chưa có khoản mượn tiền nào.<br>
+              Bấm nút <strong>+ Thêm khoản mượn mới</strong> phía trên để ghi lại.
+            </div>`;
+        } else if (activeFilter === 'unpaid') {
+          listEl.innerHTML = `<div class="empty-state-box">Tuyệt vời! Tất cả các khoản mượn đều đã trả xong.</div>`;
+        } else {
+          listEl.innerHTML = `<div class="empty-state-box">Chưa có khoản mượn nào đã trả xong.</div>`;
+        }
+        return;
+      }
+
+      listEl.innerHTML = filtered.map(item => buildBorrowCardHTML(item)).join('');
     }
 
     function renderWorkLedgerList() {
       const container = document.getElementById('work-ledger-list');
       const titleEl = document.getElementById('ledger-day-list-title');
       const subEl = document.getElementById('ledger-day-list-sub');
-      const list = workState.ledger || [];
       const curDate = workState.date || '';
-      const extraRepays = (workState.dayRepayments || []).filter(r => r.borrow_date !== curDate);
-      const totalCount = list.length + extraRepays.length;
+      // Chỉ hiển thị Chi tiêu / Phát sinh, Nộp Quỹ (và mục phát sinh theo thời gian tạo); riêng Mượn nằm cố định trong nút gom toàn thời gian.
+      const list = (workState.ledger || []).filter(item => item && item.category !== 'borrow');
       const dm = formatDayMonth(curDate);
 
       if (titleEl) titleEl.textContent = dm ? `Phát sinh ngày ${dm}` : 'Phát sinh trong ngày';
-      if (subEl) subEl.textContent = `${totalCount} khoản`;
+      if (subEl) subEl.textContent = `${list.length} khoản`;
       if (!container) return;
 
-      if (totalCount === 0) {
+      if (list.length === 0) {
         container.innerHTML = `
         <div class="empty-state-box">
-          Chưa có khoản chi tiêu, nộp quỹ hay mượn/trả nợ nào trong ngày ${dm || formatVNDate(curDate)}.<br>
+          Chưa có khoản chi tiêu hay nộp quỹ nào trong ngày ${dm || formatVNDate(curDate)}.<br>
           Bấm nút <strong>+</strong> ở góc dưới phải để thêm khoản mục mới.
         </div>
       `;
         return;
       }
 
-      const ledgerCards = list.map(item => {
-        if (item.category === 'borrow') {
-          const { orig, paid, remaining, overpaid, repayments } = getBorrowTotals(item);
-          const isSettled = remaining <= 0 && orig > 0;
-          const pct = orig > 0 ? Math.min(100, Math.round((paid / orig) * 100)) : 0;
-          const hasRepayments = paid > 0 || repayments.length > 0;
-
-          const footHtml = hasRepayments ? `
-            <div class="borrow-repay-card-foot">
-              <div class="borrow-repay-progress-head font-tabular">
-                <span>${isSettled ? 'Đã trả xong' : 'Đã trả'} ${formatShortK(paid)} / ${formatShortK(orig)}${overpaid > 0 ? ` (Thừa +${formatShortK(overpaid)})` : ''}${repayments.length > 0 ? ` (${repayments.length} lần)` : ''}</span>
-                <span>${pct}%</span>
+      container.innerHTML = list.map(item => `
+        <div class="work-job-card">
+          <div class="work-job-top">
+            <div style="min-width: 0; flex: 1;">
+              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                <span class="work-stt-badge">${getLedgerCatLabel(item.category)}</span>
+                <span class="font-tabular" style="font-size: 11.5px; color: var(--text-sub);">${escapeHTML(formatDayMonthTime(item.date || curDate, item.ts))}</span>
               </div>
-              <div class="borrow-repay-progress-track" aria-hidden="true">
-                <div class="borrow-repay-progress-fill" style="width: ${pct}%;"></div>
-              </div>
-              ${repayments.length > 0 ? `
-                <div class="borrow-repay-log-list">
-                  ${repayments.map((r, idx) => {
-                    const timeLbl = formatDayMonthTime(r.date || item.date || curDate, r.ts);
-                    const rNote = (r.note || '').trim();
-                    return `
-                      <div class="borrow-repay-log-row font-tabular">
-                        <div class="borrow-repay-log-meta">
-                          <span class="borrow-repay-step">Lần ${idx + 1}</span>
-                          <span>${escapeHTML(timeLbl)}</span>
-                          ${rNote ? `<span class="borrow-repay-log-note">&bull; ${escapeHTML(rNote)}</span>` : ''}
-                        </div>
-                        <span class="borrow-repay-log-amt">-${formatVND(r.amount)}</span>
-                      </div>
-                    `;
-                  }).join('')}
-                </div>
-              ` : ''}
+              <div class="work-job-cust-name work-ledger-note">${escapeHTML(item.note)}</div>
             </div>
-          ` : '';
-
-          return `
-            <div class="work-job-card${isSettled ? ' is-borrow-settled' : ''}">
-              <div class="work-job-top">
-                <div style="min-width: 0; flex: 1;">
-                  <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                    <span class="work-stt-badge">${getLedgerCatLabel(item.category)}</span>
-                    <span class="font-tabular" style="font-size: 11.5px; color: var(--text-sub);">${escapeHTML(formatDayMonthTime(item.date || curDate, item.ts))}</span>
-                    ${isSettled ? '<span class="work-borrow-settled-badge">&#10003; Đã trả xong</span>' : ''}
-                  </div>
-                  <div class="work-job-cust-name work-ledger-note">${escapeHTML(item.note)}</div>
-                </div>
-                <div class="work-ledger-right">
-                  <div class="work-ledger-amt-col font-tabular">
-                    <span class="work-job-price-val font-tabular${isSettled ? ' is-settled-amt' : ''}">${formatVND(remaining)}</span>
-                    ${paid > 0 ? `<span class="work-borrow-orig-sub">Gốc ${formatShortK(orig)}${overpaid > 0 ? ` • Thừa +${formatShortK(overpaid)}` : ''}</span>` : ''}
-                  </div>
-                  <div class="work-ledger-actions">
-                    <button type="button" class="btn-ledger-repay${isSettled ? ' is-settled' : ''}" onclick="openRepayBorrowModal(${Number(item.id)})" aria-label="${isSettled ? 'Xem lịch sử trả tiền' : 'Trả tiền'} khoản mượn ${escapeHTML(item.note)}">${isSettled ? 'Lịch sử' : 'Trả tiền'}</button>
-                    <button type="button" class="btn-job-icon btn-del" onclick="deleteWorkLedger(${Number(item.id)}, { isBorrow: true })" aria-label="Xoá khoản mượn ${escapeHTML(item.note)}">Xoá</button>
-                  </div>
-                </div>
-              </div>
-              ${footHtml}
-            </div>
-          `;
-        }
-
-        return `
-          <div class="work-job-card">
-            <div class="work-job-top">
-              <div style="min-width: 0; flex: 1;">
-                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                  <span class="work-stt-badge">${getLedgerCatLabel(item.category)}</span>
-                  <span class="font-tabular" style="font-size: 11.5px; color: var(--text-sub);">${escapeHTML(formatDayMonthTime(item.date || curDate, item.ts))}</span>
-                </div>
-                <div class="work-job-cust-name work-ledger-note">${escapeHTML(item.note)}</div>
-              </div>
-              <div class="work-ledger-right">
-                <span class="work-job-price-val font-tabular">${formatVND(item.amount)}</span>
-                <button type="button" class="btn-job-icon btn-del" onclick="deleteWorkLedger(${Number(item.id)})" aria-label="Xoá khoản mục ${escapeHTML(item.note)}">Xoá</button>
-              </div>
+            <div class="work-ledger-right">
+              <span class="work-job-price-val font-tabular">${formatVND(item.amount)}</span>
+              <button type="button" class="btn-job-icon btn-del" onclick="deleteWorkLedger(${Number(item.id)})" aria-label="Xoá khoản mục ${escapeHTML(item.note)}">Xoá</button>
             </div>
           </div>
-        `;
-      }).join('');
-
-      const repayCards = extraRepays.map(r => {
-        const subParts = [];
-        if (r.note && r.note.trim()) subParts.push(r.note.trim());
-        subParts.push(Number(r.remaining_amount) <= 0 ? 'Đã trả xong khoản mượn' : `Còn nợ: ${formatShortK(r.remaining_amount)}`);
-        return `
-          <div class="work-job-card">
-            <div class="work-job-top">
-              <div style="min-width: 0; flex: 1;">
-                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                  <span class="work-stt-badge">${getLedgerCatLabel('repay')}</span>
-                  <span class="font-tabular" style="font-size: 11.5px; color: var(--text-sub);">${escapeHTML(formatDayMonthTime(r.date || curDate, r.ts))}</span>
-                </div>
-                <div class="work-job-cust-name work-ledger-note">Trả cho: ${escapeHTML(r.borrow_note || 'Khoản mượn')} (Mượn ${escapeHTML(formatDayMonth(r.borrow_date))})</div>
-                <div class="font-tabular" style="font-size: 11.5px; color: var(--text-sub); margin-top: 2px;">${escapeHTML(subParts.join(' • '))}</div>
-              </div>
-              <div class="work-ledger-right">
-                <span class="work-job-price-val font-tabular is-settled-amt">${formatVND(r.amount)}</span>
-                <button type="button" class="btn-job-icon btn-del" onclick="deleteBorrowRepayment(${Number(r.id)}, ${Number(r.ledger_id)})" aria-label="Xoá lần trả nợ ${escapeHTML(r.borrow_note || '')}">Xoá</button>
-              </div>
-            </div>
-          </div>
-        `;
-      }).join('');
-
-      container.innerHTML = ledgerCards + repayCards;
+        </div>
+      `).join('');
     }
 
-    function renderLedgerMonthDays(monthLedger, monthHuman, curMonth, allLedger) {
+    function renderLedgerMonthDays(monthLedger, monthHuman) {
       const container = document.getElementById('ledger-month-days-list');
       const titleEl = document.getElementById('ledger-month-days-title');
       const subEl = document.getElementById('ledger-month-days-sub');
@@ -3448,36 +3819,17 @@
       }
 
       const byDate = {};
-      const ensureDay = (d) => {
-        if (!byDate[d]) {
-          byDate[d] = { date: d, count: 0, expense: 0, fund_in: 0, borrow: 0, repay: 0 };
-        }
-        return byDate[d];
-      };
-
       (monthLedger || []).forEach(item => {
-        if (!item || !item.date) return;
-        const row = ensureDay(item.date);
+        if (!item || !item.date || item.category === 'borrow') return;
+        if (!byDate[item.date]) {
+          byDate[item.date] = { date: item.date, count: 0, expense: 0, fund_in: 0, repay: 0 };
+        }
+        const row = byDate[item.date];
         const amt = Number(item.amount) || 0;
         row.count++;
         if (item.category === 'expense') row.expense += amt;
         if (item.category === 'fund_in') row.fund_in += amt;
-        if (item.category === 'borrow') row.borrow += getBorrowTotals(item).remaining;
         if (item.category === 'repay') row.repay += amt;
-      });
-
-      const monthPrefix = curMonth ? (curMonth + '-') : '';
-      (allLedger || []).forEach(item => {
-        if (!item || item.category !== 'borrow' || !Array.isArray(item.repayments)) return;
-        item.repayments.forEach(r => {
-          if (!r || !r.date) return;
-          if (monthPrefix && !r.date.startsWith(monthPrefix)) return;
-          const row = ensureDay(r.date);
-          row.repay += Math.max(0, Number(r.amount) || 0);
-          if (item.date !== r.date) {
-            row.count++;
-          }
-        });
       });
 
       const days = Object.values(byDate).sort((a, b) => (a.date < b.date ? 1 : -1));
@@ -3485,7 +3837,7 @@
       if (!container) return;
 
       if (days.length === 0) {
-        container.innerHTML = `<div class="empty-state-box">Chưa có khoản thu chi nào trong ${escapeHTML(monthHuman || 'tháng này')}.</div>`;
+        container.innerHTML = `<div class="empty-state-box">Chưa có khoản chi tiêu hay nộp quỹ nào trong ${escapeHTML(monthHuman || 'tháng này')}.</div>`;
         return;
       }
 
@@ -3494,7 +3846,6 @@
         const details = [`${d.count} khoản`];
         if (d.expense > 0) details.push(`Chi ${formatShortK(d.expense)}`);
         if (d.fund_in > 0) details.push(`Quỹ ${formatShortK(d.fund_in)}`);
-        if (d.borrow > 0) details.push(`Mượn ${formatShortK(d.borrow)}`);
         if (d.repay > 0) details.push(`Trả ${formatShortK(d.repay)}`);
 
         return `
@@ -3514,7 +3865,7 @@
     let activeRepayLedgerId = null;
     let repaySubmitting = false;
 
-    function parseBorrowRepayInput(rawVal, remaining) {
+    function parseInstallmentInput(rawVal, remaining) {
       const num = Number(String(rawVal == null ? '' : rawVal).trim());
       if (!Number.isFinite(num) || num <= 0) return 0;
       const rounded = Math.round(num);
@@ -3527,9 +3878,9 @@
       return rounded;
     }
 
-    function setRepayAmountError(msg) {
-      const errEl = document.getElementById('repay-amount-error');
-      const amtInput = document.getElementById('repay-amount');
+    function setInstallmentError(inputId, errId, afterId, msg) {
+      const errEl = document.getElementById(errId);
+      const amtInput = document.getElementById(inputId);
       if (errEl) {
         if (msg) {
           errEl.textContent = msg;
@@ -3542,12 +3893,73 @@
       if (amtInput) {
         if (msg) {
           amtInput.setAttribute('aria-invalid', 'true');
-          amtInput.setAttribute('aria-describedby', 'repay-amount-error');
+          amtInput.setAttribute('aria-describedby', errId);
         } else {
           amtInput.removeAttribute('aria-invalid');
-          amtInput.setAttribute('aria-describedby', 'repay-amount-after');
+          amtInput.setAttribute('aria-describedby', afterId);
         }
       }
+    }
+
+    function setRepayAmountError(msg) {
+      setInstallmentError('repay-amount', 'repay-amount-error', 'repay-amount-after', msg);
+    }
+
+    function buildInstallmentChipsHTML(remaining, onClickFnName) {
+      if (remaining <= 0) return '';
+      const presets = [100000, 200000, 500000, 1000000].filter(v => v < remaining);
+      const chipBtns = presets.map(v =>
+        `<button type="button" class="btn-price-chip" data-vnd="${v}" onclick="${onClickFnName}(${v})">${escapeHTML(formatShortK(v))}</button>`
+      );
+      chipBtns.push(
+        `<button type="button" class="btn-price-chip is-pay-all" data-vnd="${remaining}" onclick="${onClickFnName}(${remaining})">Trả hết (${escapeHTML(formatShortK(remaining))})</button>`
+      );
+      return chipBtns.join('');
+    }
+
+    function computeInstallmentAfterText(amount, remaining) {
+      if (amount > remaining) {
+        return `Sau khi trả: Đã trả xong (trả thừa +${formatVND(amount - remaining)})`;
+      }
+      if (amount === remaining) {
+        return 'Trả đủ — cập nhật trạng thái: Đã trả xong (còn nợ 0đ)';
+      }
+      return `Sau khi trả sẽ còn nợ: ${formatVND(remaining - amount)}`;
+    }
+
+    function applyInstallmentQuickAmount(inputId, vnd, previewFn) {
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      const val = Number(vnd) || 0;
+      if (val <= 0) return;
+      // Values >= 1.000.000 or non-multiples of 1000 must stay in full VND to avoid the <1000 multiplier trap.
+      input.value = (val >= 1000 && val < 1000000 && val % 1000 === 0)
+        ? String(val / 1000)
+        : String(val);
+      previewFn();
+    }
+
+    function buildInstallmentHistoryHTML(installments, fallbackDate, deleteFnName, targetId, emptyMsg) {
+      const list = Array.isArray(installments) ? installments : [];
+      if (list.length === 0) {
+        return `<div class="repay-history-empty">${escapeHTML(emptyMsg)}</div>`;
+      }
+      return list.map((r, idx) => {
+        const dateLabel = formatDayMonthTime(r.date || fallbackDate || workState.date, r.ts);
+        const rNote = (r.note || '').trim();
+        return `
+          <div class="repay-history-row">
+            <div class="repay-history-info">
+              <div class="repay-history-date font-tabular">Lần ${idx + 1} &bull; ${escapeHTML(dateLabel)}</div>
+              ${rNote ? `<div class="repay-history-note">${escapeHTML(rNote)}</div>` : ''}
+            </div>
+            <div class="repay-history-right font-tabular">
+              <span class="repay-history-amt">-${formatVND(r.amount)}</span>
+              <button type="button" class="btn-job-icon btn-del" onclick="${deleteFnName}(${Number(r.id)}, ${Number(targetId)})" aria-label="Xoá lần trả ${idx + 1} ngày ${escapeHTML(formatDayMonth(r.date))}">Xoá</button>
+            </div>
+          </div>
+        `;
+      }).join('');
     }
 
     function renderRepayBorrowModal(item) {
@@ -3588,18 +4000,7 @@
 
       const chipsEl = document.getElementById('repay-quick-chips');
       if (chipsEl) {
-        if (isSettled || remaining <= 0) {
-          chipsEl.innerHTML = '';
-        } else {
-          const presets = [100000, 200000, 500000, 1000000].filter(v => v < remaining);
-          const chipBtns = presets.map(v =>
-            `<button type="button" class="btn-price-chip" data-vnd="${v}" onclick="setBorrowRepayAmount(${v})">${escapeHTML(formatShortK(v))}</button>`
-          );
-          chipBtns.push(
-            `<button type="button" class="btn-price-chip is-pay-all" data-vnd="${remaining}" onclick="setBorrowRepayAmount(${remaining})">Trả hết (${escapeHTML(formatShortK(remaining))})</button>`
-          );
-          chipsEl.innerHTML = chipBtns.join('');
-        }
+        chipsEl.innerHTML = isSettled ? '' : buildInstallmentChipsHTML(remaining, 'setBorrowRepayAmount');
       }
 
       const countEl = document.getElementById('repay-history-count');
@@ -3607,26 +4008,13 @@
 
       const histEl = document.getElementById('repay-history-list');
       if (histEl) {
-        if (repayments.length === 0) {
-          histEl.innerHTML = '<div class="repay-history-empty">Chưa có lần trả tiền nào cho khoản mượn này.</div>';
-        } else {
-          histEl.innerHTML = repayments.map((r, idx) => {
-            const dateLabel = formatDayMonthTime(r.date || item.date || workState.date, r.ts);
-            const rNote = (r.note || '').trim();
-            return `
-              <div class="repay-history-row">
-                <div class="repay-history-info">
-                  <div class="repay-history-date font-tabular">Lần ${idx + 1} &bull; ${escapeHTML(dateLabel)}</div>
-                  ${rNote ? `<div class="repay-history-note">${escapeHTML(rNote)}</div>` : ''}
-                </div>
-                <div class="repay-history-right font-tabular">
-                  <span class="repay-history-amt">-${formatVND(r.amount)}</span>
-                  <button type="button" class="btn-job-icon btn-del" onclick="deleteBorrowRepayment(${Number(r.id)}, ${Number(item.id)})" aria-label="Xoá lần trả ${idx + 1} ngày ${escapeHTML(formatDayMonth(r.date))}">Xoá</button>
-                </div>
-              </div>
-            `;
-          }).join('');
-        }
+        histEl.innerHTML = buildInstallmentHistoryHTML(
+          repayments,
+          item.date,
+          'deleteBorrowRepayment',
+          item.id,
+          'Chưa có lần trả tiền nào cho khoản mượn này.'
+        );
       }
     }
 
@@ -3663,15 +4051,7 @@
     };
 
     window.setBorrowRepayAmount = function (vnd) {
-      const input = document.getElementById('repay-amount');
-      if (!input) return;
-      const val = Number(vnd) || 0;
-      if (val <= 0) return;
-      // Values >= 1.000.000 or non-multiples of 1000 must stay in full VND to avoid the <1000 multiplier trap.
-      input.value = (val >= 1000 && val < 1000000 && val % 1000 === 0)
-        ? String(val / 1000)
-        : String(val);
-      updateBorrowRepayPreview();
+      applyInstallmentQuickAmount('repay-amount', vnd, window.updateBorrowRepayPreview);
     };
 
     window.updateBorrowRepayPreview = function () {
@@ -3694,7 +4074,7 @@
         return 0;
       }
 
-      const amount = parseBorrowRepayInput(rawStr, remaining);
+      const amount = parseInstallmentInput(rawStr, remaining);
       chips.forEach(c => {
         c.classList.toggle('active', Number(c.getAttribute('data-vnd')) === amount);
       });
@@ -3707,18 +4087,8 @@
       }
 
       if (previewEl) previewEl.textContent = '= ' + formatVND(amount);
-
       setRepayAmountError('');
-      if (afterEl) {
-        if (amount > remaining) {
-          const over = amount - remaining;
-          afterEl.textContent = `Sau khi trả: Đã trả xong (trả thừa +${formatVND(over)})`;
-        } else if (amount === remaining) {
-          afterEl.textContent = 'Trả đủ — cập nhật trạng thái: Đã trả xong (còn nợ 0đ)';
-        } else {
-          afterEl.textContent = `Sau khi trả sẽ còn nợ: ${formatVND(remaining - amount)}`;
-        }
-      }
+      if (afterEl) afterEl.textContent = computeInstallmentAfterText(amount, remaining);
       return amount;
     };
 
@@ -3883,6 +4253,285 @@
         showToast(opts.isBorrow ? 'Đã xoá khoản mượn trên máy cá nhân' : 'Đã xoá khoản mục trên máy cá nhân');
         computeWorkFromLocalVault(workState.date);
       }
+    };
+
+    // ================= TRẢ NHIỀU LẦN & LỊCH SỬ CHO SỔ NỢ KHÁCH HÀNG =================
+    let activeDebtJobId = null;
+    let debtPaySubmitting = false;
+
+    function setDebtPayAmountError(msg) {
+      setInstallmentError('debt-pay-amount', 'debt-pay-amount-error', 'debt-pay-amount-after', msg);
+    }
+
+    function renderDebtPayModal(job) {
+      const { orig, paid, remaining, overpaid, payments } = getDebtJobTotals(job);
+      const isSettled = remaining <= 0 && orig > 0;
+
+      const setTxt = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val;
+      };
+
+      activeDebtJobId = Number(job.id);
+      const hiddenId = document.getElementById('debt-pay-job-id');
+      if (hiddenId) hiddenId.value = String(job.id);
+
+      setTxt('debt-pay-job-title', `${job.customer || 'Khách hàng'} — ${job.service || 'Đơn nợ'}`);
+      setTxt('debt-pay-job-date', `Đơn ngày ${formatVNDate(job.date || workState.date)}`);
+      setTxt('debt-pay-orig-amount', formatVND(orig));
+      setTxt('debt-pay-paid-amount', formatVND(paid));
+      setTxt('debt-pay-rem-amount', formatVND(remaining));
+
+      const remEl = document.getElementById('debt-pay-rem-amount');
+      if (remEl) {
+        remEl.classList.toggle('is-paid', isSettled);
+        remEl.classList.toggle('is-remaining', !isSettled);
+      }
+
+      const settledBanner = document.getElementById('debt-pay-settled-banner');
+      const settledTxt = document.getElementById('debt-pay-settled-text');
+      const formEl = document.getElementById('debt-job-pay-form');
+      if (settledBanner) settledBanner.style.display = isSettled ? 'flex' : 'none';
+      if (settledTxt) {
+        settledTxt.textContent = overpaid > 0
+          ? `Đơn nợ này đã trả xong (trả thừa +${formatVND(overpaid)}).`
+          : 'Đơn nợ này đã trả xong.';
+      }
+      if (formEl) formEl.style.display = isSettled ? 'none' : 'block';
+
+      const chipsEl = document.getElementById('debt-pay-quick-chips');
+      if (chipsEl) {
+        chipsEl.innerHTML = isSettled ? '' : buildInstallmentChipsHTML(remaining, 'setDebtPayAmount');
+      }
+
+      const countEl = document.getElementById('debt-pay-history-count');
+      if (countEl) countEl.textContent = `${payments.length} lần`;
+
+      const histEl = document.getElementById('debt-pay-history-list');
+      if (histEl) {
+        histEl.innerHTML = buildInstallmentHistoryHTML(
+          payments,
+          job.date,
+          'deleteDebtJobPayment',
+          job.id,
+          'Chưa có lần trả tiền nào cho đơn nợ này.'
+        );
+      }
+    }
+
+    window.openDebtJobPayModal = function (jobId) {
+      const job = findDebtJobById(jobId);
+      if (!job) {
+        showToast('Không tìm thấy đơn nợ này', true);
+        return;
+      }
+
+      const amtInput = document.getElementById('debt-pay-amount');
+      const dateInput = document.getElementById('debt-pay-date');
+      const noteInput = document.getElementById('debt-pay-note');
+      const previewEl = document.getElementById('debt-pay-amount-preview');
+      const afterEl = document.getElementById('debt-pay-amount-after');
+
+      if (amtInput) amtInput.value = '';
+      if (noteInput) noteInput.value = '';
+      if (dateInput) dateInput.value = workState.date || state.today || new Date().toISOString().slice(0, 10);
+      if (previewEl) previewEl.textContent = '';
+      if (afterEl) afterEl.textContent = '';
+      setDebtPayAmountError('');
+
+      renderDebtPayModal(job);
+      openModal('modal-pay-debt-job');
+
+      const { remaining } = getDebtJobTotals(job);
+      if (remaining > 0 && amtInput) {
+        setTimeout(() => amtInput.focus(), 80);
+      } else {
+        const closeBtn = document.querySelector('#modal-pay-debt-job .modal-close');
+        if (closeBtn) setTimeout(() => closeBtn.focus(), 80);
+      }
+    };
+
+    window.setDebtPayAmount = function (vnd) {
+      applyInstallmentQuickAmount('debt-pay-amount', vnd, window.updateDebtPayPreview);
+    };
+
+    window.updateDebtPayPreview = function () {
+      const amtInput = document.getElementById('debt-pay-amount');
+      const previewEl = document.getElementById('debt-pay-amount-preview');
+      const afterEl = document.getElementById('debt-pay-amount-after');
+      const idEl = document.getElementById('debt-pay-job-id');
+      const jobId = Number((idEl && idEl.value) || activeDebtJobId);
+      const job = findDebtJobById(jobId);
+      const remaining = job ? getDebtJobTotals(job).remaining : 0;
+
+      const rawStr = amtInput ? amtInput.value.trim() : '';
+      const chips = document.querySelectorAll('#debt-pay-quick-chips .btn-price-chip');
+
+      if (!rawStr) {
+        if (previewEl) previewEl.textContent = '';
+        if (afterEl) afterEl.textContent = '';
+        setDebtPayAmountError('');
+        chips.forEach(c => c.classList.remove('active'));
+        return 0;
+      }
+
+      const amount = parseInstallmentInput(rawStr, remaining);
+      chips.forEach(c => {
+        c.classList.toggle('active', Number(c.getAttribute('data-vnd')) === amount);
+      });
+
+      if (amount <= 0 || (amount < 1000 && !(remaining > 0 && remaining < 1000 && amount === remaining))) {
+        if (previewEl) previewEl.textContent = amount > 0 ? ('= ' + formatVND(amount)) : '';
+        if (afterEl) afterEl.textContent = '';
+        setDebtPayAmountError('Số tiền trả phải từ 1.000đ trở lên.');
+        return 0;
+      }
+
+      if (previewEl) previewEl.textContent = '= ' + formatVND(amount);
+      setDebtPayAmountError('');
+      if (afterEl) afterEl.textContent = computeInstallmentAfterText(amount, remaining);
+      return amount;
+    };
+
+    window.submitDebtJobPayment = async function (e) {
+      e.preventDefault();
+      if (debtPaySubmitting) return;
+
+      const idEl = document.getElementById('debt-pay-job-id');
+      const jobId = Number((idEl && idEl.value) || activeDebtJobId);
+      const job = findDebtJobById(jobId);
+      if (!job) {
+        showToast('Không tìm thấy đơn nợ này', true);
+        return;
+      }
+
+      const { remaining } = getDebtJobTotals(job);
+      const amtInput = document.getElementById('debt-pay-amount');
+      const amount = updateDebtPayPreview();
+      if (!amount || amount <= 0) {
+        if (amtInput && !amtInput.value.trim()) {
+          setDebtPayAmountError('Vui lòng nhập số tiền trả lần này (ví dụ: 500 = 500.000đ).');
+        }
+        if (amtInput) amtInput.focus();
+        return;
+      }
+
+      const payDate = ((document.getElementById('debt-pay-date') || {}).value || '').trim()
+        || workState.date
+        || state.today
+        || new Date().toISOString().slice(0, 10);
+      const note = ((document.getElementById('debt-pay-note') || {}).value || '').trim();
+
+      const submitBtn = document.getElementById('btn-debt-pay-submit');
+      debtPaySubmitting = true;
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Đang lưu...';
+      }
+
+      const resetFormFields = () => {
+        if (amtInput) amtInput.value = '';
+        const noteEl = document.getElementById('debt-pay-note');
+        if (noteEl) noteEl.value = '';
+        const prevEl = document.getElementById('debt-pay-amount-preview');
+        if (prevEl) prevEl.textContent = '';
+        const afterEl = document.getElementById('debt-pay-amount-after');
+        if (afterEl) afterEl.textContent = '';
+        setDebtPayAmountError('');
+      };
+
+      const overAmt = Math.max(0, amount - remaining);
+      try {
+        const res = await api(`/api/work/job/${jobId}/pay`, {
+          method: 'POST',
+          body: JSON.stringify({ date: payDate, amount, note })
+        });
+        if (res && res.payment) {
+          addJobPaymentToLocalVault(jobId, res.payment, { dirty: false });
+        }
+        resetFormFields();
+        const nextRem = typeof (res && res.remaining_amount) === 'number'
+          ? res.remaining_amount
+          : Math.max(0, remaining - amount);
+        const srvOver = typeof (res && res.overpaid_amount) === 'number' ? res.overpaid_amount : overAmt;
+        showToast(nextRem === 0
+          ? (srvOver > 0 ? `Đã trả xong đơn nợ (thừa +${formatShortK(srvOver)})` : `Đã trả xong đơn nợ (${formatShortK(amount)})`)
+          : `Đã trả ${formatShortK(amount)} • Còn nợ ${formatShortK(nextRem)}`);
+        await loadWorkData(workState.date);
+        const refreshed = findDebtJobById(jobId);
+        if (refreshed) {
+          renderDebtPayModal(refreshed);
+          if (getDebtJobTotals(refreshed).remaining <= 0) {
+            const closeBtn = document.querySelector('#modal-pay-debt-job .modal-close');
+            if (closeBtn) closeBtn.focus();
+          }
+        }
+      } catch (err) {
+        if (err && typeof err.status === 'number' && err.status >= 400 && err.status < 500) {
+          setDebtPayAmountError(err.message || 'Không thể lưu lần trả tiền này');
+          return;
+        }
+        const offlinePay = {
+          id: Date.now(),
+          job_id: jobId,
+          date: payDate,
+          amount,
+          note,
+          ts: Math.floor(Date.now() / 1000)
+        };
+        addJobPaymentToLocalVault(jobId, offlinePay, { dirty: true });
+        resetFormFields();
+        const nextRem = Math.max(0, remaining - amount);
+        showToast(nextRem === 0
+          ? (overAmt > 0 ? `Đã trả xong, thừa +${formatShortK(overAmt)} (máy cá nhân)` : 'Đã trả xong đơn nợ (lưu trên máy cá nhân)')
+          : `Đã lưu trả ${formatShortK(amount)} trên máy cá nhân`);
+        computeWorkFromLocalVault(workState.date);
+        const refreshed = findDebtJobById(jobId);
+        if (refreshed) {
+          renderDebtPayModal(refreshed);
+          if (getDebtJobTotals(refreshed).remaining <= 0) {
+            const closeBtn = document.querySelector('#modal-pay-debt-job .modal-close');
+            if (closeBtn) closeBtn.focus();
+          }
+        }
+      } finally {
+        debtPaySubmitting = false;
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Xác nhận trả tiền';
+        }
+      }
+    };
+
+    window.deleteDebtJobPayment = async function (paymentId, jobId) {
+      if (!confirm('Hoàn tác lần trả tiền này? Số tiền nợ còn lại sẽ được cộng lại tương ứng.')) return;
+      const targetJobId = Number(jobId || activeDebtJobId);
+      try {
+        await api('/api/work/job-payment/' + paymentId, { method: 'DELETE' });
+        removeJobPaymentFromLocalVault(paymentId, { dirty: false });
+        showToast('Đã xoá lần trả tiền');
+        await loadWorkData(workState.date);
+      } catch (err) {
+        if (err && typeof err.status === 'number' && err.status >= 400 && err.status < 500) {
+          return;
+        }
+        removeJobPaymentFromLocalVault(paymentId, { dirty: true });
+        showToast('Đã xoá lần trả tiền trên máy cá nhân');
+        computeWorkFromLocalVault(workState.date);
+      }
+
+      const modalEl = document.getElementById('modal-pay-debt-job');
+      if (modalEl && modalEl.classList.contains('open') && targetJobId) {
+        const refreshed = findDebtJobById(targetJobId);
+        if (refreshed) renderDebtPayModal(refreshed);
+      }
+    };
+
+    window.deleteDebtJobFromModal = async function () {
+      const idEl = document.getElementById('debt-pay-job-id');
+      const jobId = Number((idEl && idEl.value) || activeDebtJobId);
+      if (!jobId) return;
+      await window.deleteWorkJob(jobId, { fromDebt: true, closePayModal: true });
     };
 
     window.exportWorkExcel = function () {

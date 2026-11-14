@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=54">
+  <link rel="stylesheet" href="/style.css?v=59">
 </head>
 <body>
   <!-- Container Toast thông báo -->
@@ -38,9 +38,6 @@
               <label class="login-form-label" for="pin-input">Mã PIN bảo mật</label>
               <div class="pin-input-wrap">
                 <input type="password" id="pin-input" class="pin-input" placeholder="••••" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="one-time-code" required autofocus>
-              </div>
-              <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 6px; text-align: center;">
-                Nhập PIN <strong>0312</strong> vào Quyền &bull; PIN <strong>1401</strong> vào Dev
               </div>
             </div>
             <button type="submit" class="btn-green-pill btn-login-submit">Đăng nhập ngay</button>
@@ -104,7 +101,7 @@
             </div>
           </div>
 
-          <!-- Mục Tổng Quan Hôm Nay (Hàng 3 Thẻ Nút Mở Popup Nhập Nhanh) -->
+          <!-- Mục Tổng Quan Hôm Nay (Lưới 4 Thẻ Nút Mở Popup Nhập Nhanh) -->
           <div class="section-container">
             <div class="section-title-header">
               <h2 class="section-heading">Tổng quan hôm nay</h2>
@@ -154,30 +151,28 @@
                   <span class="summary-val-unit">L</span>
                 </div>
               </div>
-            </div>
-          </div>
 
-          <!-- Checklist 3 Bữa ăn Healthy hôm nay (Giống Thuốc bổ gan: Đã ăn / Chưa ăn) -->
-          <div class="section-container" style="margin-top: 22px;">
-            <div id="today-meals-card" class="quick-log-card" style="margin-top: 0;">
-              <div class="log-card-header">
-                <h3 class="log-card-title">Bữa ăn Healthy hôm nay</h3>
-              </div>
-
-              <!-- Thanh tiến độ các bữa ăn trong ngày -->
-              <div class="log-progress-track">
-                <div id="meal-progress-fill" class="log-progress-fill" style="width: 0%;"></div>
-              </div>
-
-              <!-- Danh sách tick 3 bữa trong ngày -->
-              <div id="today-meal-checklist-grid" class="med-dose-grid modal-med-dose-list" role="group" aria-label="Checklist Bữa ăn Healthy hôm nay"></div>
+              <!-- Thẻ Nút 4: Ăn uống (Bữa ăn Healthy hôm nay) -->
+              <button type="button" id="meals-summary-card" class="summary-stat-card card-amber-tint" onclick="openMealsModal()" aria-label="Ăn uống — Mở danh sách Bữa ăn Healthy hôm nay">
+                <div class="summary-card-header">
+                  <div class="summary-icon-circle icon-amber">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>
+                    </svg>
+                  </div>
+                  <span class="summary-card-label">Ăn uống</span>
+                </div>
+                <div class="summary-val-row">
+                  <span id="summary-meals-display" class="summary-val-num font-tabular summary-val-compact">0/3 bữa</span>
+                </div>
+              </button>
             </div>
           </div>
 
           <!-- =====================================================================
                KHU VỰC: ĐỘNG LỰC (NGƯỜI CON GÁI PHÙNG VĂN QUYỀN YÊU)
                ===================================================================== -->
-          <div class="section-container" style="margin-top: 24px; margin-bottom: 28px;">
+          <div class="section-container" style="margin-top: 22px; margin-bottom: 28px;">
             <div class="section-title-header">
               <span class="motivation-heart-badge">
                 <svg class="ui-inline-svg" viewBox="0 0 24 24" width="13" height="13" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
@@ -407,10 +402,6 @@
                 <button type="button" id="btn-hero-scope-day" class="work-scope-btn active" onclick="setWorkHeroScope('day')">Theo ngày</button>
                 <button type="button" id="btn-hero-scope-month" class="work-scope-btn" onclick="setWorkHeroScope('month')">Cả tháng</button>
               </div>
-              <button type="button" class="btn-hero-month-detail" onclick="switchWorkSubTab('month')">
-                <span>Báo cáo tháng</span>
-                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
-              </button>
             </div>
 
             <!-- Hàng 1: Nhãn tiêu đề (Trái) & Số lượng đơn (Phải) - Luôn cố định 1 dòng -->
@@ -456,8 +447,8 @@
             </div>
           </div>
 
-          <!-- Thanh Chuyển Đổi 3 Phân Khu (Luôn nằm trên 1 dòng duy nhất, không rớt chữ) -->
-          <div class="work-subtab-bar" style="grid-template-columns: repeat(3, minmax(0, 1fr));" role="tablist" aria-label="Phân khu sổ công việc">
+          <!-- Thanh Chuyển Đổi 2 Phân Khu (Đơn việc & Sổ nợ) -->
+          <div class="work-subtab-bar" style="grid-template-columns: repeat(2, minmax(0, 1fr));" role="tablist" aria-label="Phân khu sổ công việc">
             <button type="button" id="work-subtab-btn-jobs" class="work-subtab-btn active" role="tab" aria-selected="true" onclick="switchWorkSubTab('jobs')">
               <svg class="ui-inline-svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
               <span>Đơn việc</span>
@@ -467,10 +458,6 @@
               <svg class="ui-inline-svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
               <span>Sổ nợ</span>
               <span id="work-badge-unpaid-all" class="work-subtab-count badge-alert font-tabular">0</span>
-            </button>
-            <button type="button" id="work-subtab-btn-month" class="work-subtab-btn" role="tab" aria-selected="false" onclick="switchWorkSubTab('month')">
-              <svg class="ui-inline-svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-              <span>Tháng</span>
             </button>
           </div>
 
@@ -500,7 +487,7 @@
                PHÂN KHU 2: SỔ NỢ KHÁCH HÀNG (GOM ĐƠN CTT THEO KHÁCH)
                =============================================================== -->
           <div id="work-subpane-unpaid" class="work-subpane">
-            <div class="work-unpaid-banner">
+            <div id="work-unpaid-banner" class="work-unpaid-banner">
               <div>
                 <span class="work-unpaid-banner-label">Tổng tiền khách đang nợ (CTT)</span>
                 <div id="work-unpaid-total-all" class="work-unpaid-banner-val font-tabular">0đ</div>
@@ -508,104 +495,17 @@
               <span id="work-unpaid-count-all" class="work-job-count-pill badge-alert font-tabular">0 đơn nợ</span>
             </div>
 
+            <div id="debt-list-filters" class="borrow-filter-bar font-tabular" role="tablist" aria-label="Lọc trạng thái sổ nợ">
+              <button type="button" class="borrow-filter-pill active" data-filter="all" role="tab" aria-selected="true" onclick="setDebtListFilter('all')">Tất cả (<span id="debt-cnt-all">0</span>)</button>
+              <button type="button" class="borrow-filter-pill" data-filter="unpaid" role="tab" aria-selected="false" onclick="setDebtListFilter('unpaid')">Chưa trả (<span id="debt-cnt-unpaid">0</span>)</button>
+              <button type="button" class="borrow-filter-pill" data-filter="settled" role="tab" aria-selected="false" onclick="setDebtListFilter('settled')">Đã trả xong (<span id="debt-cnt-settled">0</span>)</button>
+            </div>
+
             <p class="work-helper-text">
-              Danh sách tự động gom tất cả các đơn <strong>Chưa thanh toán (CTT)</strong> theo từng khách hàng. Bạn có thể bấm <strong>Copy báo nợ</strong> để gửi qua Zalo/FB hoặc bấm <strong>Thu hết nợ</strong> khi khách chuyển khoản.
+              Danh sách gom các đơn nợ theo từng khách hàng. Bấm <strong>Trả tiền</strong> để trả một phần hoặc nhiều lần, lưu trạng thái <strong>Đã trả xong</strong>, hoặc <strong>Xoá</strong> bất cứ lúc nào.
             </p>
 
             <div id="work-unpaid-groups-list" class="work-items-stack" style="margin-bottom: 24px;"></div>
-          </div>
-
-          <!-- ===============================================================
-               PHÂN KHU 3: BÁO CÁO TỔNG KẾT CẢ THÁNG
-               =============================================================== -->
-          <div id="work-subpane-month" class="work-subpane">
-            <!-- Thanh chọn Tháng cần xem -->
-            <div class="work-month-nav-bar">
-              <button type="button" class="btn-work-date-step" aria-label="Tháng trước" onclick="stepWorkMonth(-1)">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
-              </button>
-              <div class="work-month-picker-wrap">
-                <span id="work-mview-nav-title" class="work-month-nav-title font-tabular">Tháng 11/2026</span>
-                <span id="work-mview-nav-sub" class="work-month-nav-sub">Tổng kết toàn bộ đơn &amp; thu chi trong tháng</span>
-              </div>
-              <button type="button" class="btn-work-date-step" aria-label="Tháng tiếp theo" onclick="stepWorkMonth(1)">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
-              </button>
-            </div>
-
-            <!-- Thẻ Bảng Cân Đối Tài Chính Cả Tháng (Chuẩn App Ngân Hàng) -->
-            <div class="work-month-statement-card font-tabular">
-              <div class="work-bank-header-row">
-                <span id="work-mview-eyebrow" class="work-summary-eyebrow">TỔNG DOANH THU THÁNG</span>
-                <span id="work-mview-badge" class="work-job-count-pill">0 đơn &bull; 0 ngày</span>
-              </div>
-
-              <div class="work-bank-balance-row">
-                <span id="work-mview-revenue" class="work-huge-money">0đ</span>
-              </div>
-
-              <div class="work-bank-net-bar">
-                <span class="work-net-label">Thực còn cả tháng (Đã thu &minus; Chi)</span>
-                <span id="work-mview-net" class="work-net-val">0đ</span>
-              </div>
-
-              <!-- Lưới 6 chỉ số tổng hợp cả tháng (2 hàng x 3 cột cố định) -->
-              <div class="work-mview-grid-6">
-                <div class="work-mview-box box-paid">
-                  <span class="work-mview-box-lbl">Đã thu (TT)</span>
-                  <strong id="work-mview-paid" class="work-mview-box-val">0đ</strong>
-                  <span id="work-mview-paid-sub" class="work-mview-box-sub">0 đơn đã thu</span>
-                </div>
-                <div class="work-mview-box box-unpaid" onclick="switchWorkSubTab('unpaid')" style="cursor: pointer;">
-                  <span class="work-mview-box-lbl">Còn nợ (CTT)</span>
-                  <strong id="work-mview-unpaid" class="work-mview-box-val">0đ</strong>
-                  <span id="work-mview-unpaid-sub" class="work-mview-box-sub">0 đơn nợ</span>
-                </div>
-                <div class="work-mview-box box-expense">
-                  <span class="work-mview-box-lbl">Chi tiêu tháng</span>
-                  <strong id="work-mview-expense" class="work-mview-box-val">0đ</strong>
-                  <span id="work-mview-expense-sub" class="work-mview-box-sub">Phát sinh</span>
-                </div>
-                <div class="work-mview-box">
-                  <span class="work-mview-box-lbl">TB / ngày làm</span>
-                  <strong id="work-mview-avg-day" class="work-mview-box-val">0đ</strong>
-                  <span id="work-mview-avg-sub" class="work-mview-box-sub">0 ngày có đơn</span>
-                </div>
-                <div class="work-mview-box">
-                  <span class="work-mview-box-lbl">Nộp quỹ tháng</span>
-                  <strong id="work-mview-fund" class="work-mview-box-val">0đ</strong>
-                  <span id="work-mview-fund-sub" class="work-mview-box-sub">Số quỹ: 0đ</span>
-                </div>
-                <div class="work-mview-box">
-                  <span class="work-mview-box-lbl">Mượn / Trả nợ</span>
-                  <strong id="work-mview-loan" class="work-mview-box-val">0đ</strong>
-                  <span id="work-mview-loan-sub" class="work-mview-box-sub">Trả nợ: 0đ</span>
-                </div>
-              </div>
-
-              <button type="button" class="btn-green-pill" style="width: 100%; margin-top: 12px; min-height: 42px; font-size: 13.5px;" onclick="exportWorkExcel()">
-                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="margin-right: 4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                <span id="work-mview-export-btn-txt">Xuất bảng tổng kết tháng ra Excel (.csv)</span>
-              </button>
-            </div>
-
-            <!-- Thống kê Doanh thu theo Khách hàng trong tháng -->
-            <div class="section-container" style="margin-top: 18px;">
-              <div class="section-title-header">
-                <h2 class="section-heading">Khách hàng trong tháng</h2>
-                <span id="work-mview-cust-count" class="work-list-sub font-tabular">0 khách</span>
-              </div>
-              <div id="work-month-customers-list" class="work-items-stack"></div>
-            </div>
-
-            <!-- Bảng kê chi tiết từng ngày làm việc trong tháng -->
-            <div class="section-container" style="margin-top: 20px; margin-bottom: 26px;">
-              <div class="section-title-header">
-                <h2 class="section-heading">Bảng kê từng ngày trong tháng</h2>
-                <span id="work-mview-days-count" class="work-list-sub font-tabular">0 ngày</span>
-              </div>
-              <div id="work-month-full-days-list" class="work-items-stack"></div>
-            </div>
           </div>
 
           <button type="button" class="btn-fab-plus" onclick="openAddWorkJobModal()" aria-label="Mở popup ghi đơn mới" title="Ghi đơn mới">
@@ -669,7 +569,7 @@
               <span id="ledger-hero-expense" class="work-huge-money font-tabular">0đ</span>
             </div>
 
-            <!-- Lưới 4 chỉ số thu chi (Chi tiêu, Nộp quỹ, Mượn, Trả nợ) -->
+            <!-- Lưới 4 chỉ số thu chi (Chi tiêu, Nộp quỹ, Mượn toàn thời gian, Trả nợ) -->
             <div class="work-month-grid-4 font-tabular">
               <div class="work-month-cell">
                 <span class="work-month-cell-lbl">Chi tiêu</span>
@@ -679,10 +579,10 @@
                 <span class="work-month-cell-lbl">Nộp quỹ</span>
                 <strong id="ledger-stat-fund-in" class="work-month-cell-val">0đ</strong>
               </div>
-              <div class="work-month-cell">
+              <button type="button" class="work-month-cell work-month-cell-btn" onclick="openBorrowListModal()" aria-label="Xem tất cả các khoản mượn của Quyền">
                 <span class="work-month-cell-lbl">Mượn</span>
                 <strong id="ledger-stat-borrow" class="work-month-cell-val">0đ</strong>
-              </div>
+              </button>
               <div class="work-month-cell">
                 <span class="work-month-cell-lbl">Trả nợ</span>
                 <strong id="ledger-stat-repay" class="work-month-cell-val">0đ</strong>
@@ -690,6 +590,26 @@
             </div>
 
             <div id="ledger-stat-fund-bal-row" class="work-extra-badges-row" style="display: none;"></div>
+          </div>
+
+          <!-- 1 Nút gom toàn bộ các khoản Mượn của Quyền (Luôn hiển thị bất kể ngày/tháng) -->
+          <div class="section-container" style="margin-top: 14px;">
+            <button type="button" id="btn-open-borrow-list" class="work-borrow-summary-btn" onclick="openBorrowListModal()" aria-haspopup="dialog" aria-controls="modal-borrow-list">
+              <span class="work-borrow-btn-icon" aria-hidden="true">
+                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="17" y1="7" x2="7" y2="17"/><polyline points="17 17 7 17 7 7"/></svg>
+              </span>
+              <span class="work-borrow-btn-body">
+                <span class="work-borrow-btn-title-row">
+                  <strong class="work-borrow-btn-title">Khoản Mượn của Quyền</strong>
+                  <span id="ledger-borrow-btn-badge" class="work-borrow-btn-badge font-tabular">0 khoản</span>
+                </span>
+                <span id="ledger-borrow-btn-sub" class="work-borrow-btn-sub font-tabular">Chưa có khoản mượn nào</span>
+              </span>
+              <span class="work-borrow-btn-right font-tabular">
+                <strong id="ledger-borrow-btn-total" class="work-borrow-btn-total">0đ</strong>
+                <svg class="work-borrow-btn-chevron" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+              </span>
+            </button>
           </div>
 
           <!-- Danh sách phát sinh trong ngày đang xem -->
@@ -877,6 +797,24 @@
       <div id="med-dose-pills-grid" class="med-dose-grid modal-med-dose-list" role="group" aria-label="Các lần uống thuốc trong ngày"></div>
 
       <button type="button" class="btn-secondary-pill" style="width: 100%; margin-top: 16px;" onclick="closeModal('modal-med')">Xong</button>
+    </div>
+  </div>
+
+  <!-- MODAL: Bữa Ăn Healthy Hôm Nay (Sáng, Trưa, Tối) -->
+  <div id="modal-meals" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-meals-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="modal-meals-title" class="modal-title">Bữa ăn Healthy hôm nay</h3>
+        <button type="button" class="modal-close" aria-label="Đóng" onclick="closeModal('modal-meals')">&times;</button>
+      </div>
+
+      <div class="log-progress-track">
+        <div id="meal-progress-fill" class="log-progress-fill" style="width: 0%;"></div>
+      </div>
+
+      <div id="today-meal-checklist-grid" class="med-dose-grid modal-med-dose-list" role="group" aria-label="Checklist Bữa ăn Healthy hôm nay"></div>
+
+      <button type="button" class="btn-secondary-pill" style="width: 100%; margin-top: 16px;" onclick="closeModal('modal-meals')">Xong</button>
     </div>
   </div>
 
@@ -1075,8 +1013,50 @@
     </div>
   </div>
 
+  <!-- MODAL: Danh Sách Tất Cả Khoản Mượn Của Quyền (Không Phụ Thuộc Thời Gian) -->
+  <div id="modal-borrow-list" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-borrow-list-title">
+    <div class="modal-dialog modal-dialog-tall">
+      <div class="modal-header">
+        <div>
+          <h3 id="modal-borrow-list-title" class="modal-title">Các khoản Mượn của Quyền</h3>
+          <p class="borrow-list-subtitle">Luôn hiển thị toàn bộ khoản mượn, không phụ thuộc ngày/tháng</p>
+        </div>
+        <button type="button" class="modal-close" aria-label="Đóng danh sách khoản mượn" onclick="closeModal('modal-borrow-list')">&times;</button>
+      </div>
+
+      <div class="repay-summary-box">
+        <div class="repay-metrics-3 font-tabular">
+          <div class="repay-metric-cell">
+            <span class="repay-metric-lbl">Còn phải trả</span>
+            <strong id="borrow-modal-total-rem" class="repay-metric-val is-remaining">0đ</strong>
+          </div>
+          <div class="repay-metric-cell">
+            <span class="repay-metric-lbl">Tổng đã trả</span>
+            <strong id="borrow-modal-total-paid" class="repay-metric-val is-paid">0đ</strong>
+          </div>
+          <div class="repay-metric-cell">
+            <span class="repay-metric-lbl">Tổng mượn gốc</span>
+            <strong id="borrow-modal-total-orig" class="repay-metric-val">0đ</strong>
+          </div>
+        </div>
+        <button type="button" class="btn-borrow-add-inline" onclick="openAddWorkLedgerModal('borrow')">
+          <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span>Thêm khoản mượn mới</span>
+        </button>
+      </div>
+
+      <div id="borrow-list-filters" class="borrow-filter-bar font-tabular" role="tablist" aria-label="Lọc trạng thái khoản mượn">
+        <button type="button" class="borrow-filter-pill active" data-filter="all" role="tab" aria-selected="true" onclick="setBorrowModalFilter('all')">Tất cả (<span id="borrow-cnt-all">0</span>)</button>
+        <button type="button" class="borrow-filter-pill" data-filter="unpaid" role="tab" aria-selected="false" onclick="setBorrowModalFilter('unpaid')">Chưa trả (<span id="borrow-cnt-unpaid">0</span>)</button>
+        <button type="button" class="borrow-filter-pill" data-filter="settled" role="tab" aria-selected="false" onclick="setBorrowModalFilter('settled')">Đã trả xong (<span id="borrow-cnt-settled">0</span>)</button>
+      </div>
+
+      <div id="borrow-modal-list" class="work-items-stack"></div>
+    </div>
+  </div>
+
   <!-- MODAL: Ghi Thu Chi Cá Nhân -->
-  <div id="modal-add-work-ledger" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-add-ledger-title">
+  <div id="modal-add-work-ledger" class="modal-overlay modal-top" role="dialog" aria-modal="true" aria-labelledby="modal-add-ledger-title">
     <div class="modal-dialog">
       <div class="modal-header">
         <h3 id="modal-add-ledger-title" class="modal-title">+ Ghi thu chi cá nhân</h3>
@@ -1142,7 +1122,7 @@
   </div>
 
   <!-- MODAL: Trả Tiền Khoản Mượn (Thanh Toán 1 Phần Hoặc Toàn Bộ) -->
-  <div id="modal-repay-borrow" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-repay-borrow-title">
+  <div id="modal-repay-borrow" class="modal-overlay modal-top" role="dialog" aria-modal="true" aria-labelledby="modal-repay-borrow-title">
     <div class="modal-dialog">
       <div class="modal-header">
         <h3 id="modal-repay-borrow-title" class="modal-title">Trả tiền mượn</h3>
@@ -1217,6 +1197,82 @@
     </div>
   </div>
 
-  <script src="/app.js?v=54"></script>
+  <!-- MODAL: Trả Tiền Đơn Sổ Nợ (Thanh Toán 1 Phần Hoặc Toàn Bộ) -->
+  <div id="modal-pay-debt-job" class="modal-overlay modal-top" role="dialog" aria-modal="true" aria-labelledby="modal-pay-debt-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="modal-pay-debt-title" class="modal-title">Trả tiền sổ nợ</h3>
+        <button type="button" class="modal-close" aria-label="Đóng hộp thoại trả tiền sổ nợ" onclick="closeModal('modal-pay-debt-job')">&times;</button>
+      </div>
+
+      <div class="repay-summary-box">
+        <div class="repay-borrow-head">
+          <strong id="debt-pay-job-title" class="repay-borrow-name"></strong>
+          <span id="debt-pay-job-date" class="repay-borrow-date font-tabular"></span>
+        </div>
+        <div class="repay-metrics-3 font-tabular">
+          <div class="repay-metric-cell">
+            <span class="repay-metric-lbl">Nợ gốc</span>
+            <strong id="debt-pay-orig-amount" class="repay-metric-val">0đ</strong>
+          </div>
+          <div class="repay-metric-cell">
+            <span class="repay-metric-lbl">Đã trả</span>
+            <strong id="debt-pay-paid-amount" class="repay-metric-val is-paid">0đ</strong>
+          </div>
+          <div class="repay-metric-cell">
+            <span class="repay-metric-lbl">Còn nợ</span>
+            <strong id="debt-pay-rem-amount" class="repay-metric-val is-remaining">0đ</strong>
+          </div>
+        </div>
+      </div>
+
+      <div id="debt-pay-settled-banner" class="repay-settled-banner" style="display: none;">
+        <svg class="ui-inline-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+        <span id="debt-pay-settled-text">Đơn nợ này đã trả xong.</span>
+      </div>
+
+      <form id="debt-job-pay-form" class="work-quick-card" onsubmit="submitDebtJobPayment(event)" novalidate>
+        <input type="hidden" id="debt-pay-job-id">
+
+        <div class="form-group">
+          <div class="repay-amount-label-row">
+            <label class="form-label" for="debt-pay-amount">Số tiền trả lần này (500 = 500.000đ)</label>
+            <span id="debt-pay-amount-preview" class="work-price-preview font-tabular"></span>
+          </div>
+          <input type="number" id="debt-pay-amount" name="debt_pay_amount" class="form-input work-mobile-input font-tabular" placeholder="Ví dụ: 500 hoặc 500000" inputmode="numeric" min="1" required oninput="updateDebtPayPreview()">
+          <p id="debt-pay-amount-after" class="repay-after-hint font-tabular" role="status"></p>
+          <p id="debt-pay-amount-error" class="repay-error-text" role="alert" style="display: none;"></p>
+          <div id="debt-pay-quick-chips" class="repay-chips-grid" aria-label="Chọn nhanh số tiền trả"></div>
+        </div>
+
+        <div class="repay-meta-grid">
+          <div class="form-group">
+            <label class="form-label" for="debt-pay-date">Ngày trả tiền</label>
+            <input type="date" id="debt-pay-date" name="debt_pay_date" class="form-input work-mobile-input font-tabular" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="debt-pay-note">Ghi chú (tuỳ chọn)</label>
+            <input type="text" id="debt-pay-note" name="debt_pay_note" class="form-input work-mobile-input" placeholder="Ví dụ: Chuyển khoản, Tiền mặt..." maxlength="300">
+          </div>
+        </div>
+
+        <button type="submit" id="btn-debt-pay-submit" class="btn-green-pill" style="width: 100%; margin-top: 14px;">Xác nhận trả tiền</button>
+      </form>
+
+      <div class="repay-history-section">
+        <div class="repay-history-header">
+          <h4 class="repay-history-title">Các lần trả tiền đã lưu</h4>
+          <span id="debt-pay-history-count" class="work-list-sub font-tabular">0 lần</span>
+        </div>
+        <div id="debt-pay-history-list" class="repay-history-list"></div>
+      </div>
+
+      <div class="repay-danger-zone">
+        <button type="button" class="btn-repay-delete-borrow" onclick="deleteDebtJobFromModal()">Xoá đơn nợ này</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js?v=59"></script>
 </body>
 </html>

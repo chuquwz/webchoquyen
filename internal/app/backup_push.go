@@ -31,15 +31,23 @@ type backupData struct {
 	WorkLedger []backupWorkLedger `json:"work_ledger,omitempty"`
 }
 
+type backupWorkJobPayment struct {
+	Date   string `json:"date"`
+	Amount int    `json:"amount"`
+	Note   string `json:"note"`
+	Ts     int64  `json:"ts"`
+}
+
 type backupWorkJob struct {
-	Date     string `json:"date"`
-	Customer string `json:"customer"`
-	Channel  string `json:"channel"`
-	Service  string `json:"service"`
-	Price    int    `json:"price"`
-	Status   string `json:"status"`
-	Note     string `json:"note"`
-	Ts       int64  `json:"ts"`
+	Date     string                 `json:"date"`
+	Customer string                 `json:"customer"`
+	Channel  string                 `json:"channel"`
+	Service  string                 `json:"service"`
+	Price    int                    `json:"price"`
+	Status   string                 `json:"status"`
+	Note     string                 `json:"note"`
+	Ts       int64                  `json:"ts"`
+	Payments []backupWorkJobPayment `json:"payments,omitempty"`
 }
 
 type backupWorkLedgerRepayment struct {
@@ -162,14 +170,35 @@ func (s *Server) handleBackup(w http.ResponseWriter, r *http.Request) {
 		rows.Close()
 	}
 
-	if rows, err := s.db.Query(`SELECT date, customer, channel, service, price, status, note, ts FROM work_jobs ORDER BY date, id`); err == nil {
+	var jobIDs []int64
+	if rows, err := s.db.Query(`SELECT id, date, customer, channel, service, price, status, note, ts FROM work_jobs ORDER BY date, id`); err == nil {
 		for rows.Next() {
+			var jid int64
 			var x backupWorkJob
-			if rows.Scan(&x.Date, &x.Customer, &x.Channel, &x.Service, &x.Price, &x.Status, &x.Note, &x.Ts) == nil {
+			if rows.Scan(&jid, &x.Date, &x.Customer, &x.Channel, &x.Service, &x.Price, &x.Status, &x.Note, &x.Ts) == nil {
 				b.WorkJobs = append(b.WorkJobs, x)
+				jobIDs = append(jobIDs, jid)
 			}
 		}
 		rows.Close()
+	}
+	if len(b.WorkJobs) > 0 {
+		jobIdxByID := map[int64]int{}
+		for i, jid := range jobIDs {
+			jobIdxByID[jid] = i
+		}
+		if prows, err := s.db.Query(`SELECT job_id, date, amount, note, ts FROM work_job_payments ORDER BY date ASC, id ASC`); err == nil {
+			for prows.Next() {
+				var jid int64
+				var p backupWorkJobPayment
+				if prows.Scan(&jid, &p.Date, &p.Amount, &p.Note, &p.Ts) == nil {
+					if idx, ok := jobIdxByID[jid]; ok {
+						b.WorkJobs[idx].Payments = append(b.WorkJobs[idx].Payments, p)
+					}
+				}
+			}
+			prows.Close()
+		}
 	}
 
 	var ledgerIDs []int64
@@ -307,6 +336,10 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if b.WorkJobs != nil {
+		if _, err := tx.Exec(`DELETE FROM work_job_payments`); err != nil {
+			serverErr(w, err)
+			return
+		}
 		if _, err := tx.Exec(`DELETE FROM work_jobs`); err != nil {
 			serverErr(w, err)
 			return
@@ -315,10 +348,28 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
 			if !validDate(x.Date) || strings.TrimSpace(x.Customer) == "" || strings.TrimSpace(x.Service) == "" || x.Price <= 0 {
 				continue
 			}
-			if _, err := tx.Exec(`INSERT INTO work_jobs(date,customer,channel,service,price,status,note,ts) VALUES(?,?,?,?,?,?,?,?)`,
-				x.Date, strings.TrimSpace(x.Customer), validChannel(x.Channel), strings.TrimSpace(x.Service), normalizeVND(x.Price), validJobStatus(x.Status), x.Note, x.Ts); err != nil {
+			price := normalizeVND(x.Price)
+			res, err := tx.Exec(`INSERT INTO work_jobs(date,customer,channel,service,price,status,note,ts) VALUES(?,?,?,?,?,?,?,?)`,
+				x.Date, strings.TrimSpace(x.Customer), validChannel(x.Channel), strings.TrimSpace(x.Service), price, validJobStatus(x.Status), x.Note, x.Ts)
+			if err != nil {
 				serverErr(w, err)
 				return
+			}
+			if len(x.Payments) > 0 {
+				jid, _ := res.LastInsertId()
+				pays := make([]workJobPayment, 0, len(x.Payments))
+				for _, p := range x.Payments {
+					pays = append(pays, workJobPayment{
+						Date:   p.Date,
+						Amount: p.Amount,
+						Note:   p.Note,
+						Ts:     p.Ts,
+					})
+				}
+				if err := s.insertVaultJobPayments(tx, jid, price, x.Ts, pays, nil); err != nil {
+					serverErr(w, err)
+					return
+				}
 			}
 		}
 	}

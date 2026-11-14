@@ -559,6 +559,225 @@ func TestBorrowPartialRepaymentAndVaultSync(t *testing.T) {
 	}
 }
 
+func TestDebtJobPartialPaymentAndVaultSync(t *testing.T) {
+	srv := newTestServer(t)
+	h := srv.Handler()
+	today := srv.today()
+	nextDay := "2026-11-28"
+	if today == nextDay {
+		nextDay = "2026-11-29"
+	}
+
+	// 1. Tạo 1 đơn nợ CTT (2.000.000đ) và 1 đơn tiền mặt TT (500.000đ)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "POST", "/api/work/job", map[string]any{
+		"date":     today,
+		"customer": "Nghia va Binh",
+		"channel":  "ZL",
+		"service":  "UP VƯỢT QUYỀN",
+		"price":    2000000,
+		"status":   "CTT",
+		"note":     "Ghi nợ ban đầu",
+	}))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 creating CTT job, got %d: %s", w.Code, w.Body.String())
+	}
+	var createDebtResp struct {
+		Job workJob `json:"job"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &createDebtResp)
+	debtJobID := createDebtResp.Job.ID
+
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "POST", "/api/work/job", map[string]any{
+		"date":     today,
+		"customer": "Khách Lẻ",
+		"channel":  "FB",
+		"service":  "FRP SS",
+		"price":    500000,
+		"status":   "TT",
+	}))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 creating cash job, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Đơn TT ngay từ đầu không xuất hiện trong debt_groups
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "GET", "/api/work?date="+today, nil))
+	var initResp struct {
+		UnpaidGroups []unpaidCustomerGroup `json:"unpaid_groups"`
+		DebtGroups   []unpaidCustomerGroup `json:"debt_groups"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &initResp)
+	if len(initResp.DebtGroups) != 1 || len(initResp.UnpaidGroups) != 1 {
+		t.Fatalf("expected 1 debt group and 1 unpaid group, got debt=%d unpaid=%d", len(initResp.DebtGroups), len(initResp.UnpaidGroups))
+	}
+
+	// 2. Trả lần 1: 500.000đ vào today -> còn nợ 1.500.000đ, status vẫn là CTT
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "POST", "/api/work/job/"+strconvItoa64(debtJobID)+"/pay", map[string]any{
+		"date":   today,
+		"amount": 500000,
+		"note":   "CK lần 1",
+	}))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 debt pay 1, got %d: %s", w.Code, w.Body.String())
+	}
+	var pay1Resp struct {
+		PaymentID       int64  `json:"payment_id"`
+		Status          string `json:"status"`
+		PaidAmount      int    `json:"paid_amount"`
+		RemainingAmount int    `json:"remaining_amount"`
+		Settled         bool   `json:"settled"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &pay1Resp)
+	if pay1Resp.Settled || pay1Resp.Status != "CTT" || pay1Resp.PaidAmount != 500000 || pay1Resp.RemainingAmount != 1500000 {
+		t.Fatalf("unexpected pay 1 totals: %+v", pay1Resp)
+	}
+
+	// 3. Trả lần 2: 300.000đ vào nextDay -> còn nợ 1.200.000đ
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "POST", "/api/work/job/"+strconvItoa64(debtJobID)+"/pay", map[string]any{
+		"date":   nextDay,
+		"amount": 300000,
+		"note":   "Tiền mặt lần 2",
+	}))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 debt pay 2, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Kiểm tra tổng kết nextDay có PaidAmount = 300.000đ (ghi nhận đúng theo ngày trả)
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "GET", "/api/work?date="+nextDay, nil))
+	var nextWorkResp struct {
+		DaySummary workSummary `json:"day_summary"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &nextWorkResp)
+	if nextWorkResp.DaySummary.PaidAmount != 300000 {
+		t.Fatalf("expected nextDay PaidAmount=300000 from job payment, got %+v", nextWorkResp.DaySummary)
+	}
+
+	// 4. Trả lần 3 (cho phép trả thừa: còn 1.200.000đ, trả 1.500.000đ) -> settled = true, status = TT
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "POST", "/api/work/job/"+strconvItoa64(debtJobID)+"/pay", map[string]any{
+		"date":   today,
+		"amount": 1500000,
+		"note":   "Trả hết + thêm 300k",
+	}))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 over-pay debt, got %d: %s", w.Code, w.Body.String())
+	}
+	var overPayResp struct {
+		PaymentID       int64  `json:"payment_id"`
+		Status          string `json:"status"`
+		PaidAmount      int    `json:"paid_amount"`
+		RemainingAmount int    `json:"remaining_amount"`
+		OverpaidAmount  int    `json:"overpaid_amount"`
+		Settled         bool   `json:"settled"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &overPayResp)
+	if !overPayResp.Settled || overPayResp.Status != "TT" || overPayResp.RemainingAmount != 0 || overPayResp.PaidAmount != 2300000 || overPayResp.OverpaidAmount != 300000 {
+		t.Fatalf("unexpected over-pay totals: %+v", overPayResp)
+	}
+
+	// 5. GET /api/work?date=today: unpaid_groups rỗng nhưng debt_groups vẫn lưu lịch sử + settled = true
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "GET", "/api/work?date="+today, nil))
+	var workResp struct {
+		UnpaidGroups []unpaidCustomerGroup `json:"unpaid_groups"`
+		DebtGroups   []unpaidCustomerGroup `json:"debt_groups"`
+		DaySummary   workSummary           `json:"day_summary"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &workResp)
+	if len(workResp.UnpaidGroups) != 0 {
+		t.Fatalf("expected 0 unpaid_groups when settled, got %+v", workResp.UnpaidGroups)
+	}
+	if len(workResp.DebtGroups) != 1 || !workResp.DebtGroups[0].Settled || workResp.DebtGroups[0].SettledCount != 1 {
+		t.Fatalf("expected 1 settled debt group, got %+v", workResp.DebtGroups)
+	}
+	dJob := workResp.DebtGroups[0].Jobs[0]
+	if dJob.Status != "TT" || dJob.PaidAmount != 2300000 || dJob.RemainingAmount != 0 || len(dJob.Payments) != 3 {
+		t.Fatalf("unexpected settled debt job: %+v", dJob)
+	}
+	if workResp.DaySummary.UnpaidAmount != 0 || workResp.DaySummary.PaidAmount != 2500000 {
+		t.Fatalf("unexpected day summary after debt settlement: %+v", workResp.DaySummary)
+	}
+
+	// 6. Đồng bộ Vault sang server mới giữ nguyên lịch sử trả nợ + trạng thái Đã trả xong
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "GET", "/api/work/vault", nil))
+	var vault struct {
+		Jobs   []workJob    `json:"jobs"`
+		Ledger []workLedger `json:"ledger"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &vault)
+
+	freshSrv := newTestServer(t)
+	freshH := freshSrv.Handler()
+	w = httptest.NewRecorder()
+	freshH.ServeHTTP(w, authedReq(freshSrv, "POST", "/api/work/vault", map[string]any{
+		"mode":   "merge",
+		"jobs":   vault.Jobs,
+		"ledger": vault.Ledger,
+	}))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 debt vault merge sync, got %d: %s", w.Code, w.Body.String())
+	}
+	w = httptest.NewRecorder()
+	freshH.ServeHTTP(w, authedReq(freshSrv, "GET", "/api/work?date="+today, nil))
+	_ = json.Unmarshal(w.Body.Bytes(), &workResp)
+	if len(workResp.DebtGroups) != 1 || len(workResp.DebtGroups[0].Jobs[0].Payments) != 3 || !workResp.DebtGroups[0].Settled {
+		t.Fatalf("expected settled debt group & 3 payments preserved after vault sync, got %+v", workResp.DebtGroups)
+	}
+
+	// 7. Xoá lần trả thừa -> đơn tự động quay lại CTT với remaining_amount = 1.200.000đ
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "DELETE", "/api/work/job-payment/"+strconvItoa64(overPayResp.PaymentID), nil))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 delete job payment, got %d: %s", w.Code, w.Body.String())
+	}
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "GET", "/api/work?date="+today, nil))
+	_ = json.Unmarshal(w.Body.Bytes(), &workResp)
+	if len(workResp.UnpaidGroups) != 1 || workResp.UnpaidGroups[0].TotalAmount != 1200000 {
+		t.Fatalf("expected unpaid group 1200000 after payment delete, got %+v", workResp.UnpaidGroups)
+	}
+	if workResp.DebtGroups[0].Settled || workResp.DebtGroups[0].Jobs[0].Status != "CTT" || len(workResp.DebtGroups[0].Jobs[0].Payments) != 2 {
+		t.Fatalf("expected job reverted to CTT with 2 payments, got %+v", workResp.DebtGroups[0])
+	}
+
+	// 8. Thu hết nợ theo khách -> tự ghi nhận lần trả còn lại và vẫn lưu trong debt_groups
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "POST", "/api/work/job/pay-customer", map[string]any{
+		"customer": "Nghia va Binh",
+	}))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 pay-customer, got %d: %s", w.Code, w.Body.String())
+	}
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "GET", "/api/work?date="+today, nil))
+	_ = json.Unmarshal(w.Body.Bytes(), &workResp)
+	if len(workResp.UnpaidGroups) != 0 || len(workResp.DebtGroups) != 1 || !workResp.DebtGroups[0].Settled {
+		t.Fatalf("expected unpaid=0 and settled debt_group=1 after pay-customer, got unpaid=%+v debt=%+v", workResp.UnpaidGroups, workResp.DebtGroups)
+	}
+	if len(workResp.DebtGroups[0].Jobs[0].Payments) != 3 || workResp.DebtGroups[0].Jobs[0].PaidAmount != 2000000 {
+		t.Fatalf("expected auto-recorded final payment totaling 2000000, got %+v", workResp.DebtGroups[0].Jobs[0])
+	}
+
+	// 9. Xoá hoàn toàn đơn nợ bất cứ lúc nào -> cascade xoá luôn lịch sử trả nợ
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "DELETE", "/api/work/job/"+strconvItoa64(debtJobID), nil))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 delete debt job, got %d: %s", w.Code, w.Body.String())
+	}
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "GET", "/api/work?date="+today, nil))
+	_ = json.Unmarshal(w.Body.Bytes(), &workResp)
+	if len(workResp.DebtGroups) != 0 || len(workResp.UnpaidGroups) != 0 {
+		t.Fatalf("expected empty debt/unpaid groups after job deletion, got debt=%+v unpaid=%+v", workResp.DebtGroups, workResp.UnpaidGroups)
+	}
+}
+
 func strconvItoa64(v int64) string {
 	return strings.TrimSpace(jsonNumber(v))
 }
