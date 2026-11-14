@@ -54,7 +54,9 @@
       }
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok) {
-        throw new Error(data.error || 'Có lỗi xảy ra');
+        const err = new Error(data.error || 'Có lỗi xảy ra');
+        err.status = resp.status;
+        throw err;
       }
       return data;
     } catch (err) {
@@ -1643,20 +1645,30 @@
     window.openModal = function (id) {
       const el = document.getElementById(id);
       if (el) {
+        el._prevFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
         el.classList.add('open');
-        const firstInput = el.querySelector('input:not([type=hidden]), button:not(.modal-close)');
+        const firstInput = el.querySelector('input:not([type=hidden]):not([disabled]), button:not(.modal-close):not([disabled])');
         if (firstInput) setTimeout(() => firstInput.focus(), 50);
       }
     };
 
     window.closeModal = function (id) {
       const el = document.getElementById(id);
-      if (el) el.classList.remove('open');
+      if (!el) return;
+      el.classList.remove('open');
+      const prev = el._prevFocus;
+      el._prevFocus = null;
+      if (prev && prev.isConnected && typeof prev.focus === 'function') {
+        try { prev.focus(); } catch (_) { }
+      }
     };
 
     document.querySelectorAll('.modal-overlay').forEach(el => {
       el.addEventListener('click', (e) => {
-        if (e.target === el) el.classList.remove('open');
+        if (e.target === el) {
+          if (el.id) window.closeModal(el.id);
+          else el.classList.remove('open');
+        }
       });
     });
 
@@ -1800,7 +1812,8 @@
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         document.querySelectorAll('.modal-overlay.open').forEach(el => {
-          el.classList.remove('open');
+          if (el.id) window.closeModal(el.id);
+          else el.classList.remove('open');
         });
       }
     });
@@ -1817,6 +1830,7 @@
       subTab: 'jobs', // 'jobs' | 'unpaid' | 'month'
       jobs: [],
       ledger: [],
+      dayRepayments: [],
       daySummary: {},
       monthSummary: {},
       unpaidGroups: [],
@@ -1825,6 +1839,27 @@
       recentDays: [],
       suggestions: { customers: [], services: [] }
     };
+
+    function getBorrowTotals(item) {
+      const orig = Math.max(0, Number(item && item.amount) || 0);
+      const reps = Array.isArray(item && item.repayments) ? item.repayments : [];
+      const sumReps = reps.reduce((acc, r) => acc + Math.max(0, Number(r && r.amount) || 0), 0);
+      const paid = reps.length > 0
+        ? sumReps
+        : Math.max(0, Number(item && item.paid_amount) || 0);
+      const remaining = Math.max(0, orig - paid);
+      const overpaid = Math.max(0, paid - orig);
+      return { orig, paid, remaining, overpaid, repayments: reps };
+    }
+
+    function findBorrowLedgerItem(ledgerId) {
+      const targetId = Number(ledgerId);
+      if (!targetId) return null;
+      const inState = (workState.ledger || []).find(l => Number(l.id) === targetId);
+      if (inState) return inState;
+      const v = readFinanceVaultSync();
+      return (v.ledger || []).find(l => Number(l.id) === targetId) || null;
+    }
 
     function escapeHTML(str) {
       return String(str || '')
@@ -2010,9 +2045,73 @@
       saveFinanceVaultToDevice(cur);
     }
 
-    function removeLedgerFromLocalVault(ledgerId) {
+    function removeLedgerFromLocalVault(ledgerId, opts = {}) {
       const cur = readFinanceVaultSync();
       cur.ledger = (cur.ledger || []).filter(l => Number(l.id) !== Number(ledgerId));
+      if (opts.dirty) cur.dirty = true;
+      saveFinanceVaultToDevice(cur);
+    }
+
+    function addRepaymentToLocalVault(ledgerId, repayment, opts = {}) {
+      const cur = readFinanceVaultSync();
+      const targetId = Number(ledgerId);
+      const list = cur.ledger || [];
+      let found = false;
+      const updated = list.map(l => {
+        if (Number(l.id) !== targetId) return l;
+        found = true;
+        const nextReps = Array.isArray(l.repayments) ? [...l.repayments] : [];
+        const repId = Number(repayment.id);
+        if (!repId || !nextReps.some(r => Number(r.id) === repId)) {
+          nextReps.push(repayment);
+        }
+        nextReps.sort((a, b) => (a.date === b.date ? (Number(a.id) - Number(b.id)) : (a.date < b.date ? -1 : 1)));
+        const paid = nextReps.reduce((s, r) => s + Math.max(0, Number(r.amount) || 0), 0);
+        const orig = Math.max(0, Number(l.amount) || 0);
+        return {
+          ...l,
+          repayments: nextReps,
+          paid_amount: paid,
+          remaining_amount: Math.max(0, orig - paid)
+        };
+      });
+      if (!found) {
+        const fallback = findBorrowLedgerItem(targetId);
+        if (fallback) {
+          const nextReps = Array.isArray(fallback.repayments) ? [...fallback.repayments, repayment] : [repayment];
+          const paid = nextReps.reduce((s, r) => s + Math.max(0, Number(r.amount) || 0), 0);
+          const orig = Math.max(0, Number(fallback.amount) || 0);
+          updated.push({
+            ...fallback,
+            repayments: nextReps,
+            paid_amount: paid,
+            remaining_amount: Math.max(0, orig - paid)
+          });
+        }
+      }
+      cur.ledger = updated;
+      if (opts.dirty) cur.dirty = true;
+      saveFinanceVaultToDevice(cur);
+    }
+
+    function removeRepaymentFromLocalVault(repaymentId, opts = {}) {
+      const cur = readFinanceVaultSync();
+      const targetRepId = Number(repaymentId);
+      cur.ledger = (cur.ledger || []).map(l => {
+        if (!Array.isArray(l.repayments) || !l.repayments.some(r => Number(r.id) === targetRepId)) {
+          return l;
+        }
+        const nextReps = l.repayments.filter(r => Number(r.id) !== targetRepId);
+        const paid = nextReps.reduce((s, r) => s + Math.max(0, Number(r.amount) || 0), 0);
+        const orig = Math.max(0, Number(l.amount) || 0);
+        return {
+          ...l,
+          repayments: nextReps,
+          paid_amount: paid,
+          remaining_amount: Math.max(0, orig - paid)
+        };
+      });
+      if (opts.dirty) cur.dirty = true;
       saveFinanceVaultToDevice(cur);
     }
 
@@ -2103,7 +2202,7 @@
       const dayJobs = allJobs.filter(j => j.date === date);
       const dayLedger = allLedger.filter(l => l.date === date);
 
-      const calcSum = (jobsArr, ledgerArr) => {
+      const calcSum = (jobsArr, ledgerArr, repayMatchFn) => {
         const s = {
           total_jobs: 0, paid_jobs: 0, unpaid_jobs: 0,
           total_revenue: 0, paid_amount: 0, unpaid_amount: 0,
@@ -2127,12 +2226,45 @@
           if (l.category === 'expense') s.expense_amount += a;
           if (l.category === 'fund_in') s.fund_in += a;
           if (l.category === 'fund_bal') s.fund_bal = a;
-          if (l.category === 'borrow') s.borrow_amount += a;
+          if (l.category === 'borrow') s.borrow_amount += getBorrowTotals(l).remaining;
           if (l.category === 'repay') s.repay_amount += a;
         });
+        if (typeof repayMatchFn === 'function') {
+          allLedger.forEach(l => {
+            if (l.category !== 'borrow' || !Array.isArray(l.repayments)) return;
+            l.repayments.forEach(r => {
+              if (r && repayMatchFn(r.date || '')) {
+                s.repay_amount += Math.max(0, Number(r.amount) || 0);
+              }
+            });
+          });
+        }
         s.net_cash = s.paid_amount - s.expense_amount;
         return s;
       };
+
+      const dayRepayments = [];
+      allLedger.forEach(l => {
+        if (l.category !== 'borrow' || !Array.isArray(l.repayments)) return;
+        const bt = getBorrowTotals(l);
+        l.repayments.forEach(r => {
+          if (r && r.date === date) {
+            dayRepayments.push({
+              id: r.id,
+              ledger_id: l.id,
+              borrow_date: l.date,
+              borrow_note: l.note,
+              borrow_amount: bt.orig,
+              remaining_amount: bt.remaining,
+              date: r.date,
+              amount: Number(r.amount) || 0,
+              note: r.note || '',
+              ts: r.ts || 0
+            });
+          }
+        });
+      });
+      dayRepayments.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
 
       const monthJobs = allJobs.filter(j => (j.date || '').startsWith(month + '-'));
       const monthLedger = allLedger.filter(l => (l.date || '').startsWith(month + '-'));
@@ -2174,8 +2306,9 @@
       workState.today = state.today || date;
       workState.jobs = dayJobs;
       workState.ledger = dayLedger;
-      workState.daySummary = calcSum(dayJobs, dayLedger);
-      workState.monthSummary = calcSum(monthJobs, monthLedger);
+      workState.dayRepayments = dayRepayments;
+      workState.daySummary = calcSum(dayJobs, dayLedger, d => d === date);
+      workState.monthSummary = calcSum(monthJobs, monthLedger, d => d.startsWith(month + '-'));
       workState.unpaidGroups = Object.values(byCust).sort((a, b) => b.total_amount - a.total_amount);
       workState.totalUnpaidAll = totalUnpaidAll;
       workState.totalUnpaidJobs = totalUnpaidJobs;
@@ -2319,6 +2452,7 @@
         workState.today = data.today || state.today;
         workState.jobs = data.jobs || [];
         workState.ledger = data.ledger || [];
+        workState.dayRepayments = data.day_repayments || [];
         workState.daySummary = data.day_summary || {};
         workState.monthSummary = data.month_summary || {};
         workState.unpaidGroups = data.unpaid_groups || [];
@@ -3146,13 +3280,15 @@
         if (el) el.textContent = val;
       };
 
+      const dayExtraRepays = (workState.dayRepayments || []).filter(r => r.borrow_date !== curDate);
+
       setTxt(
         'ledger-summary-date-label',
         isMonthScope
           ? `Tổng chi tiêu ${monthHuman}`
           : (curDate === todayDate ? 'Tổng chi tiêu hôm nay' : `Chi tiêu ngày ${formatDayMonth(curDate)}`)
       );
-      setTxt('ledger-day-count-pill', `${isMonthScope ? monthLedger.length : dayLedger.length} khoản`);
+      setTxt('ledger-day-count-pill', `${isMonthScope ? monthLedger.length : (dayLedger.length + dayExtraRepays.length)} khoản`);
 
       const expStr = formatVND(activeSum.expense_amount || 0);
       setTxt('ledger-hero-expense', expStr);
@@ -3176,7 +3312,7 @@
       }
 
       renderWorkLedgerList();
-      renderLedgerMonthDays(monthLedger, monthHuman);
+      renderLedgerMonthDays(monthLedger, monthHuman, curMonth, allLedger);
     }
 
     function renderWorkLedgerList() {
@@ -3184,42 +3320,136 @@
       const titleEl = document.getElementById('ledger-day-list-title');
       const subEl = document.getElementById('ledger-day-list-sub');
       const list = workState.ledger || [];
-      const dm = formatDayMonth(workState.date);
+      const curDate = workState.date || '';
+      const extraRepays = (workState.dayRepayments || []).filter(r => r.borrow_date !== curDate);
+      const totalCount = list.length + extraRepays.length;
+      const dm = formatDayMonth(curDate);
 
       if (titleEl) titleEl.textContent = dm ? `Phát sinh ngày ${dm}` : 'Phát sinh trong ngày';
-      if (subEl) subEl.textContent = `${list.length} khoản`;
+      if (subEl) subEl.textContent = `${totalCount} khoản`;
       if (!container) return;
 
-      if (list.length === 0) {
+      if (totalCount === 0) {
         container.innerHTML = `
         <div class="empty-state-box">
-          Chưa có khoản chi tiêu, nộp quỹ hay mượn/trả nợ nào trong ngày ${dm || formatVNDate(workState.date)}.<br>
+          Chưa có khoản chi tiêu, nộp quỹ hay mượn/trả nợ nào trong ngày ${dm || formatVNDate(curDate)}.<br>
           Bấm nút <strong>+</strong> ở góc dưới phải để thêm khoản mục mới.
         </div>
       `;
         return;
       }
 
-      container.innerHTML = list.map(item => `
-      <div class="work-job-card">
-        <div class="work-job-top">
-          <div>
-            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-              <span class="work-stt-badge">${getLedgerCatLabel(item.category)}</span>
-              <span class="font-tabular" style="font-size: 11.5px; color: var(--text-sub);">${escapeHTML(formatDayMonthTime(item.date || workState.date, item.ts))}</span>
+      const ledgerCards = list.map(item => {
+        if (item.category === 'borrow') {
+          const { orig, paid, remaining, overpaid, repayments } = getBorrowTotals(item);
+          const isSettled = remaining <= 0 && orig > 0;
+          const pct = orig > 0 ? Math.min(100, Math.round((paid / orig) * 100)) : 0;
+          const hasRepayments = paid > 0 || repayments.length > 0;
+
+          const footHtml = hasRepayments ? `
+            <div class="borrow-repay-card-foot">
+              <div class="borrow-repay-progress-head font-tabular">
+                <span>${isSettled ? 'Đã trả xong' : 'Đã trả'} ${formatShortK(paid)} / ${formatShortK(orig)}${overpaid > 0 ? ` (Thừa +${formatShortK(overpaid)})` : ''}${repayments.length > 0 ? ` (${repayments.length} lần)` : ''}</span>
+                <span>${pct}%</span>
+              </div>
+              <div class="borrow-repay-progress-track" aria-hidden="true">
+                <div class="borrow-repay-progress-fill" style="width: ${pct}%;"></div>
+              </div>
+              ${repayments.length > 0 ? `
+                <div class="borrow-repay-log-list">
+                  ${repayments.map((r, idx) => {
+                    const timeLbl = formatDayMonthTime(r.date || item.date || curDate, r.ts);
+                    const rNote = (r.note || '').trim();
+                    return `
+                      <div class="borrow-repay-log-row font-tabular">
+                        <div class="borrow-repay-log-meta">
+                          <span class="borrow-repay-step">Lần ${idx + 1}</span>
+                          <span>${escapeHTML(timeLbl)}</span>
+                          ${rNote ? `<span class="borrow-repay-log-note">&bull; ${escapeHTML(rNote)}</span>` : ''}
+                        </div>
+                        <span class="borrow-repay-log-amt">-${formatVND(r.amount)}</span>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              ` : ''}
             </div>
-            <div class="work-job-cust-name" style="margin-top: 5px;">${escapeHTML(item.note)}</div>
+          ` : '';
+
+          return `
+            <div class="work-job-card${isSettled ? ' is-borrow-settled' : ''}">
+              <div class="work-job-top">
+                <div style="min-width: 0; flex: 1;">
+                  <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                    <span class="work-stt-badge">${getLedgerCatLabel(item.category)}</span>
+                    <span class="font-tabular" style="font-size: 11.5px; color: var(--text-sub);">${escapeHTML(formatDayMonthTime(item.date || curDate, item.ts))}</span>
+                    ${isSettled ? '<span class="work-borrow-settled-badge">&#10003; Đã trả xong</span>' : ''}
+                  </div>
+                  <div class="work-job-cust-name work-ledger-note">${escapeHTML(item.note)}</div>
+                </div>
+                <div class="work-ledger-right">
+                  <div class="work-ledger-amt-col font-tabular">
+                    <span class="work-job-price-val font-tabular${isSettled ? ' is-settled-amt' : ''}">${formatVND(remaining)}</span>
+                    ${paid > 0 ? `<span class="work-borrow-orig-sub">Gốc ${formatShortK(orig)}${overpaid > 0 ? ` • Thừa +${formatShortK(overpaid)}` : ''}</span>` : ''}
+                  </div>
+                  <div class="work-ledger-actions">
+                    <button type="button" class="btn-ledger-repay${isSettled ? ' is-settled' : ''}" onclick="openRepayBorrowModal(${Number(item.id)})" aria-label="${isSettled ? 'Xem lịch sử trả tiền' : 'Trả tiền'} khoản mượn ${escapeHTML(item.note)}">${isSettled ? 'Lịch sử' : 'Trả tiền'}</button>
+                    <button type="button" class="btn-job-icon btn-del" onclick="deleteWorkLedger(${Number(item.id)}, { isBorrow: true })" aria-label="Xoá khoản mượn ${escapeHTML(item.note)}">Xoá</button>
+                  </div>
+                </div>
+              </div>
+              ${footHtml}
+            </div>
+          `;
+        }
+
+        return `
+          <div class="work-job-card">
+            <div class="work-job-top">
+              <div style="min-width: 0; flex: 1;">
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                  <span class="work-stt-badge">${getLedgerCatLabel(item.category)}</span>
+                  <span class="font-tabular" style="font-size: 11.5px; color: var(--text-sub);">${escapeHTML(formatDayMonthTime(item.date || curDate, item.ts))}</span>
+                </div>
+                <div class="work-job-cust-name work-ledger-note">${escapeHTML(item.note)}</div>
+              </div>
+              <div class="work-ledger-right">
+                <span class="work-job-price-val font-tabular">${formatVND(item.amount)}</span>
+                <button type="button" class="btn-job-icon btn-del" onclick="deleteWorkLedger(${Number(item.id)})" aria-label="Xoá khoản mục ${escapeHTML(item.note)}">Xoá</button>
+              </div>
+            </div>
           </div>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <span class="work-job-price-val font-tabular">${formatVND(item.amount)}</span>
-            <button type="button" class="btn-job-icon btn-del" onclick="deleteWorkLedger(${item.id})" aria-label="Xoá khoản mục ${escapeHTML(item.note)}">Xoá</button>
+        `;
+      }).join('');
+
+      const repayCards = extraRepays.map(r => {
+        const subParts = [];
+        if (r.note && r.note.trim()) subParts.push(r.note.trim());
+        subParts.push(Number(r.remaining_amount) <= 0 ? 'Đã trả xong khoản mượn' : `Còn nợ: ${formatShortK(r.remaining_amount)}`);
+        return `
+          <div class="work-job-card">
+            <div class="work-job-top">
+              <div style="min-width: 0; flex: 1;">
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                  <span class="work-stt-badge">${getLedgerCatLabel('repay')}</span>
+                  <span class="font-tabular" style="font-size: 11.5px; color: var(--text-sub);">${escapeHTML(formatDayMonthTime(r.date || curDate, r.ts))}</span>
+                </div>
+                <div class="work-job-cust-name work-ledger-note">Trả cho: ${escapeHTML(r.borrow_note || 'Khoản mượn')} (Mượn ${escapeHTML(formatDayMonth(r.borrow_date))})</div>
+                <div class="font-tabular" style="font-size: 11.5px; color: var(--text-sub); margin-top: 2px;">${escapeHTML(subParts.join(' • '))}</div>
+              </div>
+              <div class="work-ledger-right">
+                <span class="work-job-price-val font-tabular is-settled-amt">${formatVND(r.amount)}</span>
+                <button type="button" class="btn-job-icon btn-del" onclick="deleteBorrowRepayment(${Number(r.id)}, ${Number(r.ledger_id)})" aria-label="Xoá lần trả nợ ${escapeHTML(r.borrow_note || '')}">Xoá</button>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-    `).join('');
+        `;
+      }).join('');
+
+      container.innerHTML = ledgerCards + repayCards;
     }
 
-    function renderLedgerMonthDays(monthLedger, monthHuman) {
+    function renderLedgerMonthDays(monthLedger, monthHuman, curMonth, allLedger) {
       const container = document.getElementById('ledger-month-days-list');
       const titleEl = document.getElementById('ledger-month-days-title');
       const subEl = document.getElementById('ledger-month-days-sub');
@@ -3228,17 +3458,36 @@
       }
 
       const byDate = {};
+      const ensureDay = (d) => {
+        if (!byDate[d]) {
+          byDate[d] = { date: d, count: 0, expense: 0, fund_in: 0, borrow: 0, repay: 0 };
+        }
+        return byDate[d];
+      };
+
       (monthLedger || []).forEach(item => {
         if (!item || !item.date) return;
-        if (!byDate[item.date]) {
-          byDate[item.date] = { date: item.date, count: 0, expense: 0, fund_in: 0, borrow: 0, repay: 0 };
-        }
+        const row = ensureDay(item.date);
         const amt = Number(item.amount) || 0;
-        byDate[item.date].count++;
-        if (item.category === 'expense') byDate[item.date].expense += amt;
-        if (item.category === 'fund_in') byDate[item.date].fund_in += amt;
-        if (item.category === 'borrow') byDate[item.date].borrow += amt;
-        if (item.category === 'repay') byDate[item.date].repay += amt;
+        row.count++;
+        if (item.category === 'expense') row.expense += amt;
+        if (item.category === 'fund_in') row.fund_in += amt;
+        if (item.category === 'borrow') row.borrow += getBorrowTotals(item).remaining;
+        if (item.category === 'repay') row.repay += amt;
+      });
+
+      const monthPrefix = curMonth ? (curMonth + '-') : '';
+      (allLedger || []).forEach(item => {
+        if (!item || item.category !== 'borrow' || !Array.isArray(item.repayments)) return;
+        item.repayments.forEach(r => {
+          if (!r || !r.date) return;
+          if (monthPrefix && !r.date.startsWith(monthPrefix)) return;
+          const row = ensureDay(r.date);
+          row.repay += Math.max(0, Number(r.amount) || 0);
+          if (item.date !== r.date) {
+            row.count++;
+          }
+        });
       });
 
       const days = Object.values(byDate).sort((a, b) => (a.date < b.date ? 1 : -1));
@@ -3272,14 +3521,378 @@
       }).join('');
     }
 
-    window.deleteWorkLedger = async function (id) {
-      if (!confirm('Xoá khoản mục thu chi này?')) return;
+    let activeRepayLedgerId = null;
+    let repaySubmitting = false;
+
+    function parseBorrowRepayInput(rawVal, remaining) {
+      const num = Number(String(rawVal == null ? '' : rawVal).trim());
+      if (!Number.isFinite(num) || num <= 0) return 0;
+      const rounded = Math.round(num);
+      if (remaining > 0 && remaining < 1000 && rounded === remaining) {
+        return remaining;
+      }
+      if (num < 1000) {
+        return Math.round(num * 1000);
+      }
+      return rounded;
+    }
+
+    function setRepayAmountError(msg) {
+      const errEl = document.getElementById('repay-amount-error');
+      const amtInput = document.getElementById('repay-amount');
+      if (errEl) {
+        if (msg) {
+          errEl.textContent = msg;
+          errEl.style.display = 'block';
+        } else {
+          errEl.textContent = '';
+          errEl.style.display = 'none';
+        }
+      }
+      if (amtInput) {
+        if (msg) {
+          amtInput.setAttribute('aria-invalid', 'true');
+          amtInput.setAttribute('aria-describedby', 'repay-amount-error');
+        } else {
+          amtInput.removeAttribute('aria-invalid');
+          amtInput.setAttribute('aria-describedby', 'repay-amount-after');
+        }
+      }
+    }
+
+    function renderRepayBorrowModal(item) {
+      const { orig, paid, remaining, overpaid, repayments } = getBorrowTotals(item);
+      const isSettled = remaining <= 0 && orig > 0;
+
+      const setTxt = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val;
+      };
+
+      activeRepayLedgerId = Number(item.id);
+      const hiddenId = document.getElementById('repay-ledger-id');
+      if (hiddenId) hiddenId.value = String(item.id);
+
+      setTxt('repay-borrow-note', item.note || 'Khoản mượn');
+      setTxt('repay-borrow-date', `Mượn ngày ${formatVNDate(item.date || workState.date)}`);
+      setTxt('repay-orig-amount', formatVND(orig));
+      setTxt('repay-paid-amount', formatVND(paid));
+      setTxt('repay-rem-amount', formatVND(remaining));
+
+      const remEl = document.getElementById('repay-rem-amount');
+      if (remEl) {
+        remEl.classList.toggle('is-paid', isSettled);
+        remEl.classList.toggle('is-remaining', !isSettled);
+      }
+
+      const settledBanner = document.getElementById('repay-settled-banner');
+      const settledTxt = document.getElementById('repay-settled-text');
+      const formEl = document.getElementById('borrow-repay-form');
+      if (settledBanner) settledBanner.style.display = isSettled ? 'flex' : 'none';
+      if (settledTxt) {
+        settledTxt.textContent = overpaid > 0
+          ? `Khoản mượn này đã trả xong (trả thừa +${formatVND(overpaid)}).`
+          : 'Khoản mượn này đã trả xong.';
+      }
+      if (formEl) formEl.style.display = isSettled ? 'none' : 'block';
+
+      const chipsEl = document.getElementById('repay-quick-chips');
+      if (chipsEl) {
+        if (isSettled || remaining <= 0) {
+          chipsEl.innerHTML = '';
+        } else {
+          const presets = [100000, 200000, 500000, 1000000].filter(v => v < remaining);
+          const chipBtns = presets.map(v =>
+            `<button type="button" class="btn-price-chip" data-vnd="${v}" onclick="setBorrowRepayAmount(${v})">${escapeHTML(formatShortK(v))}</button>`
+          );
+          chipBtns.push(
+            `<button type="button" class="btn-price-chip is-pay-all" data-vnd="${remaining}" onclick="setBorrowRepayAmount(${remaining})">Trả hết (${escapeHTML(formatShortK(remaining))})</button>`
+          );
+          chipsEl.innerHTML = chipBtns.join('');
+        }
+      }
+
+      const countEl = document.getElementById('repay-history-count');
+      if (countEl) countEl.textContent = `${repayments.length} lần`;
+
+      const histEl = document.getElementById('repay-history-list');
+      if (histEl) {
+        if (repayments.length === 0) {
+          histEl.innerHTML = '<div class="repay-history-empty">Chưa có lần trả tiền nào cho khoản mượn này.</div>';
+        } else {
+          histEl.innerHTML = repayments.map((r, idx) => {
+            const dateLabel = formatDayMonthTime(r.date || item.date || workState.date, r.ts);
+            const rNote = (r.note || '').trim();
+            return `
+              <div class="repay-history-row">
+                <div class="repay-history-info">
+                  <div class="repay-history-date font-tabular">Lần ${idx + 1} &bull; ${escapeHTML(dateLabel)}</div>
+                  ${rNote ? `<div class="repay-history-note">${escapeHTML(rNote)}</div>` : ''}
+                </div>
+                <div class="repay-history-right font-tabular">
+                  <span class="repay-history-amt">-${formatVND(r.amount)}</span>
+                  <button type="button" class="btn-job-icon btn-del" onclick="deleteBorrowRepayment(${Number(r.id)}, ${Number(item.id)})" aria-label="Xoá lần trả ${idx + 1} ngày ${escapeHTML(formatDayMonth(r.date))}">Xoá</button>
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+      }
+    }
+
+    window.openRepayBorrowModal = function (ledgerId) {
+      const item = findBorrowLedgerItem(ledgerId);
+      if (!item) {
+        showToast('Không tìm thấy khoản mượn này', true);
+        return;
+      }
+
+      const amtInput = document.getElementById('repay-amount');
+      const dateInput = document.getElementById('repay-date');
+      const noteInput = document.getElementById('repay-note');
+      const previewEl = document.getElementById('repay-amount-preview');
+      const afterEl = document.getElementById('repay-amount-after');
+
+      if (amtInput) amtInput.value = '';
+      if (noteInput) noteInput.value = '';
+      if (dateInput) dateInput.value = workState.date || state.today || new Date().toISOString().slice(0, 10);
+      if (previewEl) previewEl.textContent = '';
+      if (afterEl) afterEl.textContent = '';
+      setRepayAmountError('');
+
+      renderRepayBorrowModal(item);
+      openModal('modal-repay-borrow');
+
+      const { remaining } = getBorrowTotals(item);
+      if (remaining > 0 && amtInput) {
+        setTimeout(() => amtInput.focus(), 80);
+      } else {
+        const closeBtn = document.querySelector('#modal-repay-borrow .modal-close');
+        if (closeBtn) setTimeout(() => closeBtn.focus(), 80);
+      }
+    };
+
+    window.setBorrowRepayAmount = function (vnd) {
+      const input = document.getElementById('repay-amount');
+      if (!input) return;
+      const val = Number(vnd) || 0;
+      if (val <= 0) return;
+      // Values >= 1.000.000 or non-multiples of 1000 must stay in full VND to avoid the <1000 multiplier trap.
+      input.value = (val >= 1000 && val < 1000000 && val % 1000 === 0)
+        ? String(val / 1000)
+        : String(val);
+      updateBorrowRepayPreview();
+    };
+
+    window.updateBorrowRepayPreview = function () {
+      const amtInput = document.getElementById('repay-amount');
+      const previewEl = document.getElementById('repay-amount-preview');
+      const afterEl = document.getElementById('repay-amount-after');
+      const idEl = document.getElementById('repay-ledger-id');
+      const ledgerId = Number((idEl && idEl.value) || activeRepayLedgerId);
+      const item = findBorrowLedgerItem(ledgerId);
+      const remaining = item ? getBorrowTotals(item).remaining : 0;
+
+      const rawStr = amtInput ? amtInput.value.trim() : '';
+      const chips = document.querySelectorAll('#repay-quick-chips .btn-price-chip');
+
+      if (!rawStr) {
+        if (previewEl) previewEl.textContent = '';
+        if (afterEl) afterEl.textContent = '';
+        setRepayAmountError('');
+        chips.forEach(c => c.classList.remove('active'));
+        return 0;
+      }
+
+      const amount = parseBorrowRepayInput(rawStr, remaining);
+      chips.forEach(c => {
+        c.classList.toggle('active', Number(c.getAttribute('data-vnd')) === amount);
+      });
+
+      if (amount <= 0 || (amount < 1000 && !(remaining > 0 && remaining < 1000 && amount === remaining))) {
+        if (previewEl) previewEl.textContent = amount > 0 ? ('= ' + formatVND(amount)) : '';
+        if (afterEl) afterEl.textContent = '';
+        setRepayAmountError('Số tiền trả phải từ 1.000đ trở lên.');
+        return 0;
+      }
+
+      if (previewEl) previewEl.textContent = '= ' + formatVND(amount);
+
+      setRepayAmountError('');
+      if (afterEl) {
+        if (amount > remaining) {
+          const over = amount - remaining;
+          afterEl.textContent = `Sau khi trả: Đã trả xong (trả thừa +${formatVND(over)})`;
+        } else if (amount === remaining) {
+          afterEl.textContent = 'Trả đủ — cập nhật trạng thái: Đã trả xong (còn nợ 0đ)';
+        } else {
+          afterEl.textContent = `Sau khi trả sẽ còn nợ: ${formatVND(remaining - amount)}`;
+        }
+      }
+      return amount;
+    };
+
+    window.submitBorrowRepayment = async function (e) {
+      e.preventDefault();
+      if (repaySubmitting) return;
+
+      const idEl = document.getElementById('repay-ledger-id');
+      const ledgerId = Number((idEl && idEl.value) || activeRepayLedgerId);
+      const item = findBorrowLedgerItem(ledgerId);
+      if (!item) {
+        showToast('Không tìm thấy khoản mượn', true);
+        return;
+      }
+
+      const { remaining } = getBorrowTotals(item);
+      const amtInput = document.getElementById('repay-amount');
+      const amount = updateBorrowRepayPreview();
+      if (!amount || amount <= 0) {
+        if (amtInput && !amtInput.value.trim()) {
+          setRepayAmountError('Vui lòng nhập số tiền trả lần này (ví dụ: 500 = 500.000đ).');
+        }
+        if (amtInput) amtInput.focus();
+        return;
+      }
+
+      const repayDate = ((document.getElementById('repay-date') || {}).value || '').trim()
+        || workState.date
+        || state.today
+        || new Date().toISOString().slice(0, 10);
+      const note = ((document.getElementById('repay-note') || {}).value || '').trim();
+
+      const submitBtn = document.getElementById('btn-repay-submit');
+      repaySubmitting = true;
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Đang lưu...';
+      }
+
+      const resetFormFields = () => {
+        if (amtInput) amtInput.value = '';
+        const noteEl = document.getElementById('repay-note');
+        if (noteEl) noteEl.value = '';
+        const prevEl = document.getElementById('repay-amount-preview');
+        if (prevEl) prevEl.textContent = '';
+        const afterEl = document.getElementById('repay-amount-after');
+        if (afterEl) afterEl.textContent = '';
+        setRepayAmountError('');
+      };
+
+      const overAmt = Math.max(0, amount - remaining);
+      try {
+        const res = await api(`/api/work/ledger/${ledgerId}/repay`, {
+          method: 'POST',
+          body: JSON.stringify({ date: repayDate, amount, note })
+        });
+        if (res && res.repayment) {
+          addRepaymentToLocalVault(ledgerId, res.repayment, { dirty: false });
+        }
+        resetFormFields();
+        const nextRem = typeof (res && res.remaining_amount) === 'number'
+          ? res.remaining_amount
+          : Math.max(0, remaining - amount);
+        const srvOver = typeof (res && res.overpaid_amount) === 'number' ? res.overpaid_amount : overAmt;
+        showToast(nextRem === 0
+          ? (srvOver > 0 ? `Đã trả xong (thừa +${formatShortK(srvOver)})` : `Đã trả xong (${formatShortK(amount)})`)
+          : `Đã trả ${formatShortK(amount)} • Còn nợ ${formatShortK(nextRem)}`);
+        await loadWorkData(workState.date);
+        const refreshed = findBorrowLedgerItem(ledgerId);
+        if (refreshed) {
+          renderRepayBorrowModal(refreshed);
+          if (getBorrowTotals(refreshed).remaining <= 0) {
+            const closeBtn = document.querySelector('#modal-repay-borrow .modal-close');
+            if (closeBtn) closeBtn.focus();
+          }
+        }
+      } catch (err) {
+        if (err && typeof err.status === 'number' && err.status >= 400 && err.status < 500) {
+          setRepayAmountError(err.message || 'Không thể lưu lần trả tiền này');
+          return;
+        }
+        const offlineRep = {
+          id: Date.now(),
+          ledger_id: ledgerId,
+          date: repayDate,
+          amount,
+          note,
+          ts: Math.floor(Date.now() / 1000)
+        };
+        addRepaymentToLocalVault(ledgerId, offlineRep, { dirty: true });
+        resetFormFields();
+        const nextRem = Math.max(0, remaining - amount);
+        showToast(nextRem === 0
+          ? (overAmt > 0 ? `Đã trả xong, thừa +${formatShortK(overAmt)} (máy cá nhân)` : 'Đã trả xong (lưu trên máy cá nhân)')
+          : `Đã lưu trả ${formatShortK(amount)} trên máy cá nhân`);
+        computeWorkFromLocalVault(workState.date);
+        const refreshed = findBorrowLedgerItem(ledgerId);
+        if (refreshed) {
+          renderRepayBorrowModal(refreshed);
+          if (getBorrowTotals(refreshed).remaining <= 0) {
+            const closeBtn = document.querySelector('#modal-repay-borrow .modal-close');
+            if (closeBtn) closeBtn.focus();
+          }
+        }
+      } finally {
+        repaySubmitting = false;
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Xác nhận trả tiền';
+        }
+      }
+    };
+
+    window.deleteBorrowRepayment = async function (repaymentId, ledgerId) {
+      if (!confirm('Hoàn tác lần trả tiền này? Số tiền nợ còn lại sẽ được cộng lại tương ứng.')) return;
+      const targetLedgerId = Number(ledgerId || activeRepayLedgerId);
+      try {
+        await api('/api/work/repayment/' + repaymentId, { method: 'DELETE' });
+        removeRepaymentFromLocalVault(repaymentId, { dirty: false });
+        showToast('Đã xoá lần trả tiền');
+        await loadWorkData(workState.date);
+      } catch (err) {
+        if (err && typeof err.status === 'number' && err.status >= 400 && err.status < 500) {
+          return;
+        }
+        removeRepaymentFromLocalVault(repaymentId, { dirty: true });
+        showToast('Đã xoá lần trả tiền trên máy cá nhân');
+        computeWorkFromLocalVault(workState.date);
+      }
+
+      const modalEl = document.getElementById('modal-repay-borrow');
+      if (modalEl && modalEl.classList.contains('open') && targetLedgerId) {
+        const refreshed = findBorrowLedgerItem(targetLedgerId);
+        if (refreshed) renderRepayBorrowModal(refreshed);
+      }
+    };
+
+    window.deleteBorrowFromRepayModal = async function () {
+      const idEl = document.getElementById('repay-ledger-id');
+      const ledgerId = Number((idEl && idEl.value) || activeRepayLedgerId);
+      if (!ledgerId) return;
+      await window.deleteWorkLedger(ledgerId, { isBorrow: true, closeRepayModal: true });
+    };
+
+    window.deleteWorkLedger = async function (id, opts = {}) {
+      const msg = opts.isBorrow
+        ? 'Xoá toàn bộ khoản mượn này và tất cả các lần trả tiền đã lưu?'
+        : 'Xoá khoản mục thu chi này?';
+      if (!confirm(msg)) return;
       try {
         await api('/api/work/ledger/' + id, { method: 'DELETE' });
-        removeLedgerFromLocalVault(id);
-        showToast('Đã xoá khoản mục');
+        removeLedgerFromLocalVault(id, { dirty: false });
+        if (opts.closeRepayModal) closeModal('modal-repay-borrow');
+        showToast(opts.isBorrow ? 'Đã xoá khoản mượn' : 'Đã xoá khoản mục');
         await loadWorkData(workState.date);
-      } catch (e) { }
+      } catch (err) {
+        if (err && typeof err.status === 'number' && err.status >= 400 && err.status < 500) {
+          return;
+        }
+        removeLedgerFromLocalVault(id, { dirty: true });
+        if (opts.closeRepayModal) closeModal('modal-repay-borrow');
+        showToast(opts.isBorrow ? 'Đã xoá khoản mượn trên máy cá nhân' : 'Đã xoá khoản mục trên máy cá nhân');
+        computeWorkFromLocalVault(workState.date);
+      }
     };
 
     window.exportWorkExcel = function () {

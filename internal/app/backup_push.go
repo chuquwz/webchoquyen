@@ -42,12 +42,20 @@ type backupWorkJob struct {
 	Ts       int64  `json:"ts"`
 }
 
+type backupWorkLedgerRepayment struct {
+	Date   string `json:"date"`
+	Amount int    `json:"amount"`
+	Note   string `json:"note"`
+	Ts     int64  `json:"ts"`
+}
+
 type backupWorkLedger struct {
-	Date     string `json:"date"`
-	Category string `json:"category"`
-	Amount   int    `json:"amount"`
-	Note     string `json:"note"`
-	Ts       int64  `json:"ts"`
+	Date       string                      `json:"date"`
+	Category   string                      `json:"category"`
+	Amount     int                         `json:"amount"`
+	Note       string                      `json:"note"`
+	Ts         int64                       `json:"ts"`
+	Repayments []backupWorkLedgerRepayment `json:"repayments,omitempty"`
 }
 
 type backupWater struct {
@@ -164,14 +172,35 @@ func (s *Server) handleBackup(w http.ResponseWriter, r *http.Request) {
 		rows.Close()
 	}
 
-	if rows, err := s.db.Query(`SELECT date, category, amount, note, ts FROM work_ledger ORDER BY date, id`); err == nil {
+	var ledgerIDs []int64
+	if rows, err := s.db.Query(`SELECT id, date, category, amount, note, ts FROM work_ledger ORDER BY date, id`); err == nil {
 		for rows.Next() {
+			var id int64
 			var x backupWorkLedger
-			if rows.Scan(&x.Date, &x.Category, &x.Amount, &x.Note, &x.Ts) == nil {
+			if rows.Scan(&id, &x.Date, &x.Category, &x.Amount, &x.Note, &x.Ts) == nil {
 				b.WorkLedger = append(b.WorkLedger, x)
+				ledgerIDs = append(ledgerIDs, id)
 			}
 		}
 		rows.Close()
+	}
+	if len(b.WorkLedger) > 0 {
+		idxByID := map[int64]int{}
+		for i, id := range ledgerIDs {
+			idxByID[id] = i
+		}
+		if rrows, err := s.db.Query(`SELECT ledger_id, date, amount, note, ts FROM work_ledger_repayments ORDER BY date ASC, id ASC`); err == nil {
+			for rrows.Next() {
+				var lid int64
+				var rep backupWorkLedgerRepayment
+				if rrows.Scan(&lid, &rep.Date, &rep.Amount, &rep.Note, &rep.Ts) == nil {
+					if idx, ok := idxByID[lid]; ok {
+						b.WorkLedger[idx].Repayments = append(b.WorkLedger[idx].Repayments, rep)
+					}
+				}
+			}
+			rrows.Close()
+		}
 	}
 
 	fname := fmt.Sprintf("quyenhealth-backup-%s.json", s.today())
@@ -295,6 +324,10 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if b.WorkLedger != nil {
+		if _, err := tx.Exec(`DELETE FROM work_ledger_repayments`); err != nil {
+			serverErr(w, err)
+			return
+		}
 		if _, err := tx.Exec(`DELETE FROM work_ledger`); err != nil {
 			serverErr(w, err)
 			return
@@ -303,10 +336,28 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
 			if !validDate(x.Date) || !validLedgerCategory(x.Category) || x.Amount <= 0 {
 				continue
 			}
-			if _, err := tx.Exec(`INSERT INTO work_ledger(date,category,amount,note,ts) VALUES(?,?,?,?,?)`,
-				x.Date, x.Category, normalizeVND(x.Amount), x.Note, x.Ts); err != nil {
+			amt := normalizeVND(x.Amount)
+			res, err := tx.Exec(`INSERT INTO work_ledger(date,category,amount,note,ts) VALUES(?,?,?,?,?)`,
+				x.Date, x.Category, amt, x.Note, x.Ts)
+			if err != nil {
 				serverErr(w, err)
 				return
+			}
+			if x.Category == "borrow" && len(x.Repayments) > 0 {
+				lid, _ := res.LastInsertId()
+				reps := make([]workLedgerRepayment, 0, len(x.Repayments))
+				for _, r := range x.Repayments {
+					reps = append(reps, workLedgerRepayment{
+						Date:   r.Date,
+						Amount: r.Amount,
+						Note:   r.Note,
+						Ts:     r.Ts,
+					})
+				}
+				if err := s.insertVaultRepayments(tx, lid, amt, x.Ts, reps, nil); err != nil {
+					serverErr(w, err)
+					return
+				}
 			}
 		}
 	}

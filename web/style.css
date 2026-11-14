@@ -1720,6 +1720,7 @@ body:not(.is-logged-in) #app-bottom-nav {
   padding: 24px 22px calc(24px + var(--safe-bottom));
   box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.15);
   overflow-y: auto;
+  overscroll-behavior: contain;
   animation: slideUpSheet 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -4040,6 +4041,454 @@ body:not(.is-logged-in) #app-bottom-nav {
 @keyframes waterBobUpDown {
   0%, 100% { transform: translate3d(0, 4px, 0); }
   50% { transform: translate3d(0, -5px, 0); }
+}
+
+/* ==========================================================================
+   TRẢ TIỀN KHOẢN MƯỢN (PARTIAL BORROW REPAYMENT & HISTORY)
+   ========================================================================== */
+.work-ledger-note {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-top: 5px;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  line-height: 1.35;
+}
+
+.work-ledger-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.work-ledger-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.work-ledger-amt-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+.work-borrow-orig-sub {
+  font-size: 11px;
+  font-weight: 600;
+  color: #545D50;
+  white-space: nowrap;
+}
+
+.work-job-price-val.is-settled-amt {
+  color: #2B5719;
+}
+
+.btn-ledger-repay {
+  min-width: 68px;
+  min-height: 36px;
+  padding: 5px 11px;
+  border-radius: 10px;
+  background-color: #E8F6DE;
+  border: 1.5px solid #96CE72;
+  color: #1A3A0E;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform 0.15s ease-out, background-color 0.15s ease-out, border-color 0.15s ease-out;
+}
+
+.btn-ledger-repay:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.btn-ledger-repay.is-settled {
+  background-color: #F4F8F2;
+  border-color: #D2DFCD;
+  color: #3D443A;
+}
+
+@media (hover: hover) {
+  .btn-ledger-repay:hover {
+    background-color: #D8F0C8;
+    border-color: #77BC4D;
+  }
+  .btn-ledger-repay.is-settled:hover {
+    background-color: #E9F1E5;
+  }
+}
+
+.work-job-card.is-borrow-settled {
+  background-color: #F8FCF6;
+  border-color: #CBE3BE;
+}
+
+.work-borrow-settled-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #1E4611;
+  background-color: #E2F4D6;
+  border: 1px solid #B7DF9C;
+  padding: 2px 7px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+.borrow-repay-card-foot {
+  border-top: 1px dashed #E4ECE0;
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.borrow-repay-progress-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #3D443A;
+}
+
+.borrow-repay-progress-track {
+  width: 100%;
+  height: 6px;
+  background-color: #E8EFE5;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.borrow-repay-progress-fill {
+  height: 100%;
+  background-color: #5E9447;
+  border-radius: 999px;
+  transition: width 0.25s ease-out;
+}
+
+.borrow-repay-log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.borrow-repay-log-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 11.5px;
+  padding: 5px 8px;
+  border-radius: 9px;
+  background-color: #F7FAF5;
+  border: 1px solid #E6EFE2;
+}
+
+.borrow-repay-log-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  flex-wrap: wrap;
+  min-width: 0;
+  color: #4A5246;
+}
+
+.borrow-repay-step {
+  font-weight: 800;
+  color: #2B5719;
+}
+
+.borrow-repay-log-note {
+  color: #545D50;
+  overflow-wrap: break-word;
+}
+
+.borrow-repay-log-amt {
+  font-weight: 800;
+  color: #1E4611;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+@media (max-width: 420px) {
+  .work-ledger-right {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+  }
+}
+
+/* Modal: Trả tiền khoản mượn */
+.repay-summary-box {
+  background-color: #F7FAF5;
+  border: 1.5px solid #DCE8D6;
+  border-radius: 18px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+
+.repay-borrow-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.repay-borrow-name {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-main);
+  overflow-wrap: break-word;
+  min-width: 0;
+}
+
+.repay-borrow-date {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #545D50;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.repay-metrics-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  background-color: #FFFFFF;
+  border: 1px solid #E4ECE0;
+  border-radius: 12px;
+  padding: 8px 10px;
+}
+
+.repay-metric-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.repay-metric-cell + .repay-metric-cell {
+  border-left: 1px solid #EAEFE7;
+  padding-left: 8px;
+}
+
+.repay-metric-lbl {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #545D50;
+}
+
+.repay-metric-val {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--text-main);
+  overflow-wrap: break-word;
+}
+
+.repay-metric-val.is-paid {
+  color: #2B5719;
+}
+
+.repay-metric-val.is-remaining {
+  color: #9A3412;
+}
+
+.repay-settled-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #E8F6DE;
+  border: 1.5px solid #B7DF9C;
+  border-radius: 14px;
+  padding: 11px 14px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #1E4611;
+}
+
+.repay-amount-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.repay-amount-label-row .form-label {
+  white-space: normal;
+}
+
+.repay-after-hint {
+  font-size: 12px;
+  font-weight: 700;
+  color: #2B5719;
+  min-height: 18px;
+  margin-top: 3px;
+}
+
+.repay-error-text {
+  font-size: 12px;
+  font-weight: 700;
+  color: #B91C1C;
+  margin-top: 2px;
+}
+
+.form-input[aria-invalid="true"] {
+  border-color: #DC2626;
+  background-color: #FEF2F2;
+}
+
+.repay-chips-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.repay-chips-grid .btn-price-chip {
+  min-height: 40px;
+  padding: 6px 12px;
+  flex: 1 1 auto;
+}
+
+.btn-price-chip.is-pay-all {
+  background-color: #E8F6DE;
+  border-color: #96CE72;
+  color: #1A3A0E;
+}
+
+.repay-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+@media (max-width: 380px) {
+  .repay-meta-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.repay-history-section {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid #EAEFE7;
+}
+
+.repay-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.repay-history-title {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.repay-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.repay-history-empty {
+  font-size: 12.5px;
+  color: #545D50;
+  background-color: #F8FAF7;
+  border: 1px dashed #DCE6D8;
+  border-radius: 12px;
+  padding: 12px;
+  text-align: center;
+}
+
+.repay-history-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  background-color: #F9FBF8;
+  border: 1px solid #E4ECE0;
+  border-radius: 12px;
+}
+
+.repay-history-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.repay-history-date {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.repay-history-note {
+  font-size: 11.5px;
+  color: #545D50;
+  margin-top: 2px;
+  overflow-wrap: break-word;
+}
+
+.repay-history-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.repay-history-amt {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #1E4611;
+}
+
+.repay-danger-zone {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px dashed #ECE4E4;
+  display: flex;
+  justify-content: center;
+}
+
+.btn-repay-delete-borrow {
+  min-height: 40px;
+  padding: 8px 16px;
+  border-radius: 12px;
+  background-color: #FEF2F2;
+  border: 1px solid #FECACA;
+  color: #B91C1C;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease-out, background-color 0.15s ease-out;
+}
+
+.btn-repay-delete-borrow:not(:disabled):active {
+  transform: scale(0.96);
 }
 
 /* Media Queries for Accessibility */

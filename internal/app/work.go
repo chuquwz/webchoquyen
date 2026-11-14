@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/csv"
 	"fmt"
 	"net/http"
@@ -24,13 +25,38 @@ type workJob struct {
 	Ts       int64  `json:"ts"`
 }
 
-type workLedger struct {
+type workLedgerRepayment struct {
 	ID       int64  `json:"id"`
+	LedgerID int64  `json:"ledger_id"`
 	Date     string `json:"date"`
-	Category string `json:"category"` // "expense" | "fund_in" | "fund_bal" | "borrow" | "repay"
 	Amount   int    `json:"amount"`
 	Note     string `json:"note"`
 	Ts       int64  `json:"ts"`
+}
+
+type workBorrowRepaymentView struct {
+	ID              int64  `json:"id"`
+	LedgerID        int64  `json:"ledger_id"`
+	BorrowDate      string `json:"borrow_date"`
+	BorrowNote      string `json:"borrow_note"`
+	BorrowAmount    int    `json:"borrow_amount"`
+	RemainingAmount int    `json:"remaining_amount"`
+	Date            string `json:"date"`
+	Amount          int    `json:"amount"`
+	Note            string `json:"note"`
+	Ts              int64  `json:"ts"`
+}
+
+type workLedger struct {
+	ID              int64                 `json:"id"`
+	Date            string                `json:"date"`
+	Category        string                `json:"category"` // "expense" | "fund_in" | "fund_bal" | "borrow" | "repay"
+	Amount          int                   `json:"amount"`
+	PaidAmount      int                   `json:"paid_amount"`
+	RemainingAmount int                   `json:"remaining_amount"`
+	Repayments      []workLedgerRepayment `json:"repayments,omitempty"`
+	Note            string                `json:"note"`
+	Ts              int64                 `json:"ts"`
 }
 
 type workSummary struct {
@@ -174,32 +200,127 @@ func (s *Server) queryWorkJobsByDate(date string) ([]workJob, error) {
 	return out, rows.Err()
 }
 
+func (s *Server) attachLedgerRepayments(out []workLedger) error {
+	borrowIDs := make([]int64, 0)
+	idxByID := make(map[int64]int)
+	for i := range out {
+		if out[i].Category == "borrow" {
+			out[i].Repayments = []workLedgerRepayment{}
+			out[i].PaidAmount = 0
+			out[i].RemainingAmount = out[i].Amount
+			if out[i].ID > 0 {
+				idxByID[out[i].ID] = i
+				borrowIDs = append(borrowIDs, out[i].ID)
+			}
+		}
+	}
+	if len(borrowIDs) == 0 {
+		return nil
+	}
+
+	placeholders := strings.Repeat("?,", len(borrowIDs)-1) + "?"
+	args := make([]any, len(borrowIDs))
+	for i, id := range borrowIDs {
+		args[i] = id
+	}
+	q := `SELECT id, ledger_id, date, amount, note, ts FROM work_ledger_repayments WHERE ledger_id IN (` + placeholders + `) ORDER BY date ASC, id ASC`
+	rows, err := s.db.Query(q, args...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var rep workLedgerRepayment
+		if err := rows.Scan(&rep.ID, &rep.LedgerID, &rep.Date, &rep.Amount, &rep.Note, &rep.Ts); err != nil {
+			return err
+		}
+		if idx, ok := idxByID[rep.LedgerID]; ok {
+			out[idx].Repayments = append(out[idx].Repayments, rep)
+			out[idx].PaidAmount += rep.Amount
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, i := range idxByID {
+		rem := out[i].Amount - out[i].PaidAmount
+		if rem < 0 {
+			rem = 0
+		}
+		out[i].RemainingAmount = rem
+	}
+	return nil
+}
+
 func (s *Server) queryWorkLedgerByDate(date string) ([]workLedger, error) {
 	rows, err := s.db.Query(`SELECT id, date, category, amount, note, ts FROM work_ledger WHERE date=? ORDER BY id ASC`, date)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 	out := []workLedger{}
 	for rows.Next() {
 		var l workLedger
 		if err := rows.Scan(&l.ID, &l.Date, &l.Category, &l.Amount, &l.Note, &l.Ts); err != nil {
+			rows.Close()
 			return nil, err
 		}
 		out = append(out, l)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close()
+	if err := s.attachLedgerRepayments(out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (s *Server) queryWorkRepaymentsByDate(date string) ([]workBorrowRepaymentView, error) {
+	rows, err := s.db.Query(`
+		SELECT r.id, r.ledger_id, wl.date, wl.note, wl.amount,
+		       COALESCE((SELECT SUM(r2.amount) FROM work_ledger_repayments r2 WHERE r2.ledger_id = wl.id), 0),
+		       r.date, r.amount, r.note, r.ts
+		FROM work_ledger_repayments r
+		JOIN work_ledger wl ON wl.id = r.ledger_id
+		WHERE r.date=?
+		ORDER BY r.id ASC`, date)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []workBorrowRepaymentView{}
+	for rows.Next() {
+		var v workBorrowRepaymentView
+		var totalPaid int
+		if err := rows.Scan(&v.ID, &v.LedgerID, &v.BorrowDate, &v.BorrowNote, &v.BorrowAmount, &totalPaid, &v.Date, &v.Amount, &v.Note, &v.Ts); err != nil {
+			return nil, err
+		}
+		rem := v.BorrowAmount - totalPaid
+		if rem < 0 {
+			rem = 0
+		}
+		v.RemainingAmount = rem
+		out = append(out, v)
 	}
 	return out, rows.Err()
 }
 
 func (s *Server) computeWorkSummary(datePrefix string, exactDate bool) workSummary {
 	var sum workSummary
-	var jobWhere string
+	var jobWhere, ledgerWhere, repayWhere string
 	var arg string
 	if exactDate {
 		jobWhere = `WHERE date = ?`
+		ledgerWhere = `WHERE wl.date = ?`
+		repayWhere = `WHERE date = ?`
 		arg = datePrefix
 	} else {
 		jobWhere = `WHERE date LIKE ?`
+		ledgerWhere = `WHERE wl.date LIKE ?`
+		repayWhere = `WHERE date LIKE ?`
 		arg = datePrefix + "-%"
 	}
 
@@ -223,12 +344,14 @@ func (s *Server) computeWorkSummary(datePrefix string, exactDate bool) workSumma
 		rows.Close()
 	}
 
-	lrows, err := s.db.Query(`SELECT category, amount FROM work_ledger `+jobWhere+` ORDER BY id ASC`, arg)
+	lrows, err := s.db.Query(`
+		SELECT wl.category, wl.amount, COALESCE((SELECT SUM(r.amount) FROM work_ledger_repayments r WHERE r.ledger_id = wl.id), 0)
+		FROM work_ledger wl `+ledgerWhere+` ORDER BY wl.id ASC`, arg)
 	if err == nil {
 		for lrows.Next() {
 			var cat string
-			var amt int
-			if lrows.Scan(&cat, &amt) == nil {
+			var amt, repaid int
+			if lrows.Scan(&cat, &amt, &repaid) == nil {
 				switch cat {
 				case "expense":
 					sum.ExpenseAmount += amt
@@ -237,13 +360,22 @@ func (s *Server) computeWorkSummary(datePrefix string, exactDate bool) workSumma
 				case "fund_bal":
 					sum.FundBal = amt // Số dư quỹ lấy bản ghi cập nhật mới nhất
 				case "borrow":
-					sum.BorrowAmount += amt
+					rem := amt - repaid
+					if rem < 0 {
+						rem = 0
+					}
+					sum.BorrowAmount += rem
 				case "repay":
 					sum.RepayAmount += amt
 				}
 			}
 		}
 		lrows.Close()
+	}
+
+	var repayPaid int
+	if err := s.db.QueryRow(`SELECT COALESCE(SUM(amount), 0) FROM work_ledger_repayments `+repayWhere, arg).Scan(&repayPaid); err == nil {
+		sum.RepayAmount += repayPaid
 	}
 
 	sum.NetCash = sum.PaidAmount - sum.ExpenseAmount
@@ -434,6 +566,11 @@ func (s *Server) handleGetWork(w http.ResponseWriter, r *http.Request) {
 		serverErr(w, err)
 		return
 	}
+	dayRepayments, err := s.queryWorkRepaymentsByDate(date)
+	if err != nil {
+		serverErr(w, err)
+		return
+	}
 
 	daySum := s.computeWorkSummary(date, true)
 	monthSum := s.computeWorkSummary(month, false)
@@ -451,6 +588,7 @@ func (s *Server) handleGetWork(w http.ResponseWriter, r *http.Request) {
 		"today":             s.today(),
 		"jobs":              jobs,
 		"ledger":            ledger,
+		"day_repayments":    dayRepayments,
 		"day_summary":       daySum,
 		"month_summary":     monthSum,
 		"unpaid_groups":     unpaidGroups,
@@ -700,6 +838,133 @@ func (s *Server) handleDelWorkLedger(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"ok": true})
 }
 
+// POST /api/work/ledger/{id}/repay
+func (s *Server) handleRepayWorkLedger(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil || id <= 0 {
+		httpErr(w, 400, "Mã khoản mượn không hợp lệ")
+		return
+	}
+	var in struct {
+		Date   string `json:"date"`
+		Amount int    `json:"amount"`
+		Note   string `json:"note"`
+	}
+	if !readJSON(w, r, &in) {
+		return
+	}
+	if in.Date == "" {
+		in.Date = s.today()
+	}
+	if !validDate(in.Date) {
+		httpErr(w, 400, "Ngày trả tiền không hợp lệ (YYYY-MM-DD)")
+		return
+	}
+	note := strings.TrimSpace(in.Note)
+	if utf8.RuneCountInString(note) > 300 {
+		httpErr(w, 400, "Ghi chú tối đa 300 ký tự")
+		return
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		serverErr(w, err)
+		return
+	}
+	defer tx.Rollback()
+
+	var cat string
+	var borrowAmt int
+	err = tx.QueryRow(`SELECT category, amount FROM work_ledger WHERE id=?`, id).Scan(&cat, &borrowAmt)
+	if err == sql.ErrNoRows {
+		httpErr(w, 404, "Không tìm thấy khoản mượn này")
+		return
+	}
+	if err != nil {
+		serverErr(w, err)
+		return
+	}
+	if cat != "borrow" {
+		httpErr(w, 400, "Chỉ áp dụng trả tiền cho khoản mục Mượn")
+		return
+	}
+
+	var paid int
+	if err := tx.QueryRow(`SELECT COALESCE(SUM(amount), 0) FROM work_ledger_repayments WHERE ledger_id=?`, id).Scan(&paid); err != nil {
+		serverErr(w, err)
+		return
+	}
+	remBefore := borrowAmt - paid
+	if remBefore < 0 {
+		remBefore = 0
+	}
+
+	payAmt := normalizeVND(in.Amount)
+	if remBefore > 0 && in.Amount > 0 && in.Amount == remBefore && remBefore < 1000 {
+		payAmt = remBefore
+	}
+	if payAmt <= 0 || (payAmt < 1000 && !(remBefore > 0 && payAmt == remBefore)) {
+		httpErr(w, 400, "Số tiền trả phải từ 1.000đ trở lên")
+		return
+	}
+
+	ts := s.now().Unix()
+	res, err := tx.Exec(
+		`INSERT INTO work_ledger_repayments(ledger_id, date, amount, note, ts) VALUES(?,?,?,?,?)`,
+		id, in.Date, payAmt, note, ts,
+	)
+	if err != nil {
+		serverErr(w, err)
+		return
+	}
+	repayID, _ := res.LastInsertId()
+	if err := tx.Commit(); err != nil {
+		serverErr(w, err)
+		return
+	}
+
+	newPaid := paid + payAmt
+	newRemaining := borrowAmt - newPaid
+	if newRemaining < 0 {
+		newRemaining = 0
+	}
+	overpaid := newPaid - borrowAmt
+	if overpaid < 0 {
+		overpaid = 0
+	}
+	writeJSON(w, 200, map[string]any{
+		"ok":               true,
+		"repayment_id":     repayID,
+		"ledger_id":        id,
+		"paid_amount":      newPaid,
+		"remaining_amount": newRemaining,
+		"overpaid_amount":  overpaid,
+		"settled":          newRemaining == 0,
+		"repayment": workLedgerRepayment{
+			ID:       repayID,
+			LedgerID: id,
+			Date:     in.Date,
+			Amount:   payAmt,
+			Note:     note,
+			Ts:       ts,
+		},
+	})
+}
+
+// DELETE /api/work/repayment/{id}
+func (s *Server) handleDelWorkLedgerRepayment(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil || id <= 0 {
+		httpErr(w, 400, "Mã lần trả tiền không hợp lệ")
+		return
+	}
+	if _, err := s.db.Exec(`DELETE FROM work_ledger_repayments WHERE id=?`, id); err != nil {
+		serverErr(w, err)
+		return
+	}
+	writeJSON(w, 200, map[string]any{"ok": true})
+}
+
 // GET /api/work/export?month=YYYY-MM
 func (s *Server) handleExportWorkCSV(w http.ResponseWriter, r *http.Request) {
 	month := r.URL.Query().Get("month")
@@ -811,16 +1076,87 @@ func (s *Server) handleExportWorkCSV(w http.ResponseWriter, r *http.Request) {
 	// 4. Bảng Thu Chi / Phát Sinh / Quỹ / Mượn / Trả Nợ
 	_ = cw.Write([]string{"III. BẢNG CHI TIÊU PHÁT SINH, NỘP QUỸ, MƯỢN & TRẢ NỢ TRONG THÁNG"})
 	_ = cw.Write([]string{"Ngày", "Phân Loại", "Số Tiền (VNĐ)", "Nội Dung Chi Tiết"})
-	lrows, err := s.db.Query(`SELECT date, category, amount, note FROM work_ledger WHERE date LIKE ? ORDER BY date ASC, id ASC`, likeArg)
+	type csvLedgerRow struct {
+		id         int64
+		d, cat     string
+		amt        int
+		note       string
+	}
+	var ledgerRows []csvLedgerRow
+	lrows, err := s.db.Query(`SELECT id, date, category, amount, note FROM work_ledger WHERE date LIKE ? ORDER BY date ASC, id ASC`, likeArg)
 	if err == nil {
 		for lrows.Next() {
-			var d, cat, note string
-			var amt int
-			if lrows.Scan(&d, &cat, &amt, &note) == nil {
-				_ = cw.Write([]string{d, categoryLabelVN(cat), strconv.Itoa(amt), note})
+			var r csvLedgerRow
+			if lrows.Scan(&r.id, &r.d, &r.cat, &r.amt, &r.note) == nil {
+				ledgerRows = append(ledgerRows, r)
 			}
 		}
 		lrows.Close()
+	}
+
+	paidByBorrowID := map[int64]int{}
+	prows, err := s.db.Query(`SELECT ledger_id, COALESCE(SUM(amount), 0) FROM work_ledger_repayments GROUP BY ledger_id`)
+	if err == nil {
+		for prows.Next() {
+			var lid int64
+			var paid int
+			if prows.Scan(&lid, &paid) == nil {
+				paidByBorrowID[lid] = paid
+			}
+		}
+		prows.Close()
+	}
+
+	for _, r := range ledgerRows {
+		amtOut := r.amt
+		noteOut := r.note
+		if r.cat == "borrow" {
+			paid := paidByBorrowID[r.id]
+			rem := r.amt - paid
+			if rem < 0 {
+				rem = 0
+			}
+			amtOut = rem
+			if paid > r.amt {
+				noteOut = fmt.Sprintf("%s (Đã trả xong - Mượn gốc %dđ, đã trả %dđ, trả thừa %dđ)", r.note, r.amt, paid, paid-r.amt)
+			} else if rem == 0 && paid > 0 {
+				noteOut = fmt.Sprintf("%s (Đã trả xong - Mượn gốc %dđ)", r.note, r.amt)
+			} else if paid > 0 {
+				noteOut = fmt.Sprintf("%s (Mượn gốc %dđ, đã trả %dđ)", r.note, r.amt, paid)
+			}
+		}
+		_ = cw.Write([]string{r.d, categoryLabelVN(r.cat), strconv.Itoa(amtOut), noteOut})
+	}
+
+	type csvRepayRow struct {
+		d          string
+		amt        int
+		note       string
+		borrowDate string
+		borrowNote string
+	}
+	var repayRows []csvRepayRow
+	rrows, err := s.db.Query(`
+		SELECT r.date, r.amount, r.note, wl.date, wl.note
+		FROM work_ledger_repayments r
+		JOIN work_ledger wl ON wl.id = r.ledger_id
+		WHERE r.date LIKE ?
+		ORDER BY r.date ASC, r.id ASC`, likeArg)
+	if err == nil {
+		for rrows.Next() {
+			var x csvRepayRow
+			if rrows.Scan(&x.d, &x.amt, &x.note, &x.borrowDate, &x.borrowNote) == nil {
+				repayRows = append(repayRows, x)
+			}
+		}
+		rrows.Close()
+	}
+	for _, x := range repayRows {
+		desc := fmt.Sprintf("Trả tiền: %s (mượn %s)", x.borrowNote, x.borrowDate)
+		if x.note != "" {
+			desc += " - " + x.note
+		}
+		_ = cw.Write([]string{x.d, categoryLabelVN("repay"), strconv.Itoa(x.amt), desc})
 	}
 
 	cw.Flush()
@@ -867,7 +1203,6 @@ func (s *Server) queryAllWorkLedger() []workLedger {
 	if err != nil {
 		return []workLedger{}
 	}
-	defer rows.Close()
 	out := []workLedger{}
 	for rows.Next() {
 		var l workLedger
@@ -875,7 +1210,51 @@ func (s *Server) queryAllWorkLedger() []workLedger {
 			out = append(out, l)
 		}
 	}
+	rows.Close()
+	_ = s.attachLedgerRepayments(out)
 	return out
+}
+
+func (s *Server) insertVaultRepayments(tx *sql.Tx, ledgerID int64, borrowAmt int, fallbackTs int64, reps []workLedgerRepayment, existing map[string]bool) error {
+	if len(reps) == 0 {
+		return nil
+	}
+	var currentPaid int
+	_ = tx.QueryRow(`SELECT COALESCE(SUM(amount), 0) FROM work_ledger_repayments WHERE ledger_id=?`, ledgerID).Scan(&currentPaid)
+
+	for _, rep := range reps {
+		if !validDate(rep.Date) {
+			continue
+		}
+		repAmt := normalizeVND(rep.Amount)
+		rem := borrowAmt - currentPaid
+		if rem > 0 && rep.Amount > 0 && rep.Amount < 1000 && rep.Amount == rem {
+			repAmt = rep.Amount
+		}
+		if repAmt <= 0 {
+			continue
+		}
+		repTs := rep.Ts
+		if repTs <= 0 {
+			repTs = fallbackTs
+		}
+		repNote := strings.TrimSpace(rep.Note)
+		sig := fmt.Sprintf("%s|%d|%s|%d", rep.Date, repAmt, strings.ToLower(repNote), repTs)
+		if existing != nil && existing[sig] {
+			continue
+		}
+		if _, err := tx.Exec(
+			`INSERT INTO work_ledger_repayments(ledger_id, date, amount, note, ts) VALUES(?,?,?,?,?)`,
+			ledgerID, rep.Date, repAmt, repNote, repTs,
+		); err != nil {
+			return err
+		}
+		currentPaid += repAmt
+		if existing != nil {
+			existing[sig] = true
+		}
+	}
+	return nil
 }
 
 // GET /api/work/vault
@@ -912,6 +1291,10 @@ func (s *Server) handleSyncWorkVault(w http.ResponseWriter, r *http.Request) {
 			serverErr(w, err)
 			return
 		}
+		if _, err := tx.Exec(`DELETE FROM work_ledger_repayments`); err != nil {
+			serverErr(w, err)
+			return
+		}
 		if _, err := tx.Exec(`DELETE FROM work_ledger`); err != nil {
 			serverErr(w, err)
 			return
@@ -944,12 +1327,20 @@ func (s *Server) handleSyncWorkVault(w http.ResponseWriter, r *http.Request) {
 			if ts <= 0 {
 				ts = s.now().Unix()
 			}
-			if _, err := tx.Exec(
+			res, err := tx.Exec(
 				`INSERT INTO work_ledger(date, category, amount, note, ts) VALUES(?,?,?,?,?)`,
 				l.Date, l.Category, amt, strings.TrimSpace(l.Note), ts,
-			); err != nil {
+			)
+			if err != nil {
 				serverErr(w, err)
 				return
+			}
+			if l.Category == "borrow" && len(l.Repayments) > 0 {
+				ledgerID, _ := res.LastInsertId()
+				if err := s.insertVaultRepayments(tx, ledgerID, amt, ts, l.Repayments, nil); err != nil {
+					serverErr(w, err)
+					return
+				}
 			}
 		}
 	} else {
@@ -1010,19 +1401,37 @@ func (s *Server) handleSyncWorkVault(w http.ResponseWriter, r *http.Request) {
 			}{id: newID, status: st}
 		}
 
-		existingLedger := map[string]bool{}
-		lrows, err := tx.Query(`SELECT date, category, amount, note, ts FROM work_ledger`)
+		existingLedger := map[string]int64{}
+		lrows, err := tx.Query(`SELECT id, date, category, amount, note, ts FROM work_ledger`)
 		if err == nil {
 			for lrows.Next() {
+				var id, ts int64
 				var d, cat, note string
 				var amt int
-				var ts int64
-				if lrows.Scan(&d, &cat, &amt, &note, &ts) == nil {
+				if lrows.Scan(&id, &d, &cat, &amt, &note, &ts) == nil {
 					sig := fmt.Sprintf("%s|%s|%d|%s|%d", d, cat, normalizeVND(amt), strings.ToLower(strings.TrimSpace(note)), ts)
-					existingLedger[sig] = true
+					existingLedger[sig] = id
 				}
 			}
 			lrows.Close()
+		}
+
+		existingRepays := map[int64]map[string]bool{}
+		rrows, err := tx.Query(`SELECT ledger_id, date, amount, note, ts FROM work_ledger_repayments`)
+		if err == nil {
+			for rrows.Next() {
+				var lid, rts int64
+				var rd, rnote string
+				var ramt int
+				if rrows.Scan(&lid, &rd, &ramt, &rnote, &rts) == nil {
+					if existingRepays[lid] == nil {
+						existingRepays[lid] = map[string]bool{}
+					}
+					rsig := fmt.Sprintf("%s|%d|%s|%d", rd, normalizeVND(ramt), strings.ToLower(strings.TrimSpace(rnote)), rts)
+					existingRepays[lid][rsig] = true
+				}
+			}
+			rrows.Close()
 		}
 
 		for _, l := range in.Ledger {
@@ -1036,17 +1445,28 @@ func (s *Server) handleSyncWorkVault(w http.ResponseWriter, r *http.Request) {
 			}
 			note := strings.TrimSpace(l.Note)
 			sig := fmt.Sprintf("%s|%s|%d|%s|%d", l.Date, l.Category, amt, strings.ToLower(note), ts)
-			if existingLedger[sig] {
-				continue
+			targetID, ok := existingLedger[sig]
+			if !ok {
+				res, err := tx.Exec(
+					`INSERT INTO work_ledger(date, category, amount, note, ts) VALUES(?,?,?,?,?)`,
+					l.Date, l.Category, amt, note, ts,
+				)
+				if err != nil {
+					serverErr(w, err)
+					return
+				}
+				targetID, _ = res.LastInsertId()
+				existingLedger[sig] = targetID
 			}
-			if _, err := tx.Exec(
-				`INSERT INTO work_ledger(date, category, amount, note, ts) VALUES(?,?,?,?,?)`,
-				l.Date, l.Category, amt, note, ts,
-			); err != nil {
-				serverErr(w, err)
-				return
+			if l.Category == "borrow" && len(l.Repayments) > 0 {
+				if existingRepays[targetID] == nil {
+					existingRepays[targetID] = map[string]bool{}
+				}
+				if err := s.insertVaultRepayments(tx, targetID, amt, ts, l.Repayments, existingRepays[targetID]); err != nil {
+					serverErr(w, err)
+					return
+				}
 			}
-			existingLedger[sig] = true
 		}
 	}
 

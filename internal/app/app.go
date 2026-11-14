@@ -283,7 +283,9 @@ func (s *Server) routes() {
 	m.HandleFunc("DELETE /api/work/job/{id}", a(s.handleDelWorkJob))
 	m.HandleFunc("POST /api/work/job/pay-customer", a(s.handlePayCustomerJobs))
 	m.HandleFunc("POST /api/work/ledger", a(s.handlePostWorkLedger))
+	m.HandleFunc("POST /api/work/ledger/{id}/repay", a(s.handleRepayWorkLedger))
 	m.HandleFunc("DELETE /api/work/ledger/{id}", a(s.handleDelWorkLedger))
+	m.HandleFunc("DELETE /api/work/repayment/{id}", a(s.handleDelWorkLedgerRepayment))
 	m.HandleFunc("GET /api/work/export", a(s.handleExportWorkCSV))
 	m.HandleFunc("/", s.assets.serve)
 	s.mux = m

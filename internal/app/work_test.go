@@ -395,4 +395,177 @@ func TestPruneOldHealthDataKeepsWeightHistory(t *testing.T) {
 	}
 }
 
+func TestBorrowPartialRepaymentAndVaultSync(t *testing.T) {
+	srv := newTestServer(t)
+	h := srv.Handler()
+	today := srv.today()
+	nextDay := addDays(today, 1)
+
+	// 1. Tạo khoản Mượn 2.000.000đ ("A Mạnh")
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "POST", "/api/work/ledger", map[string]any{
+		"date":     today,
+		"category": "borrow",
+		"amount":   2000000,
+		"note":     "A Mạnh",
+	}))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 creating borrow, got %d: %s", w.Code, w.Body.String())
+	}
+	var createResp struct {
+		ID int64 `json:"id"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &createResp)
+	if createResp.ID <= 0 {
+		t.Fatalf("expected valid ledger id, got %+v", createResp)
+	}
+
+	// 2. Trả lần 1: 500 (tự nhân 1000 = 500.000đ) vào hôm nay
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "POST", "/api/work/ledger/"+strconvItoa64(createResp.ID)+"/repay", map[string]any{
+		"date":   today,
+		"amount": 500,
+		"note":   "Chuyển khoản lần 1",
+	}))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 repay 1, got %d: %s", w.Code, w.Body.String())
+	}
+	var repay1Resp struct {
+		RepaymentID     int64 `json:"repayment_id"`
+		PaidAmount      int   `json:"paid_amount"`
+		RemainingAmount int   `json:"remaining_amount"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &repay1Resp)
+	if repay1Resp.PaidAmount != 500000 || repay1Resp.RemainingAmount != 1500000 {
+		t.Fatalf("unexpected repay 1 totals: %+v", repay1Resp)
+	}
+
+	// 3. Trả lần 2: 300.000đ vào ngày hôm sau -> còn nợ 1.200.000đ
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "POST", "/api/work/ledger/"+strconvItoa64(createResp.ID)+"/repay", map[string]any{
+		"date":   nextDay,
+		"amount": 300000,
+		"note":   "Tiền mặt lần 2",
+	}))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 repay 2, got %d: %s", w.Code, w.Body.String())
+	}
+	var repay2Resp struct {
+		RepaymentID     int64 `json:"repayment_id"`
+		PaidAmount      int   `json:"paid_amount"`
+		RemainingAmount int   `json:"remaining_amount"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &repay2Resp)
+	if repay2Resp.PaidAmount != 800000 || repay2Resp.RemainingAmount != 1200000 {
+		t.Fatalf("unexpected repay 2 totals: %+v", repay2Resp)
+	}
+
+	// 4. Cho phép trả thừa (còn 1.200.000đ, trả 1.500.000đ) -> remaining_amount về 0, settled = true
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "POST", "/api/work/ledger/"+strconvItoa64(createResp.ID)+"/repay", map[string]any{
+		"date":   today,
+		"amount": 1500000,
+		"note":   "Trả hết + thêm 300k",
+	}))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 over-repay, got %d: %s", w.Code, w.Body.String())
+	}
+	var overResp struct {
+		RepaymentID     int64 `json:"repayment_id"`
+		PaidAmount      int   `json:"paid_amount"`
+		RemainingAmount int   `json:"remaining_amount"`
+		OverpaidAmount  int   `json:"overpaid_amount"`
+		Settled         bool  `json:"settled"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &overResp)
+	if !overResp.Settled || overResp.RemainingAmount != 0 || overResp.PaidAmount != 2300000 || overResp.OverpaidAmount != 300000 {
+		t.Fatalf("unexpected over-repay totals: %+v", overResp)
+	}
+
+	// 5. Kiểm tra GET /api/work?date=today
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "GET", "/api/work?date="+today, nil))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 GET /api/work, got %d", w.Code)
+	}
+	var workResp struct {
+		Ledger     []workLedger `json:"ledger"`
+		DaySummary workSummary  `json:"day_summary"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &workResp)
+	if len(workResp.Ledger) != 1 {
+		t.Fatalf("expected 1 ledger item, got %d", len(workResp.Ledger))
+	}
+	bItem := workResp.Ledger[0]
+	if bItem.Amount != 2000000 || bItem.PaidAmount != 2300000 || bItem.RemainingAmount != 0 || len(bItem.Repayments) != 3 {
+		t.Fatalf("unexpected settled borrow item state: %+v", bItem)
+	}
+	if workResp.DaySummary.BorrowAmount != 0 || workResp.DaySummary.RepayAmount != 2000000 {
+		t.Fatalf("unexpected settled day summary: %+v", workResp.DaySummary)
+	}
+
+	// 6. Kiểm tra đồng bộ Vault sang server mới khi redeploy giữ nguyên cả lần trả thừa
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "GET", "/api/work/vault", nil))
+	var vault struct {
+		Jobs   []workJob    `json:"jobs"`
+		Ledger []workLedger `json:"ledger"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &vault)
+
+	freshSrv := newTestServer(t)
+	freshH := freshSrv.Handler()
+	w = httptest.NewRecorder()
+	freshH.ServeHTTP(w, authedReq(freshSrv, "POST", "/api/work/vault", map[string]any{
+		"mode":   "merge",
+		"jobs":   vault.Jobs,
+		"ledger": vault.Ledger,
+	}))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 vault sync, got %d: %s", w.Code, w.Body.String())
+	}
+
+	w = httptest.NewRecorder()
+	freshH.ServeHTTP(w, authedReq(freshSrv, "GET", "/api/work?date="+today, nil))
+	_ = json.Unmarshal(w.Body.Bytes(), &workResp)
+	if len(workResp.Ledger) != 1 || len(workResp.Ledger[0].Repayments) != 3 || workResp.Ledger[0].RemainingAmount != 0 || workResp.Ledger[0].PaidAmount != 2300000 {
+		t.Fatalf("expected over-repayments preserved after vault sync, got %+v", workResp.Ledger)
+	}
+
+	// 7. Xoá lần trả thừa trên server gốc -> số tiền nợ khôi phục đúng 1.200.000đ
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "DELETE", "/api/work/repayment/"+strconvItoa64(overResp.RepaymentID), nil))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 delete repayment, got %d: %s", w.Code, w.Body.String())
+	}
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "GET", "/api/work?date="+today, nil))
+	_ = json.Unmarshal(w.Body.Bytes(), &workResp)
+	if workResp.Ledger[0].RemainingAmount != 1200000 || len(workResp.Ledger[0].Repayments) != 2 {
+		t.Fatalf("expected remaining 1200000 and 2 repayments after delete, got %+v", workResp.Ledger[0])
+	}
+
+	// 8. Xoá hoàn toàn khoản mượn bất cứ lúc nào -> cascade xoá luôn lịch sử trả tiền
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "DELETE", "/api/work/ledger/"+strconvItoa64(createResp.ID), nil))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 delete borrow, got %d: %s", w.Code, w.Body.String())
+	}
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "GET", "/api/work?date="+today, nil))
+	_ = json.Unmarshal(w.Body.Bytes(), &workResp)
+	if len(workResp.Ledger) != 0 {
+		t.Fatalf("expected empty ledger after borrow deletion, got %+v", workResp.Ledger)
+	}
+}
+
+func strconvItoa64(v int64) string {
+	return strings.TrimSpace(jsonNumber(v))
+}
+
+func jsonNumber(v int64) string {
+	b, _ := json.Marshal(v)
+	return string(b)
+}
+
 

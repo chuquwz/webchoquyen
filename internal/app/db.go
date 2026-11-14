@@ -45,6 +45,16 @@ CREATE TABLE IF NOT EXISTS work_ledger (
   note TEXT NOT NULL DEFAULT '',
   ts INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_work_ledger_date ON work_ledger(date);
+CREATE TABLE IF NOT EXISTS work_ledger_repayments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ledger_id INTEGER NOT NULL,
+  date TEXT NOT NULL,
+  amount INTEGER NOT NULL,
+  note TEXT NOT NULL DEFAULT '',
+  ts INTEGER NOT NULL,
+  FOREIGN KEY(ledger_id) REFERENCES work_ledger(id) ON DELETE CASCADE);
+CREATE INDEX IF NOT EXISTS idx_work_ledger_repay_ledger ON work_ledger_repayments(ledger_id);
+CREATE INDEX IF NOT EXISTS idx_work_ledger_repay_date ON work_ledger_repayments(date);
 `
 
 // OpenDB mở (hoặc tạo) cơ sở dữ liệu SQLite trong dir.
