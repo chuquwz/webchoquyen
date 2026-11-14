@@ -2412,14 +2412,6 @@
         }
       }
 
-      // Month strip (4-column banking footer)
-      setTxt('work-month-label', `Tổng kết ${monthHuman}`);
-      setTxt('work-month-job-count', `${ms.total_jobs || 0} đơn • Chi tiết →`);
-      setTxt('work-month-revenue', formatShortK(ms.total_revenue || 0));
-      setTxt('work-month-paid', formatShortK(ms.paid_amount || 0));
-      setTxt('work-month-expense', formatShortK(ms.expense_amount || 0));
-      setTxt('work-month-net', formatShortK(ms.net_cash || 0));
-
       // Subtab badges
       setTxt('work-badge-day-jobs', String(workState.jobs.length));
       setTxt('work-badge-unpaid-all', String(workState.totalUnpaidJobs || 0));
@@ -3199,13 +3191,6 @@
           fundBalRow.innerHTML = '';
         }
       }
-
-      setTxt('ledger-month-label', `Tổng kết ${monthHuman}`);
-      setTxt('ledger-month-count', `${monthLedger.length} khoản`);
-      setTxt('ledger-month-expense', formatShortK(ms.expense_amount || 0));
-      setTxt('ledger-month-fund', formatShortK(ms.fund_in || 0));
-      setTxt('ledger-month-borrow', formatShortK(ms.borrow_amount || 0));
-      setTxt('ledger-month-repay', formatShortK(ms.repay_amount || 0));
 
       renderWorkLedgerList();
       renderLedgerMonthDays(monthLedger, monthHuman);

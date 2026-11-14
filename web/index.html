@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=43">
+  <link rel="stylesheet" href="/style.css?v=45">
 </head>
 <body>
   <!-- Container Toast thông báo -->
@@ -443,32 +443,6 @@
 
             <!-- Dòng phụ: Quỹ / Mượn / Trả nợ trong ngày (nếu có) -->
             <div id="work-day-extra-badges" class="work-extra-badges-row" style="display: none;"></div>
-
-            <!-- Hàng 5: Luỹ kế tháng chia lưới 4 cột cố định, chạm để mở báo cáo tháng -->
-            <div class="work-month-bank-footer" onclick="switchWorkSubTab('month')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')switchWorkSubTab('month')" title="Bấm để xem chi tiết tổng kết cả tháng">
-              <div class="work-month-footer-head">
-                <span id="work-month-label" class="work-month-title">Luỹ kế tháng này</span>
-                <span id="work-month-job-count" class="work-month-sub-badge font-tabular">0 đơn &rarr;</span>
-              </div>
-              <div class="work-month-grid-4 font-tabular">
-                <div class="work-month-cell">
-                  <span class="work-month-cell-lbl">Doanh thu</span>
-                  <strong id="work-month-revenue" class="work-month-cell-val">0đ</strong>
-                </div>
-                <div class="work-month-cell">
-                  <span class="work-month-cell-lbl">Đã thu</span>
-                  <strong id="work-month-paid" class="work-month-cell-val">0đ</strong>
-                </div>
-                <div class="work-month-cell">
-                  <span class="work-month-cell-lbl">Chi tiêu</span>
-                  <strong id="work-month-expense" class="work-month-cell-val">0đ</strong>
-                </div>
-                <div class="work-month-cell">
-                  <span class="work-month-cell-lbl">Thực còn</span>
-                  <strong id="work-month-net" class="work-month-cell-val is-net">0đ</strong>
-                </div>
-              </div>
-            </div>
           </div>
 
           <!-- Két Lưu Trữ Dữ Liệu Tài Chính Trên Máy Cá Nhân (Chống Mất Dữ Liệu Khi Redeploy) -->
@@ -754,32 +728,6 @@
             </div>
 
             <div id="ledger-stat-fund-bal-row" class="work-extra-badges-row" style="display: none;"></div>
-
-            <!-- Chân thẻ: Luỹ kế cả tháng -->
-            <div class="work-month-bank-footer" style="cursor: pointer;" onclick="setLedgerHeroScope(workState.ledgerScope === 'month' ? 'day' : 'month')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setLedgerHeroScope(workState.ledgerScope === 'month' ? 'day' : 'month');}">
-              <div class="work-month-footer-head">
-                <span id="ledger-month-label" class="work-month-title">Luỹ kế tháng này</span>
-                <span id="ledger-month-count" class="work-month-sub-badge font-tabular">0 khoản</span>
-              </div>
-              <div class="work-month-grid-4 font-tabular">
-                <div class="work-month-cell">
-                  <span class="work-month-cell-lbl">Chi tiêu</span>
-                  <strong id="ledger-month-expense" class="work-month-cell-val">0đ</strong>
-                </div>
-                <div class="work-month-cell">
-                  <span class="work-month-cell-lbl">Nộp quỹ</span>
-                  <strong id="ledger-month-fund" class="work-month-cell-val">0đ</strong>
-                </div>
-                <div class="work-month-cell">
-                  <span class="work-month-cell-lbl">Mượn</span>
-                  <strong id="ledger-month-borrow" class="work-month-cell-val">0đ</strong>
-                </div>
-                <div class="work-month-cell">
-                  <span class="work-month-cell-lbl">Trả nợ</span>
-                  <strong id="ledger-month-repay" class="work-month-cell-val is-net">0đ</strong>
-                </div>
-              </div>
-            </div>
           </div>
 
           <!-- Danh sách phát sinh trong ngày đang xem -->
@@ -1245,6 +1193,6 @@
     </div>
   </div>
 
-  <script src="/app.js?v=43"></script>
+  <script src="/app.js?v=45"></script>
 </body>
 </html>
