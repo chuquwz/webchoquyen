@@ -1094,9 +1094,9 @@
     // --- CHECKLIST 3 BỮA ĂN HEALTHY HÔM NAY (GIỐNG THUỐC BỔ GAN: ĐÃ ĂN / CHƯA ĂN) ---
     const MEAL_SLOT_ORDER = ['breakfast', 'lunch', 'dinner'];
     const MEAL_SLOT_META = {
-      breakfast: { label: 'Bữa sáng Healthy', hint: '06:30 – 08:30', order: 1 },
-      lunch: { label: 'Bữa trưa Healthy', hint: '11:30 – 13:00', order: 2 },
-      dinner: { label: 'Bữa tối Healthy', hint: '18:00 – 19:30', order: 3 }
+      breakfast: { label: 'Bữa sáng Healthy', order: 1 },
+      lunch: { label: 'Bữa trưa Healthy', order: 2 },
+      dinner: { label: 'Bữa tối Healthy', order: 3 }
     };
 
     function defaultMealsForDate(date) {
@@ -1134,15 +1134,6 @@
       const doneCount = mealsList.filter(m => m.status === 'done').length;
       const pct = Math.min(100, Math.round((doneCount / target) * 100));
 
-      const curEl = document.getElementById('meal-cur-count');
-      if (curEl) curEl.textContent = String(doneCount);
-
-      const targetEl = document.getElementById('meal-target-count');
-      if (targetEl) targetEl.textContent = `${target} bữa`;
-
-      const pctEl = document.getElementById('meal-percent-badge');
-      if (pctEl) pctEl.textContent = `${pct}%`;
-
       const fillEl = document.getElementById('meal-progress-fill');
       if (fillEl) fillEl.style.width = `${pct}%`;
 
@@ -1150,7 +1141,7 @@
       if (grid) {
         const firstPendingIdx = mealsList.findIndex(m => m.status !== 'done');
         grid.innerHTML = mealsList.map((m, i) => {
-          const meta = MEAL_SLOT_META[m.slot] || { label: m.slot, hint: '' };
+          const meta = MEAL_SLOT_META[m.slot] || { label: m.slot };
           const isDone = m.status === 'done';
           const isNext = !isDone && i === firstPendingIdx;
           const stateCls = isDone ? 'done' : (isNext ? 'next-dose' : '');
@@ -1167,7 +1158,6 @@
           <button type="button" class="btn-med-dose-pill ${stateCls} font-tabular" onclick="toggleTodayMealQuick('${m.slot}')" aria-pressed="${isDone}">
             <div class="med-dose-top">
               <span class="med-dose-title">${escapeHtml(meta.label)}</span>
-              <span class="med-dose-time">${escapeHtml(meta.hint)}</span>
             </div>
             <span class="med-dose-status">${icon}<span>${statusText}</span></span>
           </button>`;
