@@ -245,4 +245,93 @@ func TestMultiDoseMedByReminderSchedule(t *testing.T) {
 	}
 }
 
+func TestMealChecklistDefault3Meals(t *testing.T) {
+	srv := newTestServer(t)
+	h := srv.Handler()
+	today := srv.today()
+
+	// 1. Mặc định GET /api/today trả về đúng 3 bữa (breakfast, lunch, dinner) với status = "pending"
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "GET", "/api/today", nil))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 GET /api/today, got %d", w.Code)
+	}
+	var todayResp struct {
+		MealsTarget int       `json:"meals_target"`
+		Meals       []mealRow `json:"meals"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &todayResp); err != nil {
+		t.Fatalf("unmarshal /api/today: %v", err)
+	}
+	if todayResp.MealsTarget != 3 || len(todayResp.Meals) != 3 {
+		t.Fatalf("expected 3 default meals, got target=%d len=%d", todayResp.MealsTarget, len(todayResp.Meals))
+	}
+	expectedSlots := []string{"breakfast", "lunch", "dinner"}
+	for i, sl := range expectedSlots {
+		if string(todayResp.Meals[i].Slot) != sl || todayResp.Meals[i].Status != "pending" {
+			t.Fatalf("meal %d expected (%s, pending), got (%s, %s)", i, sl, todayResp.Meals[i].Slot, todayResp.Meals[i].Status)
+		}
+	}
+
+	// 2. POST /api/meals/check lưu được trực tiếp trên ngày mới mà không cần generate trước
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "POST", "/api/meals/check", map[string]any{
+		"date":   today,
+		"slot":   "breakfast",
+		"status": "done",
+		"note":   "Trứng luộc/hấp, Khoai lang/Ngô luộc",
+	}))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 POST /api/meals/check done, got %d: %s", w.Code, w.Body.String())
+	}
+
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "POST", "/api/meals/check", map[string]any{
+		"date":   today,
+		"slot":   "lunch",
+		"status": "swapped",
+		"note":   "Có đồ chiên/rán",
+	}))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 POST /api/meals/check swapped, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// 3. GET /api/meals?days=7 trả về đủ 21 dòng (3 bữa/ngày * 7 ngày) và phản ánh trạng thái đã lưu
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "GET", "/api/meals?days=7", nil))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 GET /api/meals?days=7, got %d", w.Code)
+	}
+	var mealsResp struct {
+		MealsTarget int       `json:"meals_target"`
+		Rows        []mealRow `json:"rows"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &mealsResp); err != nil {
+		t.Fatalf("unmarshal /api/meals: %v", err)
+	}
+	if mealsResp.MealsTarget != 3 || len(mealsResp.Rows) != 21 {
+		t.Fatalf("expected target=3 and 21 rows for 7 days, got target=%d len=%d", mealsResp.MealsTarget, len(mealsResp.Rows))
+	}
+
+	foundBreakfast := false
+	foundLunch := false
+	for _, r := range mealsResp.Rows {
+		if r.Date == today && r.Slot == "breakfast" {
+			foundBreakfast = true
+			if r.Status != "done" || r.Note != "Trứng luộc/hấp, Khoai lang/Ngô luộc" {
+				t.Fatalf("unexpected breakfast state: %+v", r)
+			}
+		}
+		if r.Date == today && r.Slot == "lunch" {
+			foundLunch = true
+			if r.Status != "swapped" || r.Note != "Có đồ chiên/rán" {
+				t.Fatalf("unexpected lunch state: %+v", r)
+			}
+		}
+	}
+	if !foundBreakfast || !foundLunch {
+		t.Fatalf("expected today's breakfast and lunch in /api/meals rows")
+	}
+}
+
 

@@ -25,7 +25,7 @@ var defaultSettings = map[string]string{
 	"deficit":             "500",
 	"water_min":           "2500",
 	"water_max":           "3000",
-	"snack":               "1",
+	"snack":               "0",
 	"remind_on":           "1",
 	"t_weight":            "06:30",
 	"t_med":               "08:00",
@@ -534,6 +534,57 @@ func (s *Server) loadMeals(db interface {
 	return out, rows.Err()
 }
 
+func activeMealSlots(set map[string]string) []meals.Slot {
+	slots := []meals.Slot{meals.Breakfast, meals.Lunch, meals.Dinner}
+	if set["snack"] == "1" {
+		slots = append(slots, meals.Snack)
+	}
+	return slots
+}
+
+func (s *Server) loadChecklistMeals(db interface {
+	Query(string, ...any) (*sql.Rows, error)
+}, from, to string, slots []meals.Slot) ([]mealRow, error) {
+	savedRows, err := s.loadMeals(db, from, to)
+	if err != nil {
+		return nil, err
+	}
+	byKey := make(map[string]mealRow, len(savedRows))
+	for _, r := range savedRows {
+		if r.Items == nil {
+			r.Items = []meals.Item{}
+		}
+		byKey[r.Date+"|"+string(r.Slot)] = r
+	}
+	tFrom, err := time.Parse("2006-01-02", from)
+	if err != nil {
+		return savedRows, nil
+	}
+	tTo, err := time.Parse("2006-01-02", to)
+	if err != nil || tFrom.After(tTo) {
+		return savedRows, nil
+	}
+	out := []mealRow{}
+	for cur := tFrom; !cur.After(tTo); cur = cur.AddDate(0, 0, 1) {
+		d := cur.Format("2006-01-02")
+		for _, slot := range slots {
+			if r, ok := byKey[d+"|"+string(slot)]; ok {
+				out = append(out, r)
+			} else {
+				out = append(out, mealRow{
+					Date:   d,
+					Slot:   slot,
+					Items:  []meals.Item{},
+					Kcal:   0,
+					Status: "pending",
+					Note:   "",
+				})
+			}
+		}
+	}
+	return out, nil
+}
+
 func toPlan(rows []mealRow) map[string]meals.Day {
 	p := map[string]meals.Day{}
 	for _, m := range rows {
@@ -546,22 +597,32 @@ func toPlan(rows []mealRow) map[string]meals.Day {
 }
 
 func (s *Server) handleGetMeals(w http.ResponseWriter, r *http.Request) {
-	from := r.URL.Query().Get("from")
-	if from == "" {
-		from = s.today()
-	}
-	if !validDate(from) {
-		httpErr(w, 400, "ngày không hợp lệ")
-		return
-	}
 	days := queryInt(r, "days", 7, 1, 31)
-	rows, err := s.loadMeals(s.db, from, addDays(from, days-1))
+	from := r.URL.Query().Get("from")
+	var to string
+	if from == "" {
+		to = s.today()
+		from = addDays(to, -days+1)
+	} else {
+		if !validDate(from) {
+			httpErr(w, 400, "ngày không hợp lệ")
+			return
+		}
+		to = addDays(from, days-1)
+	}
+	set := s.settings()
+	slots := activeMealSlots(set)
+	rows, err := s.loadChecklistMeals(s.db, from, to, slots)
 	if err != nil {
 		serverErr(w, err)
 		return
 	}
-	set := s.settings()
-	writeJSON(w, 200, map[string]any{"rows": rows, "target_kcal": s.targetKcal(set), "today": s.today()})
+	writeJSON(w, 200, map[string]any{
+		"rows":         rows,
+		"target_kcal":  s.targetKcal(set),
+		"today":        s.today(),
+		"meals_target": len(slots),
+	})
 }
 
 func (s *Server) window() []string {
@@ -697,10 +758,11 @@ func (s *Server) handleSwapMeal(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleCheckMeal(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		Date   string `json:"date"`
-		Slot   string `json:"slot"`
-		Status string `json:"status"`
-		Note   string `json:"note"`
+		Date   string       `json:"date"`
+		Slot   string       `json:"slot"`
+		Status string       `json:"status"`
+		Note   string       `json:"note"`
+		Items  []meals.Item `json:"items"`
 	}
 	if !readJSON(w, r, &in) {
 		return
@@ -716,24 +778,25 @@ func (s *Server) handleCheckMeal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	note := strings.TrimSpace(in.Note)
-	if in.Status != "swapped" {
+	if in.Status == "pending" {
 		note = ""
 	}
 	if utf8.RuneCountInString(note) > 300 {
 		httpErr(w, 400, "ghi chú tối đa 300 ký tự")
 		return
 	}
-	res, err := s.db.Exec(`UPDATE meal_plan SET status=?, actual_note=?, updated_at=? WHERE date=? AND slot=?`,
-		in.Status, note, s.now().Unix(), in.Date, in.Slot)
-	if err != nil {
+	items := in.Items
+	if items == nil {
+		items = []meals.Item{}
+	}
+	itemsJSON, _ := json.Marshal(items)
+	if _, err := s.db.Exec(`INSERT INTO meal_plan(date,slot,items_json,kcal,status,actual_note,updated_at) VALUES(?,?,?,0,?,?,?)
+		ON CONFLICT(date,slot) DO UPDATE SET items_json=excluded.items_json, status=excluded.status, actual_note=excluded.actual_note, updated_at=excluded.updated_at`,
+		in.Date, in.Slot, string(itemsJSON), in.Status, note, s.now().Unix()); err != nil {
 		serverErr(w, err)
 		return
 	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		httpErr(w, 404, "không có bữa này")
-		return
-	}
-	writeJSON(w, 200, map[string]any{"date": in.Date, "slot": in.Slot, "status": in.Status, "note": note})
+	writeJSON(w, 200, map[string]any{"date": in.Date, "slot": in.Slot, "status": in.Status, "note": note, "items": items})
 }
 
 func (s *Server) handleShopping(w http.ResponseWriter, r *http.Request) {
@@ -785,18 +848,11 @@ func (s *Server) handleToday(w http.ResponseWriter, r *http.Request) {
 			prev = &ws[n-2]
 		}
 	}
-	rows, err := s.loadMeals(s.db, date, addDays(date, 6))
+	slots := activeMealSlots(set)
+	todayMeals, err := s.loadChecklistMeals(s.db, date, date, slots)
 	if err != nil {
 		serverErr(w, err)
 		return
-	}
-	planDays := map[string]bool{}
-	todayMeals := []mealRow{}
-	for _, m := range rows {
-		planDays[m.Date] = true
-		if m.Date == date {
-			todayMeals = append(todayMeals, m)
-		}
 	}
 	medTimes := s.medScheduleTimes(set)
 	medTarget := s.medTargetCount(set)
@@ -816,8 +872,9 @@ func (s *Server) handleToday(w http.ResponseWriter, r *http.Request) {
 			"target_count": medTarget,
 			"times":        medTimes,
 		},
-		"meals":     todayMeals,
-		"plan_days": len(planDays),
+		"meals":        todayMeals,
+		"meals_target": len(slots),
+		"plan_days":    1,
 	})
 }
 
@@ -850,7 +907,7 @@ func (s *Server) handleReport(w http.ResponseWriter, r *http.Request) {
 	out := make([]*dayRep, 0, days)
 	for i := 0; i < days; i++ {
 		d := addDays(from, i)
-		dr := &dayRep{Date: d, MedTarget: medTarget}
+		dr := &dayRep{Date: d, MedTarget: medTarget, Total: 3}
 		idx[d] = dr
 		out = append(out, dr)
 	}
@@ -875,11 +932,10 @@ func (s *Server) handleReport(w http.ResponseWriter, r *http.Request) {
 		}
 		rows.Close()
 	}
-	if rows, err := s.db.Query(`SELECT date, status FROM meal_plan WHERE date>=? AND date<=? AND slot!='snack'`, from, to); err == nil {
+	if rows, err := s.db.Query(`SELECT date, status FROM meal_plan WHERE date>=? AND date<=? AND slot IN ('breakfast','lunch','dinner')`, from, to); err == nil {
 		for rows.Next() {
 			var d, st string
 			if rows.Scan(&d, &st) == nil && idx[d] != nil {
-				idx[d].Total++
 				switch st {
 				case "done":
 					idx[d].Done++
@@ -890,7 +946,6 @@ func (s *Server) handleReport(w http.ResponseWriter, r *http.Request) {
 		}
 		rows.Close()
 	}
-	set := s.settings()
 	var wRows []weightRow
 	for _, x := range s.weights(days) {
 		wRows = append(wRows, x)

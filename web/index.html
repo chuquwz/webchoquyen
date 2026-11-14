@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=33">
+  <link rel="stylesheet" href="/style.css?v=37">
 </head>
 <body>
   <!-- Container Toast thông báo -->
@@ -110,32 +110,31 @@
             </div>
           </div>
 
-          <!-- Mục Tổng Quan Hôm Nay (Hàng 3 Thẻ Số Liệu Thực Tế) -->
+          <!-- Mục Tổng Quan Hôm Nay (Hàng 3 Thẻ Nút Mở Popup Nhập Nhanh) -->
           <div class="section-container">
             <div class="section-title-header">
               <h2 class="section-heading">Tổng quan hôm nay</h2>
-              <button type="button" class="btn-see-all" onclick="switchTab('overview')">Chi tiết</button>
             </div>
             <div class="today-summary-grid">
-              <!-- Thẻ Tóm Tắt 1: Cân nặng -->
-              <div class="summary-stat-card card-pink-tint" onclick="switchTab('overview')">
+              <!-- Thẻ Nút 1: Cân nặng -->
+              <div class="summary-stat-card card-pink-tint" onclick="openWeightModal()" role="button" tabindex="0" aria-label="Cập nhật cân nặng hôm nay" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openWeightModal();}">
                 <div class="summary-card-header">
                   <div class="summary-icon-circle icon-pink">
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="#E55B6C" stroke="#E55B6C"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="#E55B6C" stroke="#E55B6C" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
                   </div>
                   <span class="summary-card-label">Cân nặng</span>
                 </div>
                 <div class="summary-val-row">
-                  <span id="summary-weight-display" class="summary-val-num">97.0</span>
+                  <span id="summary-weight-display" class="summary-val-num font-tabular">97.0</span>
                   <span class="summary-val-unit">kg</span>
                 </div>
               </div>
 
-              <!-- Thẻ Tóm Tắt 2: Thuốc bổ gan -->
-              <div class="summary-stat-card card-green-tint" onclick="toggleMed()" role="button" tabindex="0" aria-label="Ghi nhận cữ thuốc bổ gan tiếp theo" onkeydown="if(event.key==='Enter'||event.key===' ')toggleMed()">
+              <!-- Thẻ Nút 2: Thuốc bổ gan (mặc định 3 lần/ngày) -->
+              <div class="summary-stat-card card-green-tint" onclick="openMedModal()" role="button" tabindex="0" aria-label="Xem và đánh dấu các lần uống thuốc trong ngày" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openMedModal();}">
                 <div class="summary-card-header">
                   <div class="summary-icon-circle icon-green">
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="#5E9447" stroke="#5E9447"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/></svg>
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="#5E9447" stroke="#5E9447" aria-hidden="true"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/></svg>
                   </div>
                   <span class="summary-card-label">Thuốc bổ gan</span>
                 </div>
@@ -144,115 +143,46 @@
                 </div>
               </div>
 
-              <!-- Thẻ Tóm Tắt 3: Nước lọc -->
-              <div class="summary-stat-card card-blue-tint" onclick="openCustomWaterModal()">
+              <!-- Thẻ Nút 3: Nước lọc -->
+              <div class="summary-stat-card card-blue-tint" onclick="openWaterModal()" role="button" tabindex="0" aria-label="Ghi lượng nước lọc hôm nay" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openWaterModal();}">
                 <div class="summary-card-header">
                   <div class="summary-icon-circle icon-blue">
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="#38A3A5" stroke="#38A3A5"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="#38A3A5" stroke="#38A3A5" aria-hidden="true"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
                   </div>
                   <span class="summary-card-label">Nước lọc</span>
                 </div>
                 <div class="summary-val-row">
-                  <span id="summary-water-display" class="summary-val-num">0.0</span>
+                  <span id="summary-water-display" class="summary-val-num font-tabular">0.0</span>
                   <span class="summary-val-unit">L</span>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Thẻ Ghi Nhanh Hàng Ngày: Nước lọc, Cân nặng, Thuốc -->
+          <!-- Checklist ăn đúng thực phẩm giảm cân hôm nay (Mặc định 3 bữa) -->
           <div class="section-container" style="margin-top: 22px;">
-            <div class="quick-log-card">
+            <div id="today-meals-card" class="quick-log-card" style="margin-top: 0;">
               <div class="log-card-header">
                 <div>
-                  <h3 class="log-card-title">Nước lọc hôm nay</h3>
+                  <h3 class="log-card-title">Ăn đúng giảm cân hôm nay</h3>
                   <div class="log-card-subtitle">
-                    <span id="water-cur" class="font-tabular">0</span> / <span id="water-min-text">2.500 ml</span>
-                    <span id="water-percent-text" class="log-badge-pct">0%</span>
+                    Đã ăn đúng <span id="meal-cur-count" class="font-tabular" style="font-weight: 700; color: var(--text-main);">0</span> / <span id="meal-target-count" class="font-tabular">3 bữa</span>
+                    <span id="meal-percent-badge" class="log-badge-pct font-tabular">0%</span>
                   </div>
                 </div>
-              </div>
-
-              <!-- Thanh tiến độ tuyến tính -->
-              <div class="log-progress-track">
-                <div id="water-fill" class="log-progress-fill" style="width: 0%;"></div>
-              </div>
-
-              <!-- Nút bấm thêm nước nhanh -->
-              <div class="water-pill-grid">
-                <button type="button" class="btn-water-chip" onclick="addWater(300)">+300ml</button>
-                <button type="button" class="btn-water-chip" onclick="addWater(500)">+500ml</button>
-                <button type="button" class="btn-water-chip" onclick="addWater(1000)">+1.000ml</button>
-                <button type="button" class="btn-water-chip btn-water-custom" onclick="openCustomWaterModal()">Tự gõ</button>
-              </div>
-
-              <div class="log-footer-row" style="justify-content: flex-end;">
-                <button id="btn-undo-water" class="btn-link-action" style="display: none;" onclick="undoLastWater()">Hoàn tác</button>
-              </div>
-              <span id="water-max-text" style="display: none;">3.000 ml</span>
-            </div>
-
-            <!-- Ghi nhận Thuốc bổ gan theo số lần đặt lịch nhắc -->
-            <div id="today-med-card" class="quick-log-card" style="margin-top: 14px;">
-              <div class="log-card-header">
-                <div>
-                  <h3 class="log-card-title">Thuốc bổ gan hôm nay</h3>
-                  <div class="log-card-subtitle">
-                    Đã uống <span id="med-cur-count" class="font-tabular" style="font-weight: 700; color: var(--text-main);">0</span> / <span id="med-target-count" class="font-tabular">3 lần</span>
-                    <span id="med-percent-badge" class="log-badge-pct font-tabular">0%</span>
-                  </div>
-                </div>
-                <button type="button" id="btn-med-schedule-link" class="btn-med-schedule-pill font-tabular" onclick="jumpToMedScheduleSettings()" title="Số lần đặt lịch nhắc bằng số lần uống thuốc mỗi ngày">
-                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-                  <span id="med-schedule-count-txt">3 mốc nhắc</span>
+                <button type="button" class="btn-med-schedule-pill font-tabular" onclick="switchTab('meals')">
+                  <span>Checklist &amp; Gợi ý &rarr;</span>
                 </button>
               </div>
 
-              <!-- Thanh tiến độ các cữ thuốc trong ngày -->
+              <!-- Thanh tiến độ các bữa ăn trong ngày -->
               <div class="log-progress-track">
-                <div id="med-progress-fill" class="log-progress-fill" style="width: 0%;"></div>
+                <div id="meal-progress-fill" class="log-progress-fill" style="width: 0%;"></div>
               </div>
 
-              <!-- Danh sách các cữ thuốc tương ứng với từng mốc giờ nhắc -->
-              <div id="med-dose-pills-grid" class="med-dose-grid" role="group" aria-label="Các cữ uống thuốc trong ngày"></div>
+              <!-- Danh sách tick nhanh 3 bữa trong ngày -->
+              <div id="today-meal-checklist-grid" class="med-dose-grid meal-dose-grid" role="group" aria-label="Checklist các bữa ăn trong ngày"></div>
             </div>
-
-            <!-- Ghi nhận Cân nặng -->
-            <div class="quick-log-card" style="margin-top: 14px;">
-              <div class="log-card-header" style="margin-bottom: 14px;">
-                <h3 class="log-card-title">Cân nặng sáng nay: <span id="weight-val" class="font-tabular font-bold-lg" style="color: var(--color-score-ring); margin-left: 4px;">97.0</span> <span style="font-size: 14px; font-weight: 500; color: var(--text-sub);">kg</span></h3>
-              </div>
-
-              <!-- Bộ nút Stepper điều chỉnh cân nặng -->
-              <div class="weight-stepper-row">
-                <button type="button" class="btn-stepper-pill" onclick="adjustWeight(-0.5)">-0.5</button>
-                <button type="button" class="btn-stepper-pill" onclick="adjustWeight(-0.1)">-0.1</button>
-                <button type="button" class="btn-stepper-pill" onclick="adjustWeight(0.1)">+0.1</button>
-                <button type="button" class="btn-stepper-pill" onclick="adjustWeight(0.5)">+0.5</button>
-                <button type="button" id="btn-save-weight" class="btn-green-pill btn-save-weight" onclick="saveWeight()">Lưu cân nặng</button>
-              </div>
-            </div>
-
-            <!-- Nút khổng lồ chuyển sang mục Thực đơn -->
-            <button type="button" class="btn-giant-meals" onclick="switchTab('meals')" aria-label="Đến mục Thực đơn dinh dưỡng">
-              <div class="giant-meals-left">
-                <div class="giant-meals-icon-box">
-                  <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
-                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-                  </svg>
-                </div>
-                <div class="giant-meals-text-wrap">
-                  <span class="giant-meals-title">Thực đơn dinh dưỡng tuần</span>
-                  <span class="giant-meals-sub">Xem gợi ý món ăn, calo & đi chợ 7 ngày</span>
-                </div>
-              </div>
-              <div class="giant-meals-arrow-circle">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M9 18l6-6-6-6"/>
-                </svg>
-              </div>
-            </button>
           </div>
 
           <!-- =====================================================================
@@ -290,201 +220,101 @@
         </section>
 
         <!-- =====================================================================
-             MÀN HÌNH 2: TỔNG QUAN CHỈ SỐ
+             MÀN HÌNH: CHECKLIST ĂN ĐÚNG THỰC PHẨM GIẢM CÂN (MẶC ĐỊNH 3 BỮA)
              ===================================================================== -->
-        <section id="tab-overview" class="tab-pane" role="tabpanel" aria-label="Tổng quan sức khoẻ">
-          <!-- Header với Nút Quay lại + Tiêu đề + 3 chấm -->
+        <section id="tab-meals" class="tab-pane" role="tabpanel" aria-label="Checklist ăn giảm cân">
           <div class="screen-nav-header">
             <button type="button" class="btn-circle-action" aria-label="Quay lại" onclick="switchTab('today')">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#1C1F1B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M15 18l-6-6 6-6"/>
               </svg>
             </button>
-            <h1 class="screen-nav-title">Tổng quan sức khoẻ</h1>
-            <button type="button" class="btn-circle-action" aria-label="Tuỳ chọn khác" onclick="openOverviewMenu()">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#1C1F1B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="19" r="1.5"/>
-              </svg>
-            </button>
-          </div>
-
-          <!-- Bộ chọn Tháng -->
-          <div class="date-selector-row">
-            <div class="month-pill-btn" onclick="openCalendarPicker()">
-              <span id="current-month-display">Tháng 11, 2026</span>
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
-            </div>
-          </div>
-
-          <!-- Hàng con nhộng chọn ngày ngang (T2, T3, T4, T5, T6) -->
-          <div class="calendar-days-strip" id="calendar-days-container">
-            <div class="day-capsule" onclick="selectCalendarDay(this, 16)">
-              <span class="day-name">T2</span>
-              <span class="day-num">16</span>
-            </div>
-            <div class="day-capsule" onclick="selectCalendarDay(this, 17)">
-              <span class="day-name">T3</span>
-              <span class="day-num">17</span>
-            </div>
-            <div class="day-capsule active" onclick="selectCalendarDay(this, 18)">
-              <span class="day-name">T4</span>
-              <span class="day-num">18</span>
-            </div>
-            <div class="day-capsule" onclick="selectCalendarDay(this, 19)">
-              <span class="day-name">T5</span>
-              <span class="day-num">19</span>
-            </div>
-            <div class="day-capsule" onclick="selectCalendarDay(this, 20)">
-              <span class="day-name">T6</span>
-              <span class="day-num">20</span>
-            </div>
-          </div>
-
-          <!-- Tiêu đề mục Chỉ số chi tiết -->
-          <div class="section-container" style="margin-top: 24px;">
-            <div class="section-title-header">
-              <h2 class="section-heading">Chỉ số chi tiết</h2>
-              <button type="button" class="btn-see-all" onclick="loadWeightData()">Xem tất cả</button>
-            </div>
-
-            <!-- Danh sách 4 Thẻ Chỉ Số Thực Tế Từ Backend -->
-            <div class="metric-cards-list">
-
-              <!-- Thẻ Chỉ Số 1: Tiến độ cân nặng -->
-              <div class="overview-metric-card" onclick="switchTab('overview')">
-                <div class="metric-card-left">
-                  <div class="metric-icon-circle icon-pink">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#E55B6C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                      <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
-                    </svg>
-                  </div>
-                  <div class="metric-info-col">
-                    <span class="metric-title-text">Cân nặng hiện tại</span>
-                    <div class="metric-main-value">
-                      <span id="overview-weight-val" class="metric-num">97.0</span>
-                      <span class="metric-unit">kg (mục tiêu 70kg)</span>
-                    </div>
-                  </div>
-                </div>
-                <div class="metric-card-right">
-                  <span id="overview-weight-badge" class="badge-status-pill badge-good">Còn 27.0 kg</span>
-                </div>
-              </div>
-
-              <!-- Thẻ Chỉ Số 2: Năng lượng mục tiêu -->
-              <div class="overview-metric-card">
-                <div class="metric-card-left">
-                  <div class="metric-icon-circle icon-green">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#5E9447" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
-                    </svg>
-                  </div>
-                  <div class="metric-info-col">
-                    <span class="metric-title-text">Mức calo tiêu chuẩn</span>
-                    <div class="metric-main-value">
-                      <span id="overview-kcal-val" class="metric-num">1.800</span>
-                      <span class="metric-unit">Kcal/ngày</span>
-                    </div>
-                  </div>
-                </div>
-                <div class="metric-card-right">
-                  <span class="badge-status-pill badge-normal">Bảo vệ gan</span>
-                </div>
-              </div>
-
-              <!-- Thẻ Chỉ Số 3: Đường huyết gần nhất -->
-              <div class="overview-metric-card" onclick="openGlucoseModal()">
-                <div class="metric-card-left">
-                  <div class="metric-icon-circle icon-pink">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#E55B6C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
-                    </svg>
-                  </div>
-                  <div class="metric-info-col">
-                    <span class="metric-title-text">Đường huyết gần nhất</span>
-                    <div class="metric-main-value">
-                      <span id="overview-glucose-val" class="metric-num">--</span>
-                      <span class="metric-unit">mmol/L</span>
-                    </div>
-                  </div>
-                </div>
-                <div class="metric-card-right">
-                  <span id="overview-glucose-badge" class="badge-status-pill badge-normal">+ Ghi số đo</span>
-                </div>
-              </div>
-
-              <!-- Thẻ Chỉ Số 4: Nước lọc hôm nay -->
-              <div class="overview-metric-card" onclick="openCustomWaterModal()">
-                <div class="metric-card-left">
-                  <div class="metric-icon-circle icon-blue">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#38A3A5" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
-                    </svg>
-                  </div>
-                  <div class="metric-info-col">
-                    <span class="metric-title-text">Nước lọc hôm nay</span>
-                    <div class="metric-main-value">
-                      <span id="overview-water-val" class="metric-num">0</span>
-                      <span class="metric-unit">/ 2.500 ml</span>
-                    </div>
-                  </div>
-                </div>
-                <div class="metric-card-right">
-                  <span id="overview-water-pct" class="badge-status-pill badge-good">0%</span>
-                </div>
-              </div>
-
-            </div>
-
-            <!-- Khối Biểu đồ tiến độ cân nặng -->
-            <div class="chart-container-card" style="margin-top: 20px;">
-              <div class="log-card-header">
-                <div>
-                  <h3 class="log-card-title">Tiến độ giảm cân</h3>
-                  <div class="log-card-subtitle">Hành trình từ 97.0 kg về mốc 70.0 kg</div>
-                </div>
-                <div style="text-align: right;">
-                  <span id="weight-chart-current" class="score-huge-val font-tabular" style="font-size: 20px;">97.0 kg</span>
-                  <div style="font-size: 11px; color: var(--text-sub);">Còn <span id="weight-chart-rem" style="font-weight: 700; color: #5E9447;">27.0 kg</span></div>
-                </div>
-              </div>
-              <div class="chart-svg-box">
-                <svg id="weight-svg" viewBox="0 0 500 200" width="100%" height="160" style="overflow: visible;"></svg>
-              </div>
-              <div id="weight-history-list" class="weight-history-wrap"></div>
-            </div>
-
-          </div>
-        </section>
-
-        <!-- =====================================================================
-             MÀN HÌNH: THỰC ĐƠN DINH DƯỠNG (7 NGÀY & ĐI CHỢ)
-             ===================================================================== -->
-        <section id="tab-meals" class="tab-pane" role="tabpanel" aria-label="Thực đơn dinh dưỡng">
-          <div class="screen-nav-header">
-            <button type="button" class="btn-circle-action" aria-label="Quay lại" onclick="switchTab('today')">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#1C1F1B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M15 18l-6-6 6-6"/>
-              </svg>
-            </button>
-            <h1 class="screen-nav-title">Thực đơn dinh dưỡng</h1>
+            <h1 class="screen-nav-title">Checklist ăn giảm cân</h1>
             <div style="width: 40px;"></div>
           </div>
 
-          <!-- Thanh nút tác vụ: Tạo lại thực đơn + Đi chợ -->
-          <div style="display: flex; gap: 10px; margin-bottom: 16px;">
-            <button type="button" class="btn-secondary-pill" style="flex: 1;" onclick="generateMealPlan()">
-              + Tạo lại thực đơn tuần
+          <!-- Thanh điều hướng Ngày theo dõi ăn uống -->
+          <div class="work-date-bar">
+            <button type="button" class="btn-work-date-step" aria-label="Ngày trước đó" onclick="stepMealDate(-1)">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
             </button>
-            <button type="button" class="btn-green-pill btn-sm" onclick="openShoppingModal()">
-              Đi chợ 7 ngày
+            <div class="work-date-picker-wrap">
+              <label for="meal-date-input" class="sr-only">Chọn ngày theo dõi ăn uống</label>
+              <input type="date" id="meal-date-input" class="work-date-input font-tabular" onchange="onMealDateChange(this.value)">
+              <span id="meal-date-human" class="work-date-human">Hôm nay</span>
+            </div>
+            <button type="button" class="btn-work-date-step" aria-label="Ngày tiếp theo" onclick="stepMealDate(1)">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
             </button>
+            <button type="button" id="btn-meal-today" class="btn-work-today-chip" onclick="jumpMealToday()">Hôm nay</button>
           </div>
 
-          <!-- Danh sách Kế hoạch Bữa ăn 7 Ngày từ Backend -->
+          <!-- Thẻ tổng kết tuân thủ trong ngày -->
+          <div id="meal-day-summary-card" class="quick-log-card" style="margin-bottom: 16px;">
+            <div class="log-card-header">
+              <div>
+                <h2 class="log-card-title" style="font-size: 15.5px;">Tiến độ ăn đúng giảm cân</h2>
+                <div class="log-card-subtitle">
+                  Đạt chuẩn <span id="meal-screen-cur-count" class="font-tabular" style="font-weight: 700; color: var(--text-main);">0</span> / <span id="meal-screen-target-count" class="font-tabular">3 bữa</span>
+                  <span id="meal-screen-score-badge" class="log-badge-pct font-tabular">+0/15 điểm</span>
+                </div>
+              </div>
+              <span id="meal-screen-status-pill" class="badge-status-pill badge-normal font-tabular">Mặc định 3 bữa/ngày</span>
+            </div>
+            <div class="log-progress-track" style="margin-bottom: 10px;">
+              <div id="meal-screen-progress-fill" class="log-progress-fill" style="width: 0%;"></div>
+            </div>
+            <p class="meal-summary-note">
+              Đánh dấu từng bữa sau khi ăn: chọn nhanh các nhóm thực phẩm giảm cân đã ăn hoặc bấm <strong>Ăn đúng chuẩn</strong> nếu bữa ăn không có đồ chiên rán, đường ngọt, tinh bột quá mức.
+            </p>
+          </div>
+
+          <!-- Danh sách Checklist 3 bữa trong ngày -->
           <div id="meals-list-container">
-            <div class="empty-state-box">Đang tải thực đơn 7 ngày...</div>
+            <div class="empty-state-box">Đang tải checklist bữa ăn...</div>
+          </div>
+
+          <!-- Bảng đối chiếu nhanh Thực phẩm Giảm Cân & Bảo Vệ Gan -->
+          <div class="diet-food-guide-card">
+            <div class="diet-guide-head">
+              <h2 class="section-heading" style="font-size: 15.5px;">Chuẩn thực phẩm giảm cân &amp; bảo vệ gan</h2>
+              <span class="diet-guide-sub">Đối chiếu nhanh trước và sau khi ăn</span>
+            </div>
+            <div class="diet-guide-grid">
+              <div class="diet-guide-col is-good">
+                <div class="diet-guide-col-title">
+                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+                  <span>Nên ăn (Đúng chuẩn)</span>
+                </div>
+                <ul class="diet-guide-list">
+                  <li><strong>Đạm nạc:</strong> Ức gà, thịt lợn thăn luộc/hấp, cá đồng/cá ao hấp, đậu phụ, trứng gà luộc.</li>
+                  <li><strong>Tinh bột vừa phải:</strong> Khoai lang luộc, ngô luộc, cơm trắng giảm lượng (tối đa 1–1,5 bát/bữa trưa, ít hơn vào bữa tối).</li>
+                  <li><strong>Rau xanh &amp; Canh:</strong> Rau muống, cải xanh, bí xanh, su su, su hào, mồng tơi (ưu tiên luộc/hấp/canh).</li>
+                  <li><strong>Ít ngọt &amp; Sữa:</strong> Ổi, thanh long, đu đủ, cam, dưa leo, sữa chua/sữa tươi không đường.</li>
+                </ul>
+              </div>
+              <div class="diet-guide-col is-avoid">
+                <div class="diet-guide-col-title">
+                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                  <span>Cần tránh (Ăn lệch)</span>
+                </div>
+                <ul class="diet-guide-list">
+                  <li><strong>Đồ chiên rán, nhiều dầu mỡ:</strong> Thịt ba chỉ, đồ rán giòn, đồ xào ngập dầu, da gà/da vịt.</li>
+                  <li><strong>Mỡ &amp; Nội tạng:</strong> Lòng, gan, tim, tiết canh, đồ ăn nhiều cholesterol gây hại gan.</li>
+                  <li><strong>Đồ ngọt &amp; Nước có gas:</strong> Trà sữa, nước ngọt, bánh kẹo, chè, hoa quả quá ngọt.</li>
+                  <li><strong>Rượu bia &amp; Ăn khuya:</strong> Bia rượu, đồ nhậu, ăn sau 21h tối hoặc ăn quá no.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lịch sử tuân thủ 7 ngày gần nhất -->
+          <div class="section-container" style="margin-top: 20px; margin-bottom: 28px;">
+            <div class="section-title-header">
+              <h2 class="section-heading">Lịch sử 7 ngày gần nhất</h2>
+              <span id="meals-history-summary" class="work-list-sub font-tabular">0/21 bữa đạt</span>
+            </div>
+            <div id="meals-history-container" class="work-items-stack"></div>
           </div>
         </section>
 
@@ -561,15 +391,6 @@
             </div>
           </div>
 
-          <!-- Nhật ký đường huyết -->
-          <div class="settings-card-block">
-            <div class="section-title-header">
-              <h3 class="settings-block-title">Nhật ký đường huyết</h3>
-              <button type="button" class="btn-secondary-pill btn-sm" onclick="openGlucoseModal()">+ Ghi số đo</button>
-            </div>
-            <div id="glucose-history-list" style="margin-top: 10px;"></div>
-          </div>
-
           <!-- Cấu hình thông số cá nhân -->
           <div class="settings-card-block">
             <h3 class="settings-block-title">Thông số cá nhân</h3>
@@ -604,10 +425,10 @@
                   <input type="time" id="set-t-sleep" class="form-input" required>
                 </div>
                 <div class="form-group">
-                  <label class="form-label" for="set-snack">Bữa phụ</label>
+                  <label class="form-label" for="set-snack">Số bữa ăn / ngày</label>
                   <select id="set-snack" class="form-input">
-                    <option value="1">Có bữa phụ</option>
-                    <option value="0">Không bữa phụ</option>
+                    <option value="0">3 bữa chính (Mặc định)</option>
+                    <option value="1">4 bữa (Thêm bữa phụ)</option>
                   </select>
                 </div>
               </div>
@@ -1108,23 +929,16 @@
           <span class="nav-label">Công việc</span>
         </button>
 
-        <!-- 3. Thực đơn -->
-        <button type="button" class="nav-pill-btn" id="nav-btn-meals" role="tab" aria-selected="false" aria-label="Thực đơn" onclick="switchTab('meals')">
+        <!-- 3. Ăn uống (Checklist giảm cân) -->
+        <button type="button" class="nav-pill-btn" id="nav-btn-meals" role="tab" aria-selected="false" aria-label="Ăn uống" onclick="switchTab('meals')">
           <svg class="nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+            <path d="M9 11l3 3L22 4"/>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
           </svg>
-          <span class="nav-label">Thực đơn</span>
+          <span class="nav-label">Ăn uống</span>
         </button>
 
-        <!-- 4. Chỉ số -->
-        <button type="button" class="nav-pill-btn" id="nav-btn-overview" role="tab" aria-selected="false" aria-label="Chỉ số" onclick="switchTab('overview')">
-          <svg class="nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/>
-          </svg>
-          <span class="nav-label">Chỉ số</span>
-        </button>
-
-        <!-- 5. Cài đặt -->
+        <!-- 4. Cài đặt -->
         <button type="button" class="nav-pill-btn" id="nav-btn-settings" role="tab" aria-selected="false" aria-label="Cài đặt" onclick="switchTab('settings')">
           <svg class="nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
@@ -1140,84 +954,139 @@
        CÁC MODAL HỆ THỐNG
        ===================================================================== -->
 
-  <!-- MODAL: Nhập Lượng Nước Tuỳ Ý -->
+  <!-- MODAL: Ghi & Theo Dõi Nước Lọc Hôm Nay -->
   <div id="modal-water" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-water-title">
     <div class="modal-dialog">
       <div class="modal-header">
-        <h3 id="modal-water-title" class="modal-title">Ghi lượng nước lọc</h3>
+        <h3 id="modal-water-title" class="modal-title">Nước lọc hôm nay</h3>
         <button type="button" class="modal-close" aria-label="Đóng" onclick="closeModal('modal-water')">&times;</button>
       </div>
-      <form onsubmit="submitCustomWater(event)">
-        <div class="form-group">
-          <label class="form-label" for="custom-water-ml">Số ml vừa uống (1 - 2.000 ml)</label>
-          <input type="number" id="custom-water-ml" class="form-input" placeholder="Ví dụ: 350" min="1" max="2000" required autofocus>
+
+      <div class="water-modal-summary">
+        <div class="log-card-subtitle" style="margin-top: 0; font-size: 14px;">
+          Đã uống <strong id="water-cur" class="font-tabular" style="color: var(--text-main);">0</strong> / <span id="water-min-text" class="font-tabular">2.500 ml</span>
+          <span id="water-percent-text" class="log-badge-pct font-tabular">0%</span>
         </div>
-        <button type="submit" class="btn-green-pill" style="width: 100%; margin-top: 14px;">Thêm nước lọc</button>
+        <span id="water-max-text" style="display: none;">3.000 ml</span>
+      </div>
+
+      <div class="log-progress-track" style="margin-top: 10px;">
+        <div id="water-fill" class="log-progress-fill" style="width: 0%;"></div>
+      </div>
+
+      <div class="field-hint" style="margin-bottom: 8px; font-size: 12px; color: var(--text-sub); font-weight: 600;">Bấm chọn nhanh lượng nước vừa uống:</div>
+      <div class="water-pill-grid">
+        <button type="button" class="btn-water-chip font-tabular" onclick="addWater(200)">+200ml</button>
+        <button type="button" class="btn-water-chip font-tabular" onclick="addWater(300)">+300ml</button>
+        <button type="button" class="btn-water-chip font-tabular" onclick="addWater(500)">+500ml</button>
+        <button type="button" class="btn-water-chip font-tabular" onclick="addWater(1000)">+1.000ml</button>
+      </div>
+
+      <form onsubmit="submitCustomWater(event)" class="water-custom-form">
+        <div class="form-group">
+          <label class="form-label" for="custom-water-ml">Hoặc tự gõ số ml (1 - 2.000 ml)</label>
+          <div class="water-custom-input-row">
+            <input type="number" id="custom-water-ml" class="form-input work-mobile-input font-tabular" placeholder="Ví dụ: 350" min="1" max="2000" inputmode="numeric" required>
+            <button type="submit" class="btn-green-pill" style="white-space: nowrap;">Thêm nước</button>
+          </div>
+        </div>
+      </form>
+
+      <div class="log-footer-row" style="margin-top: 14px; min-height: 24px;">
+        <span id="water-entries-count" class="footer-caption font-tabular"></span>
+        <button type="button" id="btn-undo-water" class="btn-link-action" style="display: none;" onclick="undoLastWater()">Hoàn tác</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Cập Nhật Cân Nặng Hôm Nay -->
+  <div id="modal-weight" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-weight-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="modal-weight-title" class="modal-title">Cập nhật cân nặng hôm nay</h3>
+        <button type="button" class="modal-close" aria-label="Đóng" onclick="closeModal('modal-weight')">&times;</button>
+      </div>
+
+      <div class="weight-modal-display">
+        <div class="weight-modal-value-row font-tabular">
+          <span id="weight-val" class="weight-modal-num">97.0</span>
+          <span class="weight-modal-unit">kg</span>
+        </div>
+        <p id="weight-status-sub" class="weight-modal-sub">Cân vào sáng sớm sau khi vệ sinh cá nhân, trước khi ăn sáng.</p>
+      </div>
+
+      <div class="weight-stepper-row" style="justify-content: center; margin-bottom: 14px;">
+        <button type="button" class="btn-stepper-pill font-tabular" onclick="adjustWeight(-0.5)">-0.5</button>
+        <button type="button" class="btn-stepper-pill font-tabular" onclick="adjustWeight(-0.1)">-0.1</button>
+        <button type="button" class="btn-stepper-pill font-tabular" onclick="adjustWeight(0.1)">+0.1</button>
+        <button type="button" class="btn-stepper-pill font-tabular" onclick="adjustWeight(0.5)">+0.5</button>
+      </div>
+
+      <form onsubmit="saveWeight(event)">
+        <div class="form-group">
+          <label class="form-label" for="weight-direct-input">Hoặc nhập trực tiếp số cân (kg)</label>
+          <input type="number" step="0.1" min="40" max="200" inputmode="decimal" id="weight-direct-input" class="form-input work-mobile-input font-tabular" placeholder="Ví dụ: 96.5" oninput="syncWeightFromInput(this.value)" required>
+        </div>
+        <button type="submit" id="btn-save-weight" class="btn-green-pill" style="width: 100%; margin-top: 14px;">Lưu cân nặng</button>
       </form>
     </div>
   </div>
 
-  <!-- MODAL: Ghi Chú Ăn Món Khác -->
+  <!-- MODAL: Theo Dõi Các Lần Uống Thuốc Trong Ngày (Mặc định 3 lần/ngày) -->
+  <div id="modal-med" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-med-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="modal-med-title" class="modal-title">Thuốc bổ gan hôm nay</h3>
+        <button type="button" class="modal-close" aria-label="Đóng" onclick="closeModal('modal-med')">&times;</button>
+      </div>
+
+      <div class="log-card-header" style="align-items: center; margin-bottom: 10px;">
+        <div class="log-card-subtitle" style="margin-top: 0; font-size: 13.5px;">
+          Đã uống <strong id="med-cur-count" class="font-tabular" style="color: var(--text-main);">0</strong> / <span id="med-target-count" class="font-tabular">3 lần</span>
+          <span id="med-percent-badge" class="log-badge-pct font-tabular">0%</span>
+        </div>
+        <button type="button" id="btn-med-schedule-link" class="btn-med-schedule-pill font-tabular" onclick="closeModal('modal-med'); jumpToMedScheduleSettings()" title="Thay đổi giờ nhắc uống thuốc trong Cài đặt">
+          <svg class="ui-inline-svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          <span id="med-schedule-count-txt">3 lần/ngày</span>
+        </button>
+      </div>
+
+      <div class="log-progress-track">
+        <div id="med-progress-fill" class="log-progress-fill" style="width: 0%;"></div>
+      </div>
+
+      <div class="field-hint" style="margin-bottom: 8px; font-size: 12px; color: var(--text-sub); font-weight: 600;">Bấm vào từng lần uống trong ngày để đánh dấu hoặc bỏ chọn:</div>
+      <div id="med-dose-pills-grid" class="med-dose-grid modal-med-dose-list" role="group" aria-label="Các lần uống thuốc trong ngày"></div>
+
+      <button type="button" class="btn-secondary-pill" style="width: 100%; margin-top: 16px;" onclick="closeModal('modal-med')">Xong</button>
+    </div>
+  </div>
+
+  <!-- MODAL: Ghi Chú Bữa Ăn Lệch Chuẩn -->
   <div id="modal-meal-note" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-meal-title">
     <div class="modal-dialog">
       <div class="modal-header">
-        <h3 id="modal-meal-title" class="modal-title">Ghi nhận món ăn thực tế</h3>
+        <h3 id="modal-meal-title" class="modal-title">Ghi chú bữa ăn / Lý do ăn lệch</h3>
         <button type="button" class="modal-close" aria-label="Đóng" onclick="closeModal('modal-meal-note')">&times;</button>
       </div>
       <form onsubmit="submitMealNote(event)">
         <input type="hidden" id="note-meal-date">
         <input type="hidden" id="note-meal-slot">
         <div class="form-group">
-          <label class="form-label" for="note-meal-text">Mô tả món ăn thực tế đã ăn</label>
-          <input type="text" id="note-meal-text" class="form-input" placeholder="Ví dụ: Ăn 1 bát bún cá + ít đậu phụ..." maxlength="300" required>
+          <label class="form-label" for="note-meal-text">Ghi lại món đã ăn lệch hoặc lý do phá cữ</label>
+          <input type="text" id="note-meal-text" class="form-input" placeholder="Ví dụ: Ăn cơm rang dưa bò, uống trà sữa..." maxlength="300" required>
         </div>
-        <div class="field-hint" style="margin-bottom: 6px;">Đánh dấu nhanh vi phạm (nếu có):</div>
+        <div class="field-hint" style="margin-bottom: 6px; margin-top: 10px; font-size: 12px; color: var(--text-sub); font-weight: 600;">Chọn nhanh lý do ăn không đúng chuẩn:</div>
         <div class="chips-flex-row" style="margin-bottom: 16px;">
-          <button type="button" class="btn-chip-tag" onclick="appendNoteTag('Có đồ chiên/rán')">Có chiên rán</button>
-          <button type="button" class="btn-chip-tag" onclick="appendNoteTag('Có nội tạng')">Có nội tạng</button>
-          <button type="button" class="btn-chip-tag" onclick="appendNoteTag('Ăn khuya')">Ăn khuya</button>
+          <button type="button" class="btn-chip-tag" onclick="appendNoteTag('Có đồ chiên/rán')">Có đồ chiên/rán</button>
+          <button type="button" class="btn-chip-tag" onclick="appendNoteTag('Có nội tạng/mỡ')">Có nội tạng/mỡ</button>
+          <button type="button" class="btn-chip-tag" onclick="appendNoteTag('Đồ ngọt/nước ngọt')">Đồ ngọt/nước ngọt</button>
+          <button type="button" class="btn-chip-tag" onclick="appendNoteTag('Ăn nhiều tinh bột')">Ăn nhiều tinh bột</button>
           <button type="button" class="btn-chip-tag" onclick="appendNoteTag('Ăn quá no')">Ăn quá no</button>
-          <button type="button" class="btn-chip-tag" onclick="appendNoteTag('Có uống bia')">Uống bia</button>
+          <button type="button" class="btn-chip-tag" onclick="appendNoteTag('Ăn khuya')">Ăn khuya</button>
+          <button type="button" class="btn-chip-tag" onclick="appendNoteTag('Có uống bia rượu')">Có uống bia rượu</button>
         </div>
-        <button type="submit" class="btn-green-pill" style="width: 100%;">Lưu ghi chú món ăn</button>
-      </form>
-    </div>
-  </div>
-
-  <!-- MODAL: Danh Sách Đi Chợ -->
-  <div id="modal-shopping" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-shopping-title">
-    <div class="modal-dialog">
-      <div class="modal-header">
-        <h3 id="modal-shopping-title" class="modal-title">Danh sách đi chợ 7 ngày</h3>
-        <button type="button" class="modal-close" aria-label="Đóng" onclick="closeModal('modal-shopping')">&times;</button>
-      </div>
-      <p class="section-desc">Tổng hợp nguyên liệu tuần tới. Đánh dấu vào ô khi đã mua xong:</p>
-      <div id="shopping-list-items" class="modal-scroll-body"></div>
-    </div>
-  </div>
-
-  <!-- MODAL: Ghi Đường Huyết -->
-  <div id="modal-glucose" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-glucose-title">
-    <div class="modal-dialog">
-      <div class="modal-header">
-        <h3 id="modal-glucose-title" class="modal-title">Ghi chỉ số đường huyết</h3>
-        <button type="button" class="modal-close" aria-label="Đóng" onclick="closeModal('modal-glucose')">&times;</button>
-      </div>
-      <form onsubmit="submitGlucose(event)">
-        <div class="form-group">
-          <label class="form-label" for="glucose-mmol">Chỉ số đo (mmol/L)</label>
-          <input type="number" step="0.1" id="glucose-mmol" class="form-input" placeholder="Ví dụ: 5.4" min="1" max="40" required>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="glucose-ctx">Thời điểm đo</label>
-          <select id="glucose-ctx" class="form-input">
-            <option value="fasting">Sáng sớm lúc đói (trước ăn sáng)</option>
-            <option value="after">Sau khi ăn 2 tiếng</option>
-            <option value="bedtime">Trước khi đi ngủ</option>
-            <option value="other">Thời điểm khác</option>
-          </select>
-        </div>
-        <button type="submit" class="btn-green-pill" style="width: 100%; margin-top: 14px;">Lưu số đo</button>
+        <button type="submit" class="btn-green-pill" style="width: 100%;">Lưu ghi chú ăn lệch</button>
       </form>
     </div>
   </div>
@@ -1357,6 +1226,6 @@
 
   <span id="today-date-badge" style="display: none;"></span>
 
-  <script src="/app.js?v=33"></script>
+  <script src="/app.js?v=37"></script>
 </body>
 </html>

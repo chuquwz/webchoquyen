@@ -3422,6 +3422,514 @@ body:not(.is-logged-in) #app-bottom-nav {
   font-weight: 700;
 }
 
+/* ==========================================================================
+   CHECKLIST ĂN ĐÚNG THỰC PHẨM GIẢM CÂN (MẶC ĐỊNH 3 BỮA)
+   ========================================================================== */
+.btn-meal-dose-pill.swapped {
+  background-color: #FFFBEB;
+  border-color: #F59E0B;
+  color: #78350F;
+}
+
+.btn-meal-dose-pill.swapped .med-dose-time {
+  background-color: #FEF3C7;
+  color: #92400E;
+}
+
+.btn-meal-dose-pill.swapped .med-dose-status {
+  color: #92400E;
+  font-weight: 700;
+}
+
+.meal-summary-note {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text-sub);
+}
+
+.meal-checklist-card {
+  background-color: var(--bg-app);
+  border-radius: var(--radius-card);
+  padding: 16px;
+  border: 1.5px solid var(--border-card);
+  box-shadow: var(--shadow-card);
+  margin-bottom: 14px;
+  transition: border-color 150ms ease-out, background-color 150ms ease-out;
+}
+
+.meal-checklist-card.is-done {
+  border-color: #86EFAC;
+  background-color: #FAFEF8;
+}
+
+.meal-checklist-card.is-swapped {
+  border-color: #FCD34D;
+  background-color: #FFFDF5;
+}
+
+.meal-checklist-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.meal-checklist-title {
+  font-size: 15.5px;
+  font-weight: 800;
+  color: var(--text-main);
+  line-height: 1.25;
+}
+
+.meal-checklist-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-sub);
+  display: inline-block;
+  margin-top: 2px;
+}
+
+.meal-status-pill {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  line-height: 1.2;
+}
+
+.meal-status-pill.is-pending {
+  background-color: #F2F5F0;
+  color: #4A5246;
+  border: 1px solid #DDE5DA;
+}
+
+.meal-status-pill.is-done {
+  background-color: #DCFCE7;
+  color: #166534;
+  border: 1px solid #86EFAC;
+}
+
+.meal-status-pill.is-swapped {
+  background-color: #FEF3C7;
+  color: #92400E;
+  border: 1px solid #FCD34D;
+}
+
+.meal-note-banner {
+  border-radius: 12px;
+  padding: 9px 12px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  margin-bottom: 12px;
+  overflow-wrap: break-word;
+}
+
+.meal-note-banner.is-done {
+  background-color: #ECFDF3;
+  border: 1px solid #BBF7D0;
+  color: #14532D;
+}
+
+.meal-note-banner.is-swapped {
+  background-color: #FFFBEB;
+  border: 1px solid #FDE68A;
+  color: #78350F;
+}
+
+.meal-chips-section {
+  margin-bottom: 12px;
+}
+
+.meal-chips-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-sub);
+  margin-bottom: 8px;
+}
+
+.meal-food-chips-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.btn-meal-food-chip {
+  min-height: 36px;
+  padding: 6px 11px;
+  border-radius: var(--radius-pill);
+  background-color: #F6F9F4;
+  border: 1.5px solid #D9E5D4;
+  color: #2D3829;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: transform 150ms ease-out, background-color 150ms ease-out, border-color 150ms ease-out;
+}
+
+.btn-meal-food-chip:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.btn-meal-food-chip.active {
+  background-color: #DCFCE7;
+  border-color: #4ADE80;
+  color: #14532D;
+  font-weight: 700;
+}
+
+.meal-check-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.btn-meal-action {
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1.5px solid #D8E4D3;
+  background-color: #F7FAF5;
+  color: #2F382B;
+  transition: transform 150ms ease-out, background-color 150ms ease-out, border-color 150ms ease-out;
+}
+
+.btn-meal-action:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.btn-meal-done {
+  flex: 1 1 130px;
+}
+
+.btn-meal-done.active {
+  background-color: var(--color-pill-green);
+  border-color: #6CA844;
+  color: var(--color-pill-text);
+}
+
+.btn-meal-diff {
+  flex: 1 1 130px;
+}
+
+.btn-meal-diff.active {
+  background-color: #FEF3C7;
+  border-color: #F59E0B;
+  color: #92400E;
+}
+
+.btn-meal-reset {
+  background-color: #FFFFFF;
+  color: var(--text-sub);
+  border-color: #DFE6DC;
+}
+
+.diet-food-guide-card {
+  background-color: var(--bg-app);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-card);
+  padding: 16px;
+  box-shadow: var(--shadow-card);
+  margin-top: 16px;
+}
+
+.diet-guide-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 12px;
+}
+
+.diet-guide-sub {
+  font-size: 12px;
+  color: var(--text-sub);
+}
+
+.diet-guide-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+.diet-guide-col {
+  border-radius: 14px;
+  padding: 12px 14px;
+  border: 1px solid transparent;
+}
+
+.diet-guide-col.is-good {
+  background-color: #F4FAF0;
+  border-color: #CBE6BD;
+}
+
+.diet-guide-col.is-avoid {
+  background-color: #FFF8F6;
+  border-color: #FAD4CE;
+}
+
+.diet-guide-col-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.diet-guide-col.is-good .diet-guide-col-title {
+  color: #1E4611;
+}
+
+.diet-guide-col.is-avoid .diet-guide-col-title {
+  color: #9A2C1D;
+}
+
+.diet-guide-list {
+  list-style: disc;
+  padding-inline-start: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-main);
+}
+
+.meal-history-row {
+  width: 100%;
+  min-height: 52px;
+  background-color: #FFFFFF;
+  border: 1.5px solid #E2EAE0;
+  border-radius: 16px;
+  padding: 10px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: transform 150ms ease-out, background-color 150ms ease-out, border-color 150ms ease-out;
+}
+
+.meal-history-row:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.meal-history-row.active {
+  border-color: var(--color-score-ring);
+  background-color: #F6FBF2;
+}
+
+.meal-hist-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.meal-hist-date {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.meal-hist-count {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-sub);
+}
+
+.meal-hist-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.meal-hist-pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+}
+
+.meal-hist-pill.is-done {
+  background-color: #DCFCE7;
+  color: #166534;
+}
+
+.meal-hist-pill.is-swapped {
+  background-color: #FEF3C7;
+  color: #92400E;
+}
+
+.meal-hist-pill.is-pending {
+  background-color: #F2F5F0;
+  color: #5C6558;
+}
+
+@media (hover: hover) {
+  .btn-meal-food-chip:hover {
+    background-color: #EAF5E4;
+    border-color: #9ED884;
+  }
+  .btn-meal-action:hover {
+    background-color: #EDF6E8;
+  }
+  .meal-history-row:hover {
+    background-color: #F7FAF5;
+  }
+}
+
+/* ==========================================================================
+   POPUP NHẬP NHANH: NƯỚC LỌC, CÂN NẶNG, THUỐC 3 LẦN/NGÀY
+   ========================================================================== */
+.summary-stat-card:active {
+  transform: scale(0.96);
+}
+
+.summary-stat-card:focus-visible,
+.overview-metric-card:focus-visible,
+.btn-water-chip:focus-visible,
+.btn-stepper-pill:focus-visible,
+.btn-med-dose-pill:focus-visible,
+.modal-close:focus-visible {
+  outline: 2px solid var(--color-score-ring);
+  outline-offset: 2px;
+}
+
+.modal-close {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.btn-water-chip {
+  min-height: 44px;
+}
+
+.btn-stepper-pill {
+  min-width: 52px;
+  height: 44px;
+}
+
+.water-modal-summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.water-custom-form {
+  margin-top: 12px;
+}
+
+.water-custom-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.water-custom-input-row .form-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.water-custom-input-row .btn-green-pill {
+  min-height: 44px;
+}
+
+.weight-modal-display {
+  text-align: center;
+  background-color: #F8FBF6;
+  border: 1px solid #E3EEDF;
+  border-radius: 20px;
+  padding: 16px 14px;
+  margin-bottom: 14px;
+}
+
+.weight-modal-value-row {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+}
+
+.weight-modal-num {
+  font-size: 38px;
+  font-weight: 800;
+  line-height: 1.05;
+  color: var(--color-score-ring);
+}
+
+.weight-modal-unit {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-sub);
+}
+
+.weight-modal-sub {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text-sub);
+}
+
+.modal-med-dose-list {
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.modal-med-dose-list .btn-med-dose-pill {
+  min-height: 64px;
+  padding: 12px 14px;
+  gap: 6px;
+}
+
+.modal-med-dose-list .med-dose-title {
+  font-size: 13.5px;
+}
+
+.modal-med-dose-list .med-dose-time {
+  font-size: 12.5px;
+  padding: 2px 9px;
+}
+
+.modal-med-dose-list .med-dose-status {
+  font-size: 12.5px;
+}
+
+@media (max-width: 360px) {
+  .water-pill-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .water-custom-input-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
 /* Media Queries for Accessibility */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
