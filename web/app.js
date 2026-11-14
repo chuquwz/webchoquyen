@@ -74,7 +74,7 @@
     renderCalendarDays();
     try {
       const me = await api('/api/me');
-      if (me.ok) {
+      if (me && me.ok) {
         if (me.user) {
           state.currentUser = me.user;
           localStorage.setItem('qh_user', me.user);
@@ -83,6 +83,8 @@
         initMotivationSection();
         await loadToday();
         syncFinanceVaultOnBoot();
+      } else {
+        showLoginView();
       }
     } catch (e) {
       showLoginView();
@@ -219,9 +221,12 @@
     showLoginView();
   };
 
-  // Quản lý Tab: hôm nay, công việc, ăn uống, chỉ số, cài đặt
+  // Quản lý Tab: hôm nay, công việc, ăn uống, cài đặt
   window.switchTab = function (tabId) {
     if (tabId === 'records') tabId = 'meals';
+    if (tabId === 'overview' || !document.getElementById('tab-' + tabId)) {
+      tabId = 'today';
+    }
     state.activeTab = tabId;
     document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.nav-pill-btn').forEach(el => {
@@ -238,7 +243,6 @@
       navBtn.setAttribute('aria-selected', 'true');
     }
 
-    if (tabId === 'overview') loadWeightData();
     if (tabId === 'meals') loadMeals();
     if (tabId === 'work') loadWorkData();
     if (tabId === 'settings') {
@@ -254,11 +258,10 @@
 
   function setupRouting() {
     const hash = window.location.hash.replace('#', '');
-    if (['today', 'work', 'meals', 'overview', 'settings'].includes(hash)) {
-      if (['today', 'work', 'meals', 'settings'].includes(hash)) {
-        switchTab(hash);
-      }
+    if (['today', 'work', 'meals', 'settings'].includes(hash)) {
+      switchTab(hash);
     }
+  }
 
     // Format ngày tiếng Việt
     function formatVNDate(dStr) {
@@ -1003,9 +1006,6 @@
         state.currentWeight = kg;
         renderWeightStepper();
         closeModal('modal-weight');
-        if (state.activeTab === 'overview') {
-          loadWeightData();
-        }
         showToast(`Đã lưu cân nặng hôm nay: ${kg.toFixed(1)} kg`);
       } catch (err) { }
     };
@@ -1588,136 +1588,6 @@
         showToast('Đã lưu ghi chú bữa ăn lệch chuẩn');
       } catch (e) { }
     };
-
-    // ================= 3. CÂN NẶNG & TIẾN ĐỘ =================
-    async function loadWeightData() {
-      try {
-        const data = await api('/api/weight?days=90');
-        state.weights = data.rows || [];
-        renderWeightChart();
-        renderWeightHistory();
-
-        // Cập nhật các thẻ chỉ số thực tế trên màn hình Tổng quan
-        const cur = state.weights.length > 0 ? state.weights[state.weights.length - 1].kg : state.currentWeight;
-        const rem = Math.max(0, cur - 70.0);
-        const wVal = document.getElementById('overview-weight-val');
-        if (wVal) wVal.textContent = cur.toFixed(1);
-        const wBadge = document.getElementById('overview-weight-badge');
-        if (wBadge) wBadge.textContent = `Còn ${rem.toFixed(1)} kg`;
-
-        const kcalVal = document.getElementById('overview-kcal-val');
-        if (kcalVal) kcalVal.textContent = (state.targetKcal || 1800).toLocaleString('vi-VN');
-
-        const waterVal = document.getElementById('overview-water-val');
-        if (waterVal) {
-          const minW = parseInt(state.settings.water_min || 2500);
-          waterVal.textContent = state.waterTotal.toLocaleString('vi-VN');
-          const waterPct = document.getElementById('overview-water-pct');
-          if (waterPct) {
-            const pct = Math.min(100, Math.round((state.waterTotal / minW) * 100));
-            waterPct.textContent = `${pct}%`;
-          }
-        }
-      } catch (e) { }
-    }
-
-    function renderWeightChart() {
-      const curEl = document.getElementById('weight-chart-current');
-      const remEl = document.getElementById('weight-chart-rem');
-      const svg = document.getElementById('weight-svg');
-      if (!svg) return;
-
-      let cur = state.currentWeight;
-      if (state.weights.length > 0) {
-        cur = state.weights[state.weights.length - 1].kg;
-      }
-      if (curEl) curEl.textContent = cur.toFixed(1) + ' kg';
-      const rem = Math.max(0, cur - 70.0);
-      if (remEl) remEl.textContent = rem.toFixed(1) + ' kg';
-
-      const wList = state.weights;
-      if (wList.length === 0) {
-        svg.innerHTML = '<text x="250" y="100" fill="#8A9185" text-anchor="middle" font-size="13">Chưa có đủ dữ liệu đo cân nặng</text>';
-        return;
-      }
-
-      const minKg = 65;
-      const maxKg = 100;
-      const padX = 36;
-      const padY = 20;
-      const w = 500 - padX * 2;
-      const h = 200 - padY * 2;
-
-      const getY = (kg) => padY + h - ((kg - minKg) / (maxKg - minKg)) * h;
-
-      const y70 = getY(70);
-      let svgContent = `
-      <defs>
-        <linearGradient id="chartGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stop-color="#A4DB7A" />
-          <stop offset="100%" stop-color="#5E9447" />
-        </linearGradient>
-      </defs>
-      <line x1="${padX}" y1="${getY(80)}" x2="${500 - padX}" y2="${getY(80)}" stroke="#EAEFE9" stroke-dasharray="2,2" stroke-width="1"/>
-      <line x1="${padX}" y1="${getY(90)}" x2="${500 - padX}" y2="${getY(90)}" stroke="#EAEFE9" stroke-dasharray="2,2" stroke-width="1"/>
-      <line x1="${padX}" y1="${y70}" x2="${500 - padX}" y2="${y70}" stroke="#5E9447" stroke-dasharray="4,4" stroke-width="1.5"/>
-      <text x="${500 - padX + 4}" y="${y70 + 4}" fill="#5E9447" font-size="11" font-weight="700">70kg</text>
-    `;
-
-      let pts = [];
-      const stepX = w / Math.max(1, wList.length - 1);
-      wList.forEach((pt, i) => {
-        const x = padX + i * stepX;
-        const y = getY(pt.kg);
-        pts.push(`${x},${y}`);
-      });
-
-      svgContent += `
-      <polyline fill="none" stroke="url(#chartGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" points="${pts.join(' ')}" />
-    `;
-
-      wList.forEach((pt, i) => {
-        const x = padX + i * stepX;
-        const y = getY(pt.kg);
-        svgContent += `
-        <circle cx="${x}" cy="${y}" r="4" fill="#5E9447" stroke="#ffffff" stroke-width="2" />
-        <text x="${x}" y="${y - 8}" fill="#1C1F1B" font-size="10" font-weight="700" text-anchor="middle">${pt.kg}</text>
-      `;
-      });
-
-      svg.innerHTML = svgContent;
-    }
-
-    function renderWeightHistory() {
-      const container = document.getElementById('weight-history-list');
-      if (!container) return;
-      if (state.weights.length === 0) {
-        container.innerHTML = '<div style="color: var(--text-muted); padding: 8px 0; font-size: 13px;">Chưa có ngày đo nào.</div>';
-        return;
-      }
-      let html = '<table>';
-      html += '<thead><tr><th>Ngày</th><th>Cân nặng</th><th style="text-align: right;">Thay đổi</th></tr></thead><tbody>';
-
-      for (let i = state.weights.length - 1; i >= 0; i--) {
-        const item = state.weights[i];
-        let diffStr = '-';
-        if (i > 0) {
-          const prev = state.weights[i - 1];
-          const diff = item.kg - prev.kg;
-          if (diff > 0) diffStr = `<span style="color: var(--pink-text); font-weight: 700;">+${diff.toFixed(1)}kg</span>`;
-          else if (diff < 0) diffStr = `<span style="color: var(--color-score-ring); font-weight: 700;">${diff.toFixed(1)}kg</span>`;
-          else diffStr = '<span style="color: var(--text-muted);">0.0kg</span>';
-        }
-        html += `
-        <tr>
-          <td style="color: var(--text-sub);">${formatVNDate(item.date)}</td>
-          <td style="font-weight: 700; color: var(--text-main); font-variant-numeric: tabular-nums;">${item.kg.toFixed(1)} kg</td>
-          <td style="text-align: right; font-variant-numeric: tabular-nums;">${diffStr}</td>
-        </tr>`;
-      }
-      html += '</tbody></table>';
-      container.innerHTML = html;
-    }
 
     // ================= 4. CÀI ĐẶT & NHẮC NHỞ =================
     let reminderState = {
