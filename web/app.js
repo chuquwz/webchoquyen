@@ -3001,6 +3001,99 @@
       e.target.value = '';
     };
 
+    window.syncLocalFileToCloud = async function (e) {
+      const input = e && e.target;
+      const file = input && input.files && input.files[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const parsed = JSON.parse(text);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+          throw new Error('File không đúng định dạng JSON của QuyenHealth');
+        }
+
+        const isFullBackup =
+          Array.isArray(parsed.water) ||
+          Array.isArray(parsed.weight) ||
+          Array.isArray(parsed.med) ||
+          Array.isArray(parsed.meals) ||
+          (parsed.settings && typeof parsed.settings === 'object' && !Array.isArray(parsed.settings));
+
+        if (isFullBackup) {
+          const jobsCount = Array.isArray(parsed.work_jobs)
+            ? parsed.work_jobs.length
+            : (Array.isArray(parsed.jobs) ? parsed.jobs.length : 0);
+          const ledgerCount = Array.isArray(parsed.work_ledger)
+            ? parsed.work_ledger.length
+            : (Array.isArray(parsed.ledger) ? parsed.ledger.length : 0);
+          if (!confirm(`Tải file sao lưu "${file.name}" (${jobsCount} đơn, ${ledgerCount} thu chi & dữ liệu sức khoẻ) lên để đồng bộ với Cloud?`)) {
+            return;
+          }
+          await api('/api/restore', {
+            method: 'POST',
+            body: JSON.stringify(parsed)
+          });
+          const restoredJobs = Array.isArray(parsed.work_jobs)
+            ? parsed.work_jobs
+            : (Array.isArray(parsed.jobs) ? parsed.jobs : []);
+          const restoredLedger = Array.isArray(parsed.work_ledger)
+            ? parsed.work_ledger
+            : (Array.isArray(parsed.ledger) ? parsed.ledger : []);
+          saveFinanceVaultToDevice({
+            dirty: false,
+            jobs: restoredJobs,
+            ledger: restoredLedger
+          });
+          renderFinanceVaultStatus();
+          showToast(`Đã tải "${file.name}" lên và đồng bộ hoàn tất với Cloud!`);
+          await loadToday();
+          await loadWorkData(workState.date);
+          return;
+        }
+
+        const hasJobs = Array.isArray(parsed.jobs) || Array.isArray(parsed.work_jobs);
+        const hasLedger = Array.isArray(parsed.ledger) || Array.isArray(parsed.work_ledger);
+        const jobs = Array.isArray(parsed.jobs)
+          ? parsed.jobs
+          : (Array.isArray(parsed.work_jobs) ? parsed.work_jobs : []);
+        const ledger = Array.isArray(parsed.ledger)
+          ? parsed.ledger
+          : (Array.isArray(parsed.work_ledger) ? parsed.work_ledger : []);
+
+        if (!hasJobs && !hasLedger) {
+          throw new Error('File không chứa dữ liệu sao lưu hoặc Sổ công việc hợp lệ');
+        }
+        if (!confirm(`Tải ${jobs.length} đơn dịch vụ và ${ledger.length} khoản thu chi từ "${file.name}" lên để đồng bộ (gộp không trùng) với Cloud?`)) {
+          return;
+        }
+
+        const synced = await api('/api/work/vault', {
+          method: 'POST',
+          body: JSON.stringify({
+            mode: 'merge',
+            jobs,
+            ledger
+          })
+        });
+
+        const nextJobs = Array.isArray(synced.jobs) ? synced.jobs : jobs;
+        const nextLedger = Array.isArray(synced.ledger) ? synced.ledger : ledger;
+        saveFinanceVaultToDevice({
+          db_id: synced.db_id || '',
+          dirty: false,
+          jobs: nextJobs,
+          ledger: nextLedger
+        });
+        renderFinanceVaultStatus();
+        showToast(`Đã đồng bộ file lên Cloud: hiện có ${nextJobs.length} đơn & ${nextLedger.length} khoản thu chi!`);
+        await loadWorkData(workState.date);
+      } catch (err) {
+        showToast('Lỗi đồng bộ file lên Cloud: ' + (err.message || 'File không hợp lệ'), true);
+      } finally {
+        if (input) input.value = '';
+      }
+    };
+
     window.linkOrSyncLocalFinance = async function () {
       if ('showSaveFilePicker' in window) {
         try {
