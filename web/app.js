@@ -2632,7 +2632,7 @@
         container.innerHTML = `
         <div class="empty-state-box">
           Chưa có đơn dịch vụ nào trong ngày ${formatVNDate(workState.date)}.<br>
-          Bấm nút <strong>+ Ghi đơn mới</strong> để lưu đơn chỉ trong vài giây.
+          Bấm nút <strong>+</strong> ở góc dưới phải để lưu đơn chỉ trong vài giây.
         </div>
       `;
         return;
@@ -3191,7 +3191,7 @@
         container.innerHTML = `
         <div class="empty-state-box">
           Chưa có khoản chi tiêu, nộp quỹ hay mượn/trả nợ nào trong ngày ${dm || formatVNDate(workState.date)}.<br>
-          Bấm nút <strong>+ Ghi thu chi</strong> để thêm khoản mục mới.
+          Bấm nút <strong>+</strong> ở góc dưới phải để thêm khoản mục mới.
         </div>
       `;
         return;

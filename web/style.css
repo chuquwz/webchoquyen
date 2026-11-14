@@ -3930,33 +3930,6 @@ body:not(.is-logged-in) #app-bottom-nav {
   }
 }
 
-.btn-plus-header {
-  min-height: 44px;
-  padding: 8px 14px;
-  border-radius: var(--radius-pill);
-  border: none;
-  background-color: var(--color-pill-green);
-  color: var(--color-pill-text);
-  font-family: inherit;
-  font-size: 12.5px;
-  font-weight: 800;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  cursor: pointer;
-  flex-shrink: 0;
-  box-shadow: 0 3px 10px rgba(164, 219, 122, 0.35);
-  transition: transform 0.15s ease-out, background-color 0.15s ease-out;
-}
-
-.btn-plus-header:hover {
-  background-color: var(--color-pill-green-hover);
-}
-
-.btn-plus-header:active {
-  transform: scale(0.96);
-}
-
 .btn-fab-plus {
   position: fixed;
   bottom: calc(82px + var(--safe-bottom));
