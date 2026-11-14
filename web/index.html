@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=40">
+  <link rel="stylesheet" href="/style.css?v=42">
 </head>
 <body>
   <!-- Container Toast thông báo -->
@@ -160,20 +160,18 @@
             </div>
           </div>
 
-          <!-- Checklist ăn đúng thực phẩm giảm cân hôm nay (Mặc định 3 bữa) -->
+          <!-- Checklist 3 Bữa ăn Healthy hôm nay (Giống Thuốc bổ gan: Đã ăn / Chưa ăn) -->
           <div class="section-container" style="margin-top: 22px;">
             <div id="today-meals-card" class="quick-log-card" style="margin-top: 0;">
               <div class="log-card-header">
                 <div>
-                  <h3 class="log-card-title">Ăn đúng giảm cân hôm nay</h3>
+                  <h3 class="log-card-title">Bữa ăn Healthy hôm nay</h3>
                   <div class="log-card-subtitle">
-                    Đã ăn đúng <span id="meal-cur-count" class="font-tabular" style="font-weight: 700; color: var(--text-main);">0</span> / <span id="meal-target-count" class="font-tabular">3 bữa</span>
+                    Đã ăn <span id="meal-cur-count" class="font-tabular" style="font-weight: 700; color: var(--text-main);">0</span> / <span id="meal-target-count" class="font-tabular">3 bữa</span>
                     <span id="meal-percent-badge" class="log-badge-pct font-tabular">0%</span>
                   </div>
                 </div>
-                <button type="button" class="btn-med-schedule-pill font-tabular" onclick="switchTab('meals')">
-                  <span>Checklist &amp; Gợi ý &rarr;</span>
-                </button>
+                <span class="badge-status-pill badge-normal font-tabular">3 bữa/ngày</span>
               </div>
 
               <!-- Thanh tiến độ các bữa ăn trong ngày -->
@@ -181,8 +179,10 @@
                 <div id="meal-progress-fill" class="log-progress-fill" style="width: 0%;"></div>
               </div>
 
-              <!-- Danh sách tick nhanh 3 bữa trong ngày -->
-              <div id="today-meal-checklist-grid" class="med-dose-grid meal-dose-grid" role="group" aria-label="Checklist các bữa ăn trong ngày"></div>
+              <div class="field-hint" style="margin-bottom: 8px; font-size: 12px; color: var(--text-sub); font-weight: 600;">Bấm vào từng bữa trong ngày để đánh dấu đã ăn hoặc chưa ăn:</div>
+
+              <!-- Danh sách tick 3 bữa trong ngày -->
+              <div id="today-meal-checklist-grid" class="med-dose-grid modal-med-dose-list" role="group" aria-label="Checklist Bữa ăn Healthy hôm nay"></div>
             </div>
           </div>
 
@@ -221,81 +221,7 @@
         </section>
 
         <!-- =====================================================================
-             MÀN HÌNH: CHECKLIST ĂN ĐÚNG THỰC PHẨM GIẢM CÂN (MẶC ĐỊNH 3 BỮA)
-             ===================================================================== -->
-        <section id="tab-meals" class="tab-pane" role="tabpanel" aria-label="Checklist ăn giảm cân">
-          <div class="screen-nav-header">
-            <button type="button" class="btn-circle-action" aria-label="Quay lại" onclick="switchTab('today')">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#1C1F1B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M15 18l-6-6 6-6"/>
-              </svg>
-            </button>
-            <h1 class="screen-nav-title">Checklist ăn giảm cân</h1>
-            <div style="width: 40px;"></div>
-          </div>
-
-          <!-- Thẻ tổng kết tuân thủ hôm nay -->
-          <div id="meal-day-summary-card" class="quick-log-card" style="margin-bottom: 16px;">
-            <div class="log-card-header">
-              <div>
-                <h2 class="log-card-title" style="font-size: 15.5px;">Tiến độ ăn đúng giảm cân hôm nay</h2>
-                <div class="log-card-subtitle">
-                  Đạt chuẩn <span id="meal-screen-cur-count" class="font-tabular" style="font-weight: 700; color: var(--text-main);">0</span> / <span id="meal-screen-target-count" class="font-tabular">3 bữa</span>
-                  <span id="meal-screen-score-badge" class="log-badge-pct font-tabular">+0/15 điểm</span>
-                </div>
-              </div>
-              <span id="meal-screen-status-pill" class="badge-status-pill badge-normal font-tabular">Mặc định 3 bữa/ngày</span>
-            </div>
-            <div class="log-progress-track" style="margin-bottom: 10px;">
-              <div id="meal-screen-progress-fill" class="log-progress-fill" style="width: 0%;"></div>
-            </div>
-            <p class="meal-summary-note">
-              Đánh dấu từng bữa sau khi ăn: chọn nhanh các nhóm thực phẩm giảm cân đã ăn hoặc bấm <strong>Ăn đúng chuẩn</strong> nếu bữa ăn không có đồ chiên rán, đường ngọt, tinh bột quá mức.
-            </p>
-          </div>
-
-          <!-- Danh sách Checklist 3 bữa trong ngày -->
-          <div id="meals-list-container">
-            <div class="empty-state-box">Đang tải checklist bữa ăn...</div>
-          </div>
-
-          <!-- Bảng đối chiếu nhanh Thực phẩm Giảm Cân & Bảo Vệ Gan -->
-          <div class="diet-food-guide-card">
-            <div class="diet-guide-head">
-              <h2 class="section-heading" style="font-size: 15.5px;">Chuẩn thực phẩm giảm cân &amp; bảo vệ gan</h2>
-              <span class="diet-guide-sub">Đối chiếu nhanh trước và sau khi ăn</span>
-            </div>
-            <div class="diet-guide-grid">
-              <div class="diet-guide-col is-good">
-                <div class="diet-guide-col-title">
-                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
-                  <span>Nên ăn (Đúng chuẩn)</span>
-                </div>
-                <ul class="diet-guide-list">
-                  <li><strong>Đạm nạc:</strong> Ức gà, thịt lợn thăn luộc/hấp, cá đồng/cá ao hấp, đậu phụ, trứng gà luộc.</li>
-                  <li><strong>Tinh bột vừa phải:</strong> Khoai lang luộc, ngô luộc, cơm trắng giảm lượng (tối đa 1–1,5 bát/bữa trưa, ít hơn vào bữa tối).</li>
-                  <li><strong>Rau xanh &amp; Canh:</strong> Rau muống, cải xanh, bí xanh, su su, su hào, mồng tơi (ưu tiên luộc/hấp/canh).</li>
-                  <li><strong>Ít ngọt &amp; Sữa:</strong> Ổi, thanh long, đu đủ, cam, dưa leo, sữa chua/sữa tươi không đường.</li>
-                </ul>
-              </div>
-              <div class="diet-guide-col is-avoid">
-                <div class="diet-guide-col-title">
-                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                  <span>Cần tránh (Ăn lệch)</span>
-                </div>
-                <ul class="diet-guide-list">
-                  <li><strong>Đồ chiên rán, nhiều dầu mỡ:</strong> Thịt ba chỉ, đồ rán giòn, đồ xào ngập dầu, da gà/da vịt.</li>
-                  <li><strong>Mỡ &amp; Nội tạng:</strong> Lòng, gan, tim, tiết canh, đồ ăn nhiều cholesterol gây hại gan.</li>
-                  <li><strong>Đồ ngọt &amp; Nước có gas:</strong> Trà sữa, nước ngọt, bánh kẹo, chè, hoa quả quá ngọt.</li>
-                  <li><strong>Rượu bia &amp; Ăn khuya:</strong> Bia rượu, đồ nhậu, ăn sau 21h tối hoặc ăn quá no.</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- =====================================================================
-             MÀN HÌNH 5: HỒ SƠ & CÀI ĐẶT
+             MÀN HÌNH: HỒ SƠ & CÀI ĐẶT
              ===================================================================== -->
         <section id="tab-settings" class="tab-pane" role="tabpanel" aria-label="Hồ sơ và Cài đặt">
           <div class="screen-nav-header">
@@ -399,13 +325,6 @@
                 <div class="form-group">
                   <label class="form-label" for="set-t-sleep">Giờ đi ngủ</label>
                   <input type="time" id="set-t-sleep" class="form-input" required>
-                </div>
-                <div class="form-group">
-                  <label class="form-label" for="set-snack">Số bữa ăn / ngày</label>
-                  <select id="set-snack" class="form-input">
-                    <option value="0">3 bữa chính (Mặc định)</option>
-                    <option value="1">4 bữa (Thêm bữa phụ)</option>
-                  </select>
                 </div>
               </div>
               <button type="submit" class="btn-green-pill" style="width: 100%; margin-top: 14px;">Lưu thông số hồ sơ</button>
@@ -513,7 +432,7 @@
                 </span>
                 <span id="work-day-unpaid" class="work-stat-mini-val font-tabular">0đ</span>
               </div>
-              <div class="work-stat-mini-box stat-expense" onclick="switchWorkSubTab('ledger')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')switchWorkSubTab('ledger')">
+              <div class="work-stat-mini-box stat-expense" onclick="switchTab('ledger')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchTab('ledger');}">
                 <span class="work-stat-mini-label">
                   <svg class="ui-inline-svg" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
                   <span>Chi tiêu</span>
@@ -581,8 +500,8 @@
             </div>
           </div>
 
-          <!-- Thanh Chuyển Đổi 4 Phân Khu (Luôn nằm trên 1 dòng duy nhất, không rớt chữ) -->
-          <div class="work-subtab-bar" role="tablist" aria-label="Phân khu sổ công việc">
+          <!-- Thanh Chuyển Đổi 3 Phân Khu (Luôn nằm trên 1 dòng duy nhất, không rớt chữ) -->
+          <div class="work-subtab-bar" style="grid-template-columns: repeat(3, minmax(0, 1fr));" role="tablist" aria-label="Phân khu sổ công việc">
             <button type="button" id="work-subtab-btn-jobs" class="work-subtab-btn active" role="tab" aria-selected="true" onclick="switchWorkSubTab('jobs')">
               <svg class="ui-inline-svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
               <span>Đơn việc</span>
@@ -592,10 +511,6 @@
               <svg class="ui-inline-svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
               <span>Sổ nợ</span>
               <span id="work-badge-unpaid-all" class="work-subtab-count badge-alert font-tabular">0</span>
-            </button>
-            <button type="button" id="work-subtab-btn-ledger" class="work-subtab-btn" role="tab" aria-selected="false" onclick="switchWorkSubTab('ledger')">
-              <svg class="ui-inline-svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
-              <span>Thu chi</span>
             </button>
             <button type="button" id="work-subtab-btn-month" class="work-subtab-btn" role="tab" aria-selected="false" onclick="switchWorkSubTab('month')">
               <svg class="ui-inline-svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
@@ -710,86 +625,7 @@
           </div>
 
           <!-- ===============================================================
-               PHÂN KHU 3: SỔ THU CHI PHÁT SINH, NỘP QUỸ, MƯỢN & TRẢ NỢ
-               =============================================================== -->
-          <div id="work-subpane-ledger" class="work-subpane">
-            <form id="work-ledger-form" class="work-quick-card" onsubmit="submitWorkLedger(event)">
-              <h2 class="work-card-heading">+ Ghi thu chi / Quỹ / Mượn / Trả nợ</h2>
-              <p class="work-helper-text" style="margin-top: 4px; margin-bottom: 10px;">
-                Tách riêng các khoản chi tiêu cá nhân, thuê tool, nộp quỹ, mượn và trả nợ để bảng đơn hàng luôn sạch sẽ, rõ ràng.
-              </p>
-
-              <!-- Chọn Phân Loại -->
-              <div class="form-group">
-                <label class="form-label" for="work-ledger-category">Phân loại khoản mục</label>
-                <div class="work-cat-grid" role="group" aria-label="Chọn phân loại thu chi">
-                  <button type="button" class="work-cat-chip active" data-cat="expense" onclick="setWorkLedgerCategory('expense')">
-                    <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-                    <span>Chi tiêu / Phát sinh</span>
-                  </button>
-                  <button type="button" class="work-cat-chip" data-cat="fund_in" onclick="setWorkLedgerCategory('fund_in')">
-                    <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                    <span>Nộp Quỹ</span>
-                  </button>
-                  <button type="button" class="work-cat-chip" data-cat="fund_bal" onclick="setWorkLedgerCategory('fund_bal')">
-                    <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-                    <span>Số Quỹ</span>
-                  </button>
-                  <button type="button" class="work-cat-chip" data-cat="borrow" onclick="setWorkLedgerCategory('borrow')">
-                    <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="17" y1="7" x2="7" y2="17"/><polyline points="17 17 7 17 7 7"/></svg>
-                    <span>Mượn</span>
-                  </button>
-                  <button type="button" class="work-cat-chip" data-cat="repay" onclick="setWorkLedgerCategory('repay')">
-                    <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
-                    <span>Trả Nợ</span>
-                  </button>
-                </div>
-                <input type="hidden" id="work-ledger-category" value="expense">
-              </div>
-
-              <!-- Số tiền -->
-              <div class="form-group" style="margin-top: 10px;">
-                <label class="form-label" for="work-ledger-amount">Số tiền (gõ số nghìn: 50 = 50.000đ)</label>
-                <input type="number" id="work-ledger-amount" class="form-input work-mobile-input font-tabular" placeholder="Ví dụ: 50 hoặc 50000" inputmode="numeric" min="1" required>
-                <div class="work-price-Preset-grid" aria-label="Chọn nhanh số tiền">
-                  <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(10000)">10k</button>
-                  <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(35000)">35k</button>
-                  <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(50000)">50k</button>
-                  <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(100000)">100k</button>
-                  <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(150000)">150k</button>
-                  <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(200000)">200k</button>
-                  <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(500000)">500k</button>
-                </div>
-              </div>
-
-              <!-- Nội dung chi tiết + Chip gợi ý nhanh -->
-              <div class="form-group" style="margin-top: 10px;">
-                <label class="form-label" for="work-ledger-note">Nội dung chi tiết</label>
-                <input type="text" id="work-ledger-note" class="form-input work-mobile-input" placeholder="Ví dụ: Mua cơm, Thuê tools, Đổ xăng..." maxlength="300" required>
-                <div class="work-chips-scroll" style="margin-top: 6px;" aria-label="Gợi ý nội dung chi tiêu">
-                  <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Thuê tools', 10000)">Thuê tools (10k)</button>
-                  <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Mua cơm', 50000)">Mua cơm (50k)</button>
-                  <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Ăn sáng', 35000)">Ăn sáng (35k)</button>
-                  <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Đổ xăng', 150000)">Đổ xăng (150k)</button>
-                  <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Đi ăn', 200000)">Đi ăn</button>
-                  <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Nộp quỹ ngày', 100000)">Nộp quỹ ngày</button>
-                </div>
-              </div>
-
-              <button type="submit" class="btn-green-pill" style="width: 100%; margin-top: 14px;">Lưu khoản mục</button>
-            </form>
-
-            <!-- Danh sách các khoản Thu Chi / Quỹ trong ngày -->
-            <div class="section-container" style="margin-top: 18px; margin-bottom: 24px;">
-              <div class="section-title-header">
-                <h2 class="section-heading">Phát sinh trong ngày đang xem</h2>
-              </div>
-              <div id="work-ledger-list" class="work-items-stack"></div>
-            </div>
-          </div>
-
-          <!-- ===============================================================
-               PHÂN KHU 4: BÁO CÁO TỔNG KẾT CẢ THÁNG
+               PHÂN KHU 3: BÁO CÁO TỔNG KẾT CẢ THÁNG
                =============================================================== -->
           <div id="work-subpane-month" class="work-subpane">
             <!-- Thanh chọn Tháng cần xem -->
@@ -882,6 +718,211 @@
           </div>
         </section>
 
+        <!-- =====================================================================
+             MÀN HÌNH: THU CHI CÁ NHÂN (THEO DÕI THEO NGÀY - THÁNG)
+             ===================================================================== -->
+        <section id="tab-ledger" class="tab-pane" role="tabpanel" aria-label="Thu chi cá nhân">
+          <!-- Header: Quay lại + Tiêu đề + Lưu file -->
+          <div class="screen-nav-header">
+            <button type="button" class="btn-circle-action" aria-label="Quay lại trang Hôm nay" onclick="switchTab('today')">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#1C1F1B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M15 18l-6-6 6-6"/>
+              </svg>
+            </button>
+            <h1 class="screen-nav-title">Thu chi cá nhân</h1>
+            <button type="button" class="btn-work-export-pill" onclick="exportFinanceVaultFile()" title="Lưu file dữ liệu thu chi & công việc (.json)">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              <span>Lưu file</span>
+            </button>
+          </div>
+
+          <!-- Thanh chọn Ngày (DD/MM) -->
+          <div class="work-date-bar">
+            <button type="button" class="btn-work-date-step" aria-label="Ngày trước đó" onclick="stepWorkDate(-1)">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <div class="work-date-picker-wrap">
+              <label for="ledger-date-input" class="sr-only">Chọn ngày theo dõi thu chi</label>
+              <input type="date" id="ledger-date-input" class="work-date-input font-tabular" onchange="onWorkDateChange(this.value)">
+              <span id="ledger-date-human" class="work-date-human">Hôm nay</span>
+            </div>
+            <button type="button" class="btn-work-date-step" aria-label="Ngày tiếp theo" onclick="stepWorkDate(1)">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+            <button type="button" id="btn-ledger-today" class="btn-work-today-chip" onclick="jumpWorkToday()">Hôm nay</button>
+          </div>
+
+          <!-- Thẻ Tổng Kết Thu Chi Cá Nhân (Theo Ngày / Cả Tháng) -->
+          <div class="work-summary-hero-card" role="region" aria-label="Tổng kết thu chi cá nhân theo ngày và tháng">
+            <div class="work-hero-scope-bar" style="flex-wrap: wrap; gap: 6px;">
+              <div class="work-hero-scope-toggle" role="group" aria-label="Chế độ xem thu chi">
+                <button type="button" id="btn-ledger-scope-day" class="work-scope-btn active" onclick="setLedgerHeroScope('day')">Theo ngày</button>
+                <button type="button" id="btn-ledger-scope-month" class="work-scope-btn" onclick="setLedgerHeroScope('month')">Cả tháng</button>
+              </div>
+              <div style="display: inline-flex; align-items: center; gap: 4px;">
+                <button type="button" class="btn-work-date-step" style="width: 28px; height: 28px; border-radius: 9px;" aria-label="Tháng trước" onclick="stepWorkMonth(-1)">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+                </button>
+                <span id="ledger-month-badge" class="work-job-count-pill font-tabular">Tháng 11/2026</span>
+                <button type="button" class="btn-work-date-step" style="width: 28px; height: 28px; border-radius: 9px;" aria-label="Tháng tiếp theo" onclick="stepWorkMonth(1)">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="work-bank-header-row">
+              <span class="work-summary-eyebrow" id="ledger-summary-date-label">Tổng chi tiêu hôm nay</span>
+              <span id="ledger-day-count-pill" class="work-job-count-pill font-tabular">0 khoản</span>
+            </div>
+
+            <div class="work-bank-balance-row">
+              <span id="ledger-hero-expense" class="work-huge-money font-tabular">0đ</span>
+            </div>
+
+            <div class="work-bank-net-bar">
+              <span class="work-net-label">Thực còn (Đã thu đơn &minus; Chi)</span>
+              <span id="ledger-hero-net" class="work-net-val font-tabular">0đ</span>
+            </div>
+
+            <!-- Lưới 4 chỉ số thu chi (Chi tiêu, Nộp quỹ, Mượn, Trả nợ) -->
+            <div class="work-month-grid-4 font-tabular">
+              <div class="work-month-cell">
+                <span class="work-month-cell-lbl">Chi tiêu</span>
+                <strong id="ledger-stat-expense" class="work-month-cell-val">0đ</strong>
+              </div>
+              <div class="work-month-cell">
+                <span class="work-month-cell-lbl">Nộp quỹ</span>
+                <strong id="ledger-stat-fund-in" class="work-month-cell-val">0đ</strong>
+              </div>
+              <div class="work-month-cell">
+                <span class="work-month-cell-lbl">Mượn</span>
+                <strong id="ledger-stat-borrow" class="work-month-cell-val">0đ</strong>
+              </div>
+              <div class="work-month-cell">
+                <span class="work-month-cell-lbl">Trả nợ</span>
+                <strong id="ledger-stat-repay" class="work-month-cell-val">0đ</strong>
+              </div>
+            </div>
+
+            <div id="ledger-stat-fund-bal-row" class="work-extra-badges-row" style="display: none;"></div>
+
+            <!-- Chân thẻ: Luỹ kế cả tháng -->
+            <div class="work-month-bank-footer" style="cursor: pointer;" onclick="setLedgerHeroScope(workState.ledgerScope === 'month' ? 'day' : 'month')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setLedgerHeroScope(workState.ledgerScope === 'month' ? 'day' : 'month');}">
+              <div class="work-month-footer-head">
+                <span id="ledger-month-label" class="work-month-title">Luỹ kế tháng này</span>
+                <span id="ledger-month-count" class="work-month-sub-badge font-tabular">0 khoản</span>
+              </div>
+              <div class="work-month-grid-4 font-tabular">
+                <div class="work-month-cell">
+                  <span class="work-month-cell-lbl">Chi tiêu</span>
+                  <strong id="ledger-month-expense" class="work-month-cell-val">0đ</strong>
+                </div>
+                <div class="work-month-cell">
+                  <span class="work-month-cell-lbl">Nộp quỹ</span>
+                  <strong id="ledger-month-fund" class="work-month-cell-val">0đ</strong>
+                </div>
+                <div class="work-month-cell">
+                  <span class="work-month-cell-lbl">Mượn</span>
+                  <strong id="ledger-month-borrow" class="work-month-cell-val">0đ</strong>
+                </div>
+                <div class="work-month-cell">
+                  <span class="work-month-cell-lbl">Trả nợ</span>
+                  <strong id="ledger-month-repay" class="work-month-cell-val is-net">0đ</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Form Ghi Thu Chi Cá Nhân -->
+          <form id="work-ledger-form" class="work-quick-card" onsubmit="submitWorkLedger(event)">
+            <h2 class="work-card-heading">+ Ghi thu chi cá nhân</h2>
+            <p class="work-helper-text" style="margin-top: 4px; margin-bottom: 10px;">
+              Ghi nhận nhanh các khoản chi tiêu cá nhân, thuê tool, nộp quỹ, số quỹ, mượn và trả nợ theo ngày - tháng.
+            </p>
+
+            <!-- Chọn Phân Loại -->
+            <div class="form-group">
+              <label class="form-label" for="work-ledger-category">Phân loại khoản mục</label>
+              <div class="work-cat-grid" role="group" aria-label="Chọn phân loại thu chi">
+                <button type="button" class="work-cat-chip active" data-cat="expense" onclick="setWorkLedgerCategory('expense')">
+                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                  <span>Chi tiêu / Phát sinh</span>
+                </button>
+                <button type="button" class="work-cat-chip" data-cat="fund_in" onclick="setWorkLedgerCategory('fund_in')">
+                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                  <span>Nộp Quỹ</span>
+                </button>
+                <button type="button" class="work-cat-chip" data-cat="fund_bal" onclick="setWorkLedgerCategory('fund_bal')">
+                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+                  <span>Số Quỹ</span>
+                </button>
+                <button type="button" class="work-cat-chip" data-cat="borrow" onclick="setWorkLedgerCategory('borrow')">
+                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="17" y1="7" x2="7" y2="17"/><polyline points="17 17 7 17 7 7"/></svg>
+                  <span>Mượn</span>
+                </button>
+                <button type="button" class="work-cat-chip" data-cat="repay" onclick="setWorkLedgerCategory('repay')">
+                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
+                  <span>Trả Nợ</span>
+                </button>
+              </div>
+              <input type="hidden" id="work-ledger-category" value="expense">
+            </div>
+
+            <!-- Số tiền -->
+            <div class="form-group" style="margin-top: 10px;">
+              <label class="form-label" for="work-ledger-amount">Số tiền (gõ số nghìn: 50 = 50.000đ)</label>
+              <input type="number" id="work-ledger-amount" class="form-input work-mobile-input font-tabular" placeholder="Ví dụ: 50 hoặc 50000" inputmode="numeric" min="1" required>
+              <div class="work-price-Preset-grid" aria-label="Chọn nhanh số tiền">
+                <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(10000)">10k</button>
+                <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(35000)">35k</button>
+                <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(50000)">50k</button>
+                <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(100000)">100k</button>
+                <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(150000)">150k</button>
+                <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(200000)">200k</button>
+                <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(500000)">500k</button>
+              </div>
+            </div>
+
+            <!-- Nội dung chi tiết + Chip gợi ý nhanh -->
+            <div class="form-group" style="margin-top: 10px;">
+              <label class="form-label" for="work-ledger-note">Nội dung chi tiết</label>
+              <input type="text" id="work-ledger-note" class="form-input work-mobile-input" placeholder="Ví dụ: Mua cơm, Thuê tools, Đổ xăng..." maxlength="300" required>
+              <div class="work-chips-scroll" style="margin-top: 6px;" aria-label="Gợi ý nội dung chi tiêu">
+                <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Thuê tools', 10000)">Thuê tools (10k)</button>
+                <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Mua cơm', 50000)">Mua cơm (50k)</button>
+                <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Ăn sáng', 35000)">Ăn sáng (35k)</button>
+                <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Đổ xăng', 150000)">Đổ xăng (150k)</button>
+                <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Đi ăn', 200000)">Đi ăn</button>
+                <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Nộp quỹ ngày', 100000)">Nộp quỹ ngày</button>
+              </div>
+            </div>
+
+            <button type="submit" class="btn-green-pill" style="width: 100%; margin-top: 14px;">Lưu khoản mục</button>
+          </form>
+
+          <!-- Danh sách phát sinh trong ngày đang xem -->
+          <div class="section-container" style="margin-top: 18px;">
+            <div class="section-title-header">
+              <h2 id="ledger-day-list-title" class="section-heading">Phát sinh trong ngày</h2>
+              <span id="ledger-day-list-sub" class="work-list-sub font-tabular">0 khoản</span>
+            </div>
+            <div id="work-ledger-list" class="work-items-stack"></div>
+          </div>
+
+          <!-- Bảng kê các ngày có thu chi trong tháng -->
+          <div class="section-container" style="margin-top: 22px; margin-bottom: 28px;">
+            <div class="section-title-header">
+              <h2 id="ledger-month-days-title" class="section-heading">Các ngày có thu chi trong tháng</h2>
+              <span id="ledger-month-days-sub" class="work-list-sub font-tabular">0 ngày</span>
+            </div>
+            <div id="ledger-month-days-list" class="work-items-stack"></div>
+          </div>
+        </section>
+
       </div>
 
       <!-- =====================================================================
@@ -905,13 +946,14 @@
           <span class="nav-label">Công việc</span>
         </button>
 
-        <!-- 3. Ăn uống (Checklist giảm cân) -->
-        <button type="button" class="nav-pill-btn" id="nav-btn-meals" role="tab" aria-selected="false" aria-label="Ăn uống" onclick="switchTab('meals')">
+        <!-- 3. Thu chi cá nhân -->
+        <button type="button" class="nav-pill-btn" id="nav-btn-ledger" role="tab" aria-selected="false" aria-label="Thu chi" onclick="switchTab('ledger')">
           <svg class="nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 11l3 3L22 4"/>
-            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+            <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/>
+            <path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/>
+            <path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/>
           </svg>
-          <span class="nav-label">Ăn uống</span>
+          <span class="nav-label">Thu chi</span>
         </button>
 
         <!-- 4. Cài đặt -->
@@ -1046,35 +1088,6 @@
     </div>
   </div>
 
-  <!-- MODAL: Ghi Chú Bữa Ăn Lệch Chuẩn -->
-  <div id="modal-meal-note" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-meal-title">
-    <div class="modal-dialog">
-      <div class="modal-header">
-        <h3 id="modal-meal-title" class="modal-title">Ghi chú bữa ăn / Lý do ăn lệch</h3>
-        <button type="button" class="modal-close" aria-label="Đóng" onclick="closeModal('modal-meal-note')">&times;</button>
-      </div>
-      <form onsubmit="submitMealNote(event)">
-        <input type="hidden" id="note-meal-date">
-        <input type="hidden" id="note-meal-slot">
-        <div class="form-group">
-          <label class="form-label" for="note-meal-text">Ghi lại món đã ăn lệch hoặc lý do phá cữ</label>
-          <input type="text" id="note-meal-text" class="form-input" placeholder="Ví dụ: Ăn cơm rang dưa bò, uống trà sữa..." maxlength="300" required>
-        </div>
-        <div class="field-hint" style="margin-bottom: 6px; margin-top: 10px; font-size: 12px; color: var(--text-sub); font-weight: 600;">Chọn nhanh lý do ăn không đúng chuẩn:</div>
-        <div class="chips-flex-row" style="margin-bottom: 16px;">
-          <button type="button" class="btn-chip-tag" onclick="appendNoteTag('Có đồ chiên/rán')">Có đồ chiên/rán</button>
-          <button type="button" class="btn-chip-tag" onclick="appendNoteTag('Có nội tạng/mỡ')">Có nội tạng/mỡ</button>
-          <button type="button" class="btn-chip-tag" onclick="appendNoteTag('Đồ ngọt/nước ngọt')">Đồ ngọt/nước ngọt</button>
-          <button type="button" class="btn-chip-tag" onclick="appendNoteTag('Ăn nhiều tinh bột')">Ăn nhiều tinh bột</button>
-          <button type="button" class="btn-chip-tag" onclick="appendNoteTag('Ăn quá no')">Ăn quá no</button>
-          <button type="button" class="btn-chip-tag" onclick="appendNoteTag('Ăn khuya')">Ăn khuya</button>
-          <button type="button" class="btn-chip-tag" onclick="appendNoteTag('Có uống bia rượu')">Có uống bia rượu</button>
-        </div>
-        <button type="submit" class="btn-green-pill" style="width: 100%;">Lưu ghi chú ăn lệch</button>
-      </form>
-    </div>
-  </div>
-
   <!-- MODAL: Chi Tiết Điểm Tuân Thủ Hôm Nay -->
   <div id="modal-score-breakdown" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-score-title">
     <div class="modal-dialog">
@@ -1197,6 +1210,6 @@
     </div>
   </div>
 
-  <script src="/app.js?v=40"></script>
+  <script src="/app.js?v=42"></script>
 </body>
 </html>

@@ -538,11 +538,7 @@ func (s *Server) loadMeals(db interface {
 }
 
 func activeMealSlots(set map[string]string) []meals.Slot {
-	slots := []meals.Slot{meals.Breakfast, meals.Lunch, meals.Dinner}
-	if set["snack"] == "1" {
-		slots = append(slots, meals.Snack)
-	}
-	return slots
+	return []meals.Slot{meals.Breakfast, meals.Lunch, meals.Dinner}
 }
 
 func (s *Server) loadChecklistMeals(db interface {

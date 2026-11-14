@@ -218,9 +218,9 @@
     showLoginView();
   };
 
-  // Quản lý Tab: hôm nay, công việc, ăn uống, cài đặt
+  // Quản lý Tab: hôm nay, công việc, thu chi, cài đặt
   window.switchTab = function (tabId) {
-    if (tabId === 'records') tabId = 'meals';
+    if (tabId === 'records' || tabId === 'meals') tabId = 'today';
     if (tabId === 'overview' || !document.getElementById('tab-' + tabId)) {
       tabId = 'today';
     }
@@ -240,8 +240,7 @@
       navBtn.setAttribute('aria-selected', 'true');
     }
 
-    if (tabId === 'meals') loadMeals();
-    if (tabId === 'work') loadWorkData();
+    if (tabId === 'work' || tabId === 'ledger') loadWorkData();
     if (tabId === 'settings') {
       loadSettingsData();
     }
@@ -255,7 +254,7 @@
 
   function setupRouting() {
     const hash = window.location.hash.replace('#', '');
-    if (['today', 'work', 'meals', 'settings'].includes(hash)) {
+    if (['today', 'work', 'ledger', 'settings'].includes(hash)) {
       switchTab(hash);
     }
   }
@@ -491,9 +490,9 @@
       const weightPts = hasWeight ? 15 : 0;
       score += weightPts;
 
-      // 4. Ăn đúng thực phẩm giảm cân: tối đa 15 điểm (5 điểm mỗi bữa chính ăn đúng chuẩn: sáng, trưa, tối)
+      // 4. Bữa ăn Healthy: tối đa 15 điểm (5 điểm mỗi bữa: sáng, trưa, tối)
       const meals = state.todayMeals || [];
-      const mainMeals = meals.filter(m => m.slot !== 'snack');
+      const mainMeals = meals.filter(m => ['breakfast', 'lunch', 'dinner'].includes(m.slot));
       let mealPts = 0;
       let doneMealsCount = 0;
       if (mainMeals.length > 0) {
@@ -589,7 +588,7 @@
       const weightPts = hasWeight ? 15 : 0;
 
       const meals = state.todayMeals || [];
-      const mainMeals = meals.filter(m => m.slot !== 'snack');
+      const mainMeals = meals.filter(m => ['breakfast', 'lunch', 'dinner'].includes(m.slot));
       const doneMeals = mainMeals.filter(m => m.status === 'done').length;
       const mealPts = Math.min(15, doneMeals * 5);
 
@@ -648,12 +647,12 @@
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
               <span style="font-weight: 700; font-size: 13.5px; color: var(--text-main); display: inline-flex; align-items: center; gap: 6px;">
                 <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#2B5719" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-                <span>Ăn đúng thực phẩm giảm cân (3 bữa)</span>
+                <span>Bữa ăn Healthy (3 bữa)</span>
               </span>
               <span style="font-weight: 800; color: ${mealPts ? 'var(--color-score-ring)' : 'var(--text-muted)'};" class="font-tabular">${mealPts}/15 đ</span>
             </div>
             <div style="font-size: 12.5px; color: var(--text-sub);">
-              Đã ăn đúng <strong class="font-tabular">${doneMeals}/3</strong> bữa trong ngày (5 điểm mỗi bữa ăn đúng)
+              Đã ăn <strong class="font-tabular">${doneMeals}/3</strong> bữa Healthy hôm nay (5 điểm mỗi bữa)
             </div>
           </div>
         </div>
@@ -1088,54 +1087,16 @@
       } catch (err) { }
     };
 
-    // --- CHECKLIST ĂN ĐÚNG THỰC PHẨM GIẢM CÂN (MẶC ĐỊNH 3 BỮA) ---
+    // --- CHECKLIST 3 BỮA ĂN HEALTHY HÔM NAY (GIỐNG THUỐC BỔ GAN: ĐÃ ĂN / CHƯA ĂN) ---
+    const MEAL_SLOT_ORDER = ['breakfast', 'lunch', 'dinner'];
     const MEAL_SLOT_META = {
-      breakfast: { label: 'Bữa sáng', short: 'Sáng', hint: '06:30 – 08:30', order: 1 },
-      lunch: { label: 'Bữa trưa', short: 'Trưa', hint: '11:30 – 13:00', order: 2 },
-      dinner: { label: 'Bữa tối', short: 'Tối', hint: '18:00 – 19:30', order: 3 },
-      snack: { label: 'Bữa phụ', short: 'Phụ', hint: '15:30 – 16:30', order: 4 }
-    };
-
-    const MEAL_FOOD_CHIPS = {
-      breakfast: [
-        'Trứng luộc/hấp',
-        'Khoai lang/Ngô luộc',
-        'Ức gà/Thịt nạc',
-        'Đậu phụ',
-        'Sữa không đường',
-        'Rau củ/Dưa leo',
-        'Không dầu mỡ/đồ ngọt'
-      ],
-      lunch: [
-        'Ức gà/Thịt thăn luộc',
-        'Cá hấp/om nhạt',
-        'Đậu phụ/Trứng',
-        'Rau xanh luộc/Canh',
-        'Khoai/Cơm vừa phải (≤1 bát)',
-        'Không chiên rán/nước ngọt'
-      ],
-      dinner: [
-        'Ức gà/Cá hấp/Đậu phụ',
-        'Thịt nạc luộc',
-        'Nhiều rau luộc/Canh',
-        'Ít tinh bột (≤½-1 bát)',
-        'Không ăn khuya/bia rượu'
-      ],
-      snack: [
-        'Ổi/Thanh long/Đu đủ/Cam',
-        'Cà chua bi/Dưa leo',
-        'Sữa chua không đường',
-        'Lạc luộc lượng nhỏ',
-        'Không bánh kẹo/trà sữa'
-      ]
+      breakfast: { label: 'Bữa sáng Healthy', hint: '06:30 – 08:30', order: 1 },
+      lunch: { label: 'Bữa trưa Healthy', hint: '11:30 – 13:00', order: 2 },
+      dinner: { label: 'Bữa tối Healthy', hint: '18:00 – 19:30', order: 3 }
     };
 
     function defaultMealsForDate(date) {
-      const slots = ['breakfast', 'lunch', 'dinner'];
-      if (state.settings && state.settings.snack === '1') {
-        slots.push('snack');
-      }
-      return slots.map(slot => ({
+      return MEAL_SLOT_ORDER.map(slot => ({
         date,
         slot,
         items: [],
@@ -1145,12 +1106,27 @@
       }));
     }
 
-    function renderMealsWidget() {
-      const mealsList = (state.todayMeals && state.todayMeals.length > 0)
-        ? state.todayMeals
-        : defaultMealsForDate(state.today);
+    function normalizeTodayHealthyMeals() {
+      const bySlot = new Map();
+      (state.todayMeals || []).forEach(m => {
+        if (m && MEAL_SLOT_ORDER.includes(m.slot)) {
+          bySlot.set(m.slot, m);
+        }
+      });
+      return MEAL_SLOT_ORDER.map(slot => bySlot.get(slot) || {
+        date: state.today,
+        slot,
+        items: [],
+        kcal: 0,
+        status: 'pending',
+        note: ''
+      });
+    }
 
-      const target = Math.max(1, mealsList.length);
+    function renderMealsWidget() {
+      const mealsList = normalizeTodayHealthyMeals();
+      state.todayMeals = mealsList;
+      const target = mealsList.length;
       const doneCount = mealsList.filter(m => m.status === 'done').length;
       const pct = Math.min(100, Math.round((doneCount / target) * 100));
 
@@ -1168,23 +1144,26 @@
 
       const grid = document.getElementById('today-meal-checklist-grid');
       if (grid) {
-        grid.innerHTML = mealsList.map(m => {
-          const meta = MEAL_SLOT_META[m.slot] || { label: m.slot, short: m.slot, hint: '' };
+        const firstPendingIdx = mealsList.findIndex(m => m.status !== 'done');
+        grid.innerHTML = mealsList.map((m, i) => {
+          const meta = MEAL_SLOT_META[m.slot] || { label: m.slot, hint: '' };
           const isDone = m.status === 'done';
-          const isSwapped = m.status === 'swapped';
-          const stateCls = isDone ? 'done' : (isSwapped ? 'swapped' : '');
+          const isNext = !isDone && i === firstPendingIdx;
+          const stateCls = isDone ? 'done' : (isNext ? 'next-dose' : '');
           const icon = isDone
-            ? `<svg class="ui-inline-svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>`
-            : (isSwapped
-              ? `<svg class="ui-inline-svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`
-              : `<svg class="ui-inline-svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/></svg>`);
-          const statusText = isDone ? 'Đã ăn đúng' : (isSwapped ? 'Ăn lệch' : 'Bấm nếu ăn đúng');
+            ? `<svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>`
+            : (isNext
+              ? `<svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`
+              : `<svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/></svg>`);
+          const statusText = isDone
+            ? 'Đã ăn'
+            : (isNext ? 'Chưa ăn • Bấm để đánh dấu' : 'Chưa ăn');
 
           return `
-          <button type="button" class="btn-med-dose-pill btn-meal-dose-pill ${stateCls} font-tabular" onclick="toggleTodayMealQuick('${m.slot}')" aria-pressed="${isDone}">
+          <button type="button" class="btn-med-dose-pill ${stateCls} font-tabular" onclick="toggleTodayMealQuick('${m.slot}')" aria-pressed="${isDone}">
             <div class="med-dose-top">
-              <span class="med-dose-title">${meta.label}</span>
-              <span class="med-dose-time">${meta.short}</span>
+              <span class="med-dose-title">${escapeHtml(meta.label)}</span>
+              <span class="med-dose-time">${escapeHtml(meta.hint)}</span>
             </div>
             <span class="med-dose-status">${icon}<span>${statusText}</span></span>
           </button>`;
@@ -1193,39 +1172,40 @@
     }
 
     window.toggleTodayMealQuick = async function (slot) {
-      if (!state.todayMeals || state.todayMeals.length === 0) {
-        state.todayMeals = defaultMealsForDate(state.today);
-      }
+      if (!MEAL_SLOT_ORDER.includes(slot)) return;
+      state.todayMeals = normalizeTodayHealthyMeals();
       const meal = state.todayMeals.find(m => m.slot === slot);
       if (!meal) return;
 
       const prevStatus = meal.status;
       const prevNote = meal.note || '';
       const nextStatus = prevStatus === 'done' ? 'pending' : 'done';
-      const nextNote = nextStatus === 'done' ? (prevStatus === 'done' ? prevNote : '') : '';
 
       meal.status = nextStatus;
-      meal.note = nextNote;
+      meal.note = '';
       renderMealsWidget();
       renderDailyHealthScore();
 
       try {
         const res = await api('/api/meals/check', {
           method: 'POST',
-          body: JSON.stringify({ date: state.today, slot, status: nextStatus, note: nextNote })
+          body: JSON.stringify({ date: state.today, slot, status: nextStatus, note: '' })
         });
         meal.status = res.status;
         meal.note = res.note || '';
-        syncMealStateEverywhere(state.today, slot, res.status, res.note || '');
         renderMealsWidget();
         renderDailyHealthScore();
-        if (state.activeTab === 'meals') {
-          renderMealChecklistScreen();
-        }
+
+        const target = MEAL_SLOT_ORDER.length;
+        const doneCount = state.todayMeals.filter(m => m.status === 'done').length;
         const meta = MEAL_SLOT_META[slot] || { label: slot };
-        showToast(res.status === 'done'
-          ? `Đã đánh dấu ${meta.label.toLowerCase()} ăn đúng thực phẩm giảm cân`
-          : `Đã đặt lại trạng thái ${meta.label.toLowerCase()}`);
+        if (res.status === 'done') {
+          showToast(doneCount >= target
+            ? `Đã ăn đủ ${doneCount}/${target} bữa Healthy hôm nay!`
+            : `Đã đánh dấu ${meta.label} (${doneCount}/${target} bữa)`);
+        } else {
+          showToast(`Đã bỏ đánh dấu ${meta.label} (${doneCount}/${target} bữa)`);
+        }
       } catch (e) {
         meal.status = prevStatus;
         meal.note = prevNote;
@@ -1234,278 +1214,8 @@
       }
     };
 
-    function syncMealStateEverywhere(date, slot, status, note) {
-      const updateRow = (arr) => {
-        if (!Array.isArray(arr)) return;
-        const item = arr.find(m => m.date === date && m.slot === slot);
-        if (item) {
-          item.status = status;
-          item.note = note;
-        }
-      };
-      updateRow(state.mealDayRows);
-      if (date === state.today) {
-        updateRow(state.todayMeals);
-      }
-    }
-
     window.openNotificationsModal = function () {
       showToast('Tất cả chỉ số sức khoẻ hôm nay đang được theo dõi ổn định!');
-    };
-
-    // ================= 2. CHECKLIST ĂN ĐÚNG THỰC PHẨM GIẢM CÂN (CHỈ HÔM NAY) =================
-    async function loadMeals() {
-      const container = document.getElementById('meals-list-container');
-      if (!container) return;
-      container.innerHTML = '<div style="text-align: center; padding: 24px 0; color: var(--text-muted); font-size: 13px;">Đang tải checklist bữa ăn hôm nay...</div>';
-
-      try {
-        const data = await api('/api/meals');
-        if (data.today) {
-          state.today = data.today;
-        }
-        const rows = (data.rows && data.rows.length > 0) ? data.rows : defaultMealsForDate(state.today);
-        state.mealDayRows = rows;
-        state.todayMeals = rows.map(r => Object.assign({}, r));
-        if (data.meals_target) {
-          state.mealsTarget = data.meals_target;
-        }
-
-        renderMealsWidget();
-        renderDailyHealthScore();
-        renderMealChecklistScreen();
-      } catch (e) {
-        container.innerHTML = '<div style="text-align: center; color: #ef4444; padding: 20px;">Không tải được checklist bữa ăn hôm nay. Vui lòng thử lại.</div>';
-      }
-    }
-
-    function findMealRow(date, slot) {
-      const inDay = (state.mealDayRows || []).find(m => m.date === date && m.slot === slot);
-      if (inDay) return inDay;
-      if (date === state.today) {
-        return (state.todayMeals || []).find(m => m.slot === slot);
-      }
-      return null;
-    }
-
-    function renderMealChecklistScreen() {
-      const activeDate = state.today;
-
-      let dayRows = (state.mealDayRows || []).filter(m => m.date === activeDate);
-      if (dayRows.length === 0) {
-        dayRows = (state.todayMeals || []).filter(m => !m.date || m.date === activeDate);
-      }
-      if (dayRows.length === 0) {
-        dayRows = defaultMealsForDate(activeDate);
-      }
-
-      const totalCount = Math.max(1, dayRows.length);
-      const doneCount = dayRows.filter(m => m.status === 'done').length;
-      const mainDoneCount = dayRows.filter(m => m.slot !== 'snack' && m.status === 'done').length;
-      const scorePts = Math.min(15, mainDoneCount * 5);
-      const pct = Math.min(100, Math.round((doneCount / totalCount) * 100));
-
-      const curCountEl = document.getElementById('meal-screen-cur-count');
-      if (curCountEl) curCountEl.textContent = String(doneCount);
-
-      const targetCountEl = document.getElementById('meal-screen-target-count');
-      if (targetCountEl) targetCountEl.textContent = `${totalCount} bữa`;
-
-      const scoreBadgeEl = document.getElementById('meal-screen-score-badge');
-      if (scoreBadgeEl) scoreBadgeEl.textContent = `+${scorePts}/15 điểm`;
-
-      const fillEl = document.getElementById('meal-screen-progress-fill');
-      if (fillEl) fillEl.style.width = `${pct}%`;
-
-      const statusPillEl = document.getElementById('meal-screen-status-pill');
-      if (statusPillEl) {
-        if (doneCount >= totalCount) {
-          statusPillEl.textContent = `Đạt ${doneCount}/${totalCount} bữa`;
-          statusPillEl.className = 'badge-status-pill badge-normal font-tabular';
-        } else if (dayRows.some(m => m.status === 'swapped')) {
-          statusPillEl.textContent = `Có bữa ăn lệch`;
-          statusPillEl.className = 'badge-status-pill badge-low font-tabular';
-        } else {
-          statusPillEl.textContent = `Mặc định ${totalCount} bữa/ngày`;
-          statusPillEl.className = 'badge-status-pill badge-normal font-tabular';
-        }
-      }
-
-      const container = document.getElementById('meals-list-container');
-      if (container) {
-        container.innerHTML = dayRows.map(slotMeal => {
-          const meta = MEAL_SLOT_META[slotMeal.slot] || { label: slotMeal.slot, hint: '', order: 1 };
-          const chips = MEAL_FOOD_CHIPS[slotMeal.slot] || [];
-          const isDone = slotMeal.status === 'done';
-          const isSwapped = slotMeal.status === 'swapped';
-          const cardCls = isDone ? 'is-done' : (isSwapped ? 'is-swapped' : 'is-pending');
-
-          const selectedList = (isDone && slotMeal.note)
-            ? slotMeal.note.split(',').map(s => s.trim()).filter(Boolean)
-            : [];
-
-          let statusBadge = `<span class="meal-status-pill is-pending">Chưa ghi nhận</span>`;
-          if (isDone) {
-            statusBadge = `<span class="meal-status-pill is-done">✓ Đã ăn đúng chuẩn</span>`;
-          } else if (isSwapped) {
-            statusBadge = `<span class="meal-status-pill is-swapped">⚠ Ăn lệch chuẩn</span>`;
-          }
-
-          let noteBoxHtml = '';
-          if (isSwapped) {
-            noteBoxHtml = `
-            <div class="meal-note-banner is-swapped">
-              <strong>Lý do / món ăn lệch:</strong> ${escapeHtml(slotMeal.note || 'Chưa ghi chú chi tiết')}
-            </div>`;
-          } else if (isDone && selectedList.length > 0) {
-            noteBoxHtml = `
-            <div class="meal-note-banner is-done">
-              <strong>Đã ăn đúng:</strong> ${escapeHtml(selectedList.join(', '))}
-            </div>`;
-          } else if (isDone) {
-            noteBoxHtml = `
-            <div class="meal-note-banner is-done">
-              <strong>Đã xác nhận:</strong> Ăn đúng thực phẩm giảm cân trong bữa này.
-            </div>`;
-          }
-
-          const chipsHtml = chips.map((chipLabel, idx) => {
-            const active = selectedList.includes(chipLabel);
-            return `<button type="button" class="btn-meal-food-chip ${active ? 'active' : ''}" aria-pressed="${active}" onclick="toggleMealFoodChip('${activeDate}', '${slotMeal.slot}', ${idx})">${active ? '✓ ' : '+ '}${escapeHtml(chipLabel)}</button>`;
-          }).join('');
-
-          return `
-          <div class="meal-checklist-card ${cardCls}">
-            <div class="meal-checklist-header">
-              <div>
-                <h3 class="meal-checklist-title">${meta.order}. ${meta.label}</h3>
-                <span class="meal-checklist-time font-tabular">${meta.hint}</span>
-              </div>
-              ${statusBadge}
-            </div>
-
-            ${noteBoxHtml}
-
-            <div class="meal-chips-section">
-              <div class="meal-chips-label">Chạm chọn các nhóm thực phẩm giảm cân đã ăn:</div>
-              <div class="meal-food-chips-wrap">${chipsHtml}</div>
-            </div>
-
-            <div class="meal-check-actions">
-              <button type="button" class="btn-meal-action btn-meal-done ${isDone ? 'active' : ''}" onclick="checkMeal('${activeDate}', '${slotMeal.slot}', 'done')">
-                ✓ Ăn đúng chuẩn
-              </button>
-              <button type="button" class="btn-meal-action btn-meal-diff ${isSwapped ? 'active' : ''}" onclick="openMealNoteModal('${activeDate}', '${slotMeal.slot}')">
-                ⚠ Ăn lệch / Ghi chú
-              </button>
-              ${slotMeal.status !== 'pending' ? `<button type="button" class="btn-meal-action btn-meal-reset" onclick="checkMeal('${activeDate}', '${slotMeal.slot}', 'pending')">Đặt lại</button>` : ''}
-            </div>
-          </div>`;
-        }).join('');
-      }
-    }
-
-    window.toggleMealFoodChip = async function (date, slot, chipIndex) {
-      const chips = MEAL_FOOD_CHIPS[slot] || [];
-      const chipLabel = chips[chipIndex];
-      if (!chipLabel) return;
-
-      const meal = findMealRow(date, slot);
-      const currentSelected = (meal && meal.status === 'done' && meal.note)
-        ? meal.note.split(',').map(s => s.trim()).filter(Boolean)
-        : [];
-
-      const set = new Set(currentSelected);
-      if (set.has(chipLabel)) {
-        set.delete(chipLabel);
-      } else {
-        set.add(chipLabel);
-      }
-
-      const ordered = chips.filter(c => set.has(c));
-      currentSelected.forEach(c => {
-        if (!chips.includes(c) && set.has(c)) ordered.push(c);
-      });
-
-      const nextStatus = ordered.length > 0 ? 'done' : 'pending';
-      const nextNote = ordered.join(', ');
-      await checkMeal(date, slot, nextStatus, nextNote, true);
-    };
-
-    window.checkMeal = async function (date, slot, status, customNote, silentToast = false) {
-      const existing = findMealRow(date, slot);
-      let noteToSend = '';
-      if (customNote !== undefined) {
-        noteToSend = customNote;
-      } else if (status === 'done' && existing && existing.status === 'done' && existing.note) {
-        noteToSend = existing.note;
-      }
-
-      try {
-        const res = await api('/api/meals/check', {
-          method: 'POST',
-          body: JSON.stringify({ date, slot, status, note: noteToSend })
-        });
-        syncMealStateEverywhere(date, slot, res.status, res.note || '');
-        renderMealChecklistScreen();
-        if (date === state.today) {
-          renderMealsWidget();
-          renderDailyHealthScore();
-        }
-        if (!silentToast) {
-          const meta = MEAL_SLOT_META[slot] || { label: slot };
-          if (res.status === 'done') {
-            showToast(`Đã ghi nhận ${meta.label.toLowerCase()} ăn đúng chuẩn giảm cân`);
-          } else {
-            showToast(`Đã đặt lại trạng thái ${meta.label.toLowerCase()}`);
-          }
-        }
-      } catch (e) { }
-    };
-
-    window.openMealNoteModal = function (date, slot) {
-      const meal = findMealRow(date, slot);
-      const curNote = (meal && meal.status === 'swapped') ? (meal.note || '') : '';
-      document.getElementById('note-meal-date').value = date;
-      document.getElementById('note-meal-slot').value = slot;
-      document.getElementById('note-meal-text').value = curNote;
-      openModal('modal-meal-note');
-    };
-
-    window.appendNoteTag = function (tag) {
-      const input = document.getElementById('note-meal-text');
-      if (!input) return;
-      if (input.value) {
-        const existingTags = input.value.split(',').map(s => s.trim()).filter(Boolean);
-        if (!existingTags.includes(tag)) {
-          input.value = existingTags.concat(tag).join(', ');
-        }
-      } else {
-        input.value = tag;
-      }
-    };
-
-    window.submitMealNote = async function (e) {
-      e.preventDefault();
-      const date = document.getElementById('note-meal-date').value;
-      const slot = document.getElementById('note-meal-slot').value;
-      const note = document.getElementById('note-meal-text').value.trim();
-      if (!note) return;
-
-      try {
-        const res = await api('/api/meals/check', {
-          method: 'POST',
-          body: JSON.stringify({ date, slot, status: 'swapped', note })
-        });
-        closeModal('modal-meal-note');
-        syncMealStateEverywhere(date, slot, res.status, res.note || note);
-        renderMealChecklistScreen();
-        if (date === state.today) {
-          renderMealsWidget();
-          renderDailyHealthScore();
-        }
-        showToast('Đã lưu ghi chú bữa ăn lệch chuẩn');
-      } catch (e) { }
     };
 
     // ================= 4. CÀI ĐẶT & NHẮC NHỞ =================
@@ -1535,7 +1245,6 @@
         if (document.getElementById('set-t-weight')) document.getElementById('set-t-weight').value = s.t_weight || '06:30';
         if (document.getElementById('set-t-med')) document.getElementById('set-t-med').value = s.t_med || '08:00';
         if (document.getElementById('set-t-sleep')) document.getElementById('set-t-sleep').value = s.t_sleep || '22:30';
-        if (document.getElementById('set-snack')) document.getElementById('set-snack').value = s.snack || '0';
 
         if (s.remind_weight_times !== undefined) {
           reminderState.weight = s.remind_weight_times ? s.remind_weight_times.split(',').map(t => t.trim()).filter(Boolean) : [];
@@ -1679,7 +1388,7 @@
         t_weight: document.getElementById('set-t-weight')?.value || (reminderState.weight && reminderState.weight[0]) || state.settings?.t_weight || '06:30',
         t_med: document.getElementById('set-t-med')?.value || (reminderState.med && reminderState.med[0]) || state.settings?.t_med || '08:00',
         t_sleep: document.getElementById('set-t-sleep')?.value || (reminderState.sleep && reminderState.sleep[0]) || state.settings?.t_sleep || '22:30',
-        snack: document.getElementById('set-snack')?.value || '0',
+        snack: '0',
         remind_weight_times: (reminderState.weight || []).join(','),
         remind_med_times: (reminderState.med || []).join(','),
         remind_water_times: (reminderState.water || []).join(','),
@@ -2106,7 +1815,8 @@
       month: '',
       today: '',
       heroScope: 'day', // 'day' | 'month'
-      subTab: 'jobs', // 'jobs' | 'unpaid' | 'ledger' | 'month'
+      ledgerScope: 'day', // 'day' | 'month'
+      subTab: 'jobs', // 'jobs' | 'unpaid' | 'month'
       jobs: [],
       ledger: [],
       daySummary: {},
@@ -2718,13 +2428,18 @@
       renderWorkJobsList();
       renderWorkMonthDays();
       renderWorkUnpaidGroups();
-      renderWorkLedgerList();
       renderWorkMonthReport();
+      renderLedgerScreen();
     }
 
     window.setWorkHeroScope = function (scope) {
       workState.heroScope = scope === 'month' ? 'month' : 'day';
       renderWorkScreen();
+    };
+
+    window.setLedgerHeroScope = function (scope) {
+      workState.ledgerScope = scope === 'month' ? 'month' : 'day';
+      renderLedgerScreen();
     };
 
     window.stepWorkDate = function (delta) {
@@ -2752,8 +2467,12 @@
     };
 
     window.switchWorkSubTab = function (sub) {
+      if (sub === 'ledger') {
+        switchTab('ledger');
+        return;
+      }
       workState.subTab = sub;
-      ['jobs', 'unpaid', 'ledger', 'month'].forEach(k => {
+      ['jobs', 'unpaid', 'month'].forEach(k => {
         const btn = document.getElementById('work-subtab-btn-' + k);
         const pane = document.getElementById('work-subpane-' + k);
         if (btn) {
@@ -3377,14 +3096,115 @@
       }
     }
 
+    function renderLedgerScreen() {
+      const curDate = workState.date || state.today || '';
+      const todayDate = workState.today || state.today || curDate;
+      const curMonth = workState.month || (curDate ? curDate.slice(0, 7) : '');
+
+      const dateInput = document.getElementById('ledger-date-input');
+      if (dateInput) dateInput.value = curDate;
+
+      const humanEl = document.getElementById('ledger-date-human');
+      if (humanEl && curDate) {
+        if (curDate === todayDate) {
+          humanEl.textContent = `Hôm nay (${formatDayMonth(curDate)})`;
+        } else if (curDate === shiftDateStr(todayDate, -1)) {
+          humanEl.textContent = `Hôm qua (${formatDayMonth(curDate)})`;
+        } else {
+          humanEl.textContent = `Ngày ${formatDayMonth(curDate)}`;
+        }
+      }
+
+      const todayBtn = document.getElementById('btn-ledger-today');
+      if (todayBtn) {
+        todayBtn.style.opacity = curDate === todayDate ? '0.55' : '1';
+      }
+
+      const vault = readFinanceVaultSync();
+      const allLedger = Array.isArray(vault.ledger) ? vault.ledger : [];
+      const monthLedger = curMonth
+        ? allLedger.filter(l => (l.date || '').startsWith(curMonth + '-'))
+        : [];
+      const dayLedger = workState.ledger || [];
+
+      const ds = workState.daySummary || {};
+      const ms = workState.monthSummary || {};
+      const isMonthScope = workState.ledgerScope === 'month';
+      const activeSum = isMonthScope ? ms : ds;
+
+      const btnScopeDay = document.getElementById('btn-ledger-scope-day');
+      const btnScopeMonth = document.getElementById('btn-ledger-scope-month');
+      if (btnScopeDay) btnScopeDay.classList.toggle('active', !isMonthScope);
+      if (btnScopeMonth) btnScopeMonth.classList.toggle('active', isMonthScope);
+
+      let monthHuman = curMonth;
+      if (curMonth && curMonth.includes('-')) {
+        const mParts = curMonth.split('-');
+        monthHuman = `Tháng ${parseInt(mParts[1], 10)}/${mParts[0]}`;
+      }
+
+      const setTxt = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val;
+      };
+
+      setTxt('ledger-month-badge', monthHuman);
+      setTxt(
+        'ledger-summary-date-label',
+        isMonthScope
+          ? `Tổng chi tiêu ${monthHuman}`
+          : (curDate === todayDate ? 'Tổng chi tiêu hôm nay' : `Chi tiêu ngày ${formatDayMonth(curDate)}`)
+      );
+      setTxt('ledger-day-count-pill', `${isMonthScope ? monthLedger.length : dayLedger.length} khoản`);
+
+      const expStr = formatVND(activeSum.expense_amount || 0);
+      setTxt('ledger-hero-expense', expStr);
+      const expEl = document.getElementById('ledger-hero-expense');
+      if (expEl) expEl.classList.toggle('is-long', expStr.length >= 12);
+
+      setTxt('ledger-hero-net', formatVND(activeSum.net_cash || 0));
+      setTxt('ledger-stat-expense', formatShortK(activeSum.expense_amount || 0));
+      setTxt('ledger-stat-fund-in', formatShortK(activeSum.fund_in || 0));
+      setTxt('ledger-stat-borrow', formatShortK(activeSum.borrow_amount || 0));
+      setTxt('ledger-stat-repay', formatShortK(activeSum.repay_amount || 0));
+
+      const fundBalRow = document.getElementById('ledger-stat-fund-bal-row');
+      if (fundBalRow) {
+        if ((activeSum.fund_bal || 0) > 0) {
+          fundBalRow.style.display = 'flex';
+          fundBalRow.innerHTML = `<span class="work-extra-pill font-tabular">${workIconSVG('fund_bal', 13)} <span>Số quỹ: ${formatShortK(activeSum.fund_bal)}</span></span>`;
+        } else {
+          fundBalRow.style.display = 'none';
+          fundBalRow.innerHTML = '';
+        }
+      }
+
+      setTxt('ledger-month-label', `Tổng kết ${monthHuman}`);
+      setTxt('ledger-month-count', `${monthLedger.length} khoản`);
+      setTxt('ledger-month-expense', formatShortK(ms.expense_amount || 0));
+      setTxt('ledger-month-fund', formatShortK(ms.fund_in || 0));
+      setTxt('ledger-month-borrow', formatShortK(ms.borrow_amount || 0));
+      setTxt('ledger-month-repay', formatShortK(ms.repay_amount || 0));
+
+      renderWorkLedgerList();
+      renderLedgerMonthDays(monthLedger, monthHuman);
+    }
+
     function renderWorkLedgerList() {
       const container = document.getElementById('work-ledger-list');
-      if (!container) return;
+      const titleEl = document.getElementById('ledger-day-list-title');
+      const subEl = document.getElementById('ledger-day-list-sub');
       const list = workState.ledger || [];
+      const dm = formatDayMonth(workState.date);
+
+      if (titleEl) titleEl.textContent = dm ? `Phát sinh ngày ${dm}` : 'Phát sinh trong ngày';
+      if (subEl) subEl.textContent = `${list.length} khoản`;
+      if (!container) return;
+
       if (list.length === 0) {
         container.innerHTML = `
         <div class="empty-state-box">
-          Chưa có khoản chi tiêu, nộp quỹ hay mượn/trả nợ nào trong ngày ${formatVNDate(workState.date)}.
+          Chưa có khoản chi tiêu, nộp quỹ hay mượn/trả nợ nào trong ngày ${dm || formatVNDate(workState.date)}.
         </div>
       `;
         return;
@@ -3407,6 +3227,59 @@
         </div>
       </div>
     `).join('');
+    }
+
+    function renderLedgerMonthDays(monthLedger, monthHuman) {
+      const container = document.getElementById('ledger-month-days-list');
+      const titleEl = document.getElementById('ledger-month-days-title');
+      const subEl = document.getElementById('ledger-month-days-sub');
+      if (titleEl) {
+        titleEl.textContent = monthHuman ? `Các ngày có thu chi (${monthHuman})` : 'Các ngày có thu chi trong tháng';
+      }
+
+      const byDate = {};
+      (monthLedger || []).forEach(item => {
+        if (!item || !item.date) return;
+        if (!byDate[item.date]) {
+          byDate[item.date] = { date: item.date, count: 0, expense: 0, fund_in: 0, borrow: 0, repay: 0 };
+        }
+        const amt = Number(item.amount) || 0;
+        byDate[item.date].count++;
+        if (item.category === 'expense') byDate[item.date].expense += amt;
+        if (item.category === 'fund_in') byDate[item.date].fund_in += amt;
+        if (item.category === 'borrow') byDate[item.date].borrow += amt;
+        if (item.category === 'repay') byDate[item.date].repay += amt;
+      });
+
+      const days = Object.values(byDate).sort((a, b) => (a.date < b.date ? 1 : -1));
+      if (subEl) subEl.textContent = `${days.length} ngày`;
+      if (!container) return;
+
+      if (days.length === 0) {
+        container.innerHTML = `<div class="empty-state-box">Chưa có khoản thu chi nào trong ${escapeHTML(monthHuman || 'tháng này')}.</div>`;
+        return;
+      }
+
+      container.innerHTML = days.map(d => {
+        const isSelected = d.date === workState.date;
+        const details = [`${d.count} khoản`];
+        if (d.expense > 0) details.push(`Chi ${formatShortK(d.expense)}`);
+        if (d.fund_in > 0) details.push(`Quỹ ${formatShortK(d.fund_in)}`);
+        if (d.borrow > 0) details.push(`Mượn ${formatShortK(d.borrow)}`);
+        if (d.repay > 0) details.push(`Trả ${formatShortK(d.repay)}`);
+
+        return `
+        <button type="button" class="work-day-brief-row font-tabular" style="${isSelected ? 'border-color: #6CA844; background-color: #F2F9EE;' : ''}" onclick="loadWorkData('${d.date}')">
+          <div>
+            <strong style="font-size: 13.5px; color: var(--text-main);">Ngày ${formatDayMonth(d.date)}</strong>
+            <div style="font-size: 11.5px; color: var(--text-sub); margin-top: 2px;">${details.join(' &bull; ')}</div>
+          </div>
+          <div style="text-align: right;">
+            <span style="font-size: 14.5px; font-weight: 800; color: #1E3B13;">${formatShortK(d.expense)}</span>
+            <div style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); margin-top: 1px;">${d.fund_in > 0 ? 'Quỹ ' + formatShortK(d.fund_in) : d.count + ' mục'}</div>
+          </div>
+        </button>`;
+      }).join('');
     }
 
     window.deleteWorkLedger = async function (id) {
