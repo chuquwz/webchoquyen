@@ -562,6 +562,10 @@
         const curW = state.todayWeight !== null && state.todayWeight !== undefined ? state.todayWeight : state.currentWeight;
         weightSummary.textContent = curW ? curW.toFixed(1) : '--';
       }
+      const weightWaveEl = document.getElementById('summary-weight-theme-level');
+      if (weightWaveEl) {
+        weightWaveEl.style.setProperty('--weight-level', hasWeight ? '58%' : '36%');
+      }
       const medSummary = document.getElementById('summary-med-display');
       if (medSummary) {
         if (medCount >= medTarget) {
@@ -569,15 +573,20 @@
           medSummary.style.color = '#2B5719';
         } else if (medCount > 0) {
           medSummary.textContent = `${medCount}/${medTarget} lần`;
-          medSummary.style.color = '#B45309';
+          medSummary.style.color = '#9E4707';
         } else {
           medSummary.textContent = `0/${medTarget} lần`;
-          medSummary.style.color = '#C2410C';
+          medSummary.style.color = '#B23A09';
         }
       }
+      const medWaveEl = document.getElementById('summary-med-theme-level');
+      if (medWaveEl) {
+        const medPct = Math.round(30 + Math.min(1, medCount / medTarget) * 58);
+        medWaveEl.style.setProperty('--med-level', `${medPct}%`);
+      }
       const mealsSummary = document.getElementById('summary-meals-display');
+      const mealsTarget = MEAL_SLOT_ORDER.length;
       if (mealsSummary) {
-        const mealsTarget = MEAL_SLOT_ORDER.length;
         if (doneMealsCount >= mealsTarget) {
           mealsSummary.textContent = `Đủ ${mealsTarget}/${mealsTarget} bữa`;
           mealsSummary.style.color = '#2B5719';
@@ -588,6 +597,11 @@
           mealsSummary.textContent = `0/${mealsTarget} bữa`;
           mealsSummary.style.color = '#9A4A08';
         }
+      }
+      const mealsWaveEl = document.getElementById('summary-meals-theme-level');
+      if (mealsWaveEl) {
+        const mealsPct = Math.round(30 + Math.min(1, doneMealsCount / mealsTarget) * 58);
+        mealsWaveEl.style.setProperty('--meals-level', `${mealsPct}%`);
       }
     }
 
@@ -2735,17 +2749,6 @@
       const dateInput = document.getElementById('work-date-input');
       if (dateInput) dateInput.value = workState.date;
 
-      const humanEl = document.getElementById('work-date-human');
-      if (humanEl) {
-        if (workState.date === workState.today) {
-          humanEl.textContent = `Hôm nay (${formatDayMonth(workState.date)})`;
-        } else if (workState.date === shiftDateStr(workState.today, -1)) {
-          humanEl.textContent = `Hôm qua (${formatDayMonth(workState.date)})`;
-        } else {
-          humanEl.textContent = `Ngày ${formatDayMonth(workState.date)}`;
-        }
-      }
-
       const todayBtn = document.getElementById('btn-work-today');
       if (todayBtn) {
         todayBtn.style.opacity = workState.date === workState.today ? '0.55' : '1';
@@ -2784,10 +2787,8 @@
         revEl.classList.toggle('is-long', revFormatted.length >= 12);
       }
       setTxt('work-day-job-count', `${activeSum.total_jobs || 0} đơn`);
-      setTxt('work-day-net', formatVND(activeSum.net_cash || 0));
       setTxt('work-day-paid', formatShortK(activeSum.paid_amount || 0));
       setTxt('work-day-unpaid', formatShortK(activeSum.unpaid_amount || 0));
-      setTxt('work-day-expense', formatShortK(activeSum.expense_amount || 0));
 
       // Subtab badges
       setTxt('work-badge-day-jobs', String(workState.jobs.length));
@@ -3489,17 +3490,6 @@
       const dateInput = document.getElementById('ledger-date-input');
       if (dateInput) dateInput.value = curDate;
 
-      const humanEl = document.getElementById('ledger-date-human');
-      if (humanEl && curDate) {
-        if (curDate === todayDate) {
-          humanEl.textContent = `Hôm nay (${formatDayMonth(curDate)})`;
-        } else if (curDate === shiftDateStr(todayDate, -1)) {
-          humanEl.textContent = `Hôm qua (${formatDayMonth(curDate)})`;
-        } else {
-          humanEl.textContent = `Ngày ${formatDayMonth(curDate)}`;
-        }
-      }
-
       const todayBtn = document.getElementById('btn-ledger-today');
       if (todayBtn) {
         todayBtn.style.opacity = curDate === todayDate ? '0.55' : '1';
@@ -3655,7 +3645,6 @@
       const sum = summaryOpt || getGlobalBorrowSummary();
       const btn = document.getElementById('btn-open-borrow-list');
       const badgeEl = document.getElementById('ledger-borrow-btn-badge');
-      const subEl = document.getElementById('ledger-borrow-btn-sub');
       const totalEl = document.getElementById('ledger-borrow-btn-total');
 
       const allSettled = sum.totalCount > 0 && sum.unpaidCount === 0;
@@ -3669,18 +3658,6 @@
           badgeEl.textContent = '✓ Đã trả xong hết';
         } else {
           badgeEl.textContent = `${sum.unpaidCount} khoản chưa xong`;
-        }
-      }
-
-      if (subEl) {
-        if (sum.totalCount === 0) {
-          subEl.textContent = 'Chưa có khoản mượn nào • Bấm để thêm hoặc xem';
-        } else if (allSettled) {
-          subEl.textContent = `${sum.totalCount} khoản đều đã xong • Đã trả ${formatShortK(sum.paid)}`;
-        } else {
-          const parts = [`Tổng ${sum.totalCount} khoản`, `Gốc ${formatShortK(sum.orig)}`];
-          if (sum.paid > 0) parts.push(`Đã trả ${formatShortK(sum.paid)}`);
-          subEl.textContent = parts.join(' • ');
         }
       }
 
@@ -3782,12 +3759,7 @@
       if (!container) return;
 
       if (list.length === 0) {
-        container.innerHTML = `
-        <div class="empty-state-box">
-          Chưa có khoản chi tiêu hay nộp quỹ nào trong ngày ${dm || formatVNDate(curDate)}.<br>
-          Bấm nút <strong>+</strong> ở góc dưới phải để thêm khoản mục mới.
-        </div>
-      `;
+        container.innerHTML = `<div class="empty-state-box">Chưa có khoản chi tiêu hay nộp quỹ nào trong ngày ${dm || formatVNDate(curDate)}.</div>`;
         return;
       }
 
@@ -4535,7 +4507,8 @@
     };
 
     window.exportWorkExcel = function () {
-      const month = workState.month || (workState.date || state.today).slice(0, 7);
+      const fallbackDate = new Date().toISOString().slice(0, 10);
+      const month = workState.month || (workState.date || state.today || fallbackDate).slice(0, 7);
       window.location.href = `/api/work/export?month=${encodeURIComponent(month)}`;
     };
 

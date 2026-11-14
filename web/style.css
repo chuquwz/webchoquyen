@@ -336,36 +336,6 @@ a:focus-visible,
   color: var(--text-sub);
 }
 
-.score-info-icon {
-  font-size: 13px;
-  color: var(--text-muted);
-  cursor: pointer;
-}
-
-.score-info-icon-btn {
-  background: none;
-  border: none;
-  padding: 0 4px;
-  font-size: 13.5px;
-  color: var(--text-muted);
-  cursor: pointer;
-  line-height: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: color 0.15s ease, background-color 0.15s ease;
-}
-
-.score-info-icon-btn:hover {
-  color: var(--color-score-ring);
-  background-color: var(--color-tile-mint);
-}
-
-.score-info-icon-btn:focus-visible {
-  outline: 2px solid var(--color-score-ring);
-}
-
 .score-number-row {
   margin-bottom: 4px;
 }
@@ -1293,6 +1263,19 @@ a:focus-visible,
   margin-top: 12px;
 }
 
+.settings-btn-row-wrap {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-btn-row-wrap .btn-work-export-pill,
+.settings-btn-row-wrap .btn-secondary-pill.btn-sm {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
 .reminder-schedule-list {
   display: flex;
   flex-direction: column;
@@ -2120,14 +2103,9 @@ body:not(.is-logged-in) #app-bottom-nav {
   text-align: center;
   cursor: pointer;
   padding: 0;
+  min-height: 36px;
+  line-height: 1.3;
   max-width: 100%;
-}
-
-.work-date-human {
-  font-size: 11px;
-  font-weight: 600;
-  color: #3D7824;
-  line-height: 1.2;
 }
 
 .btn-work-today-chip {
@@ -2220,40 +2198,9 @@ body:not(.is-logged-in) #app-bottom-nav {
   border: 1px solid #FECACA;
 }
 
-.work-bank-net-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: nowrap;
-  background-color: #F4F9F1;
-  border: 1px solid #DCEAD5;
-  border-radius: 14px;
-  padding: 9px 12px;
-  margin-bottom: 10px;
-}
-
-.work-net-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: #3F473C;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-}
-
-.work-net-val {
-  font-size: 15px;
-  font-weight: 800;
-  color: #1E3B13;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.work-summary-grid-3 {
+.work-summary-grid-2 {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -2279,12 +2226,6 @@ body:not(.is-logged-in) #app-bottom-nav {
   cursor: pointer;
 }
 
-.work-stat-mini-box.stat-expense {
-  background-color: #F8FAFC;
-  border: 1px solid #E2E8F0;
-  cursor: pointer;
-}
-
 .work-stat-mini-label {
   display: inline-flex;
   align-items: center;
@@ -2303,10 +2244,6 @@ body:not(.is-logged-in) #app-bottom-nav {
 
 .stat-unpaid .work-stat-mini-val {
   color: #B45309;
-}
-
-.stat-expense .work-stat-mini-val {
-  color: #334155;
 }
 
 .work-stat-mini-val {
@@ -3959,15 +3896,18 @@ body:not(.is-logged-in) #app-bottom-nav {
   background: transparent;
 }
 
-/* Water Summary Card Animated Waves */
-.water-wave-card {
+/* Water & Themed Summary Cards Animated Backgrounds */
+.water-wave-card,
+.summary-themed-card {
   position: relative;
   overflow: hidden;
   isolation: isolate;
 }
 
 .water-wave-card .summary-card-header,
-.water-wave-card .summary-val-row {
+.water-wave-card .summary-val-row,
+.summary-themed-card .summary-card-header,
+.summary-themed-card .summary-val-row {
   position: relative;
   z-index: 2;
 }
@@ -3982,6 +3922,45 @@ body:not(.is-logged-in) #app-bottom-nav {
 
 .water-wave-card .summary-val-unit {
   color: #3D5B6B;
+}
+
+.weight-theme-card .summary-card-label { color: #6B2C38; }
+.weight-theme-card .summary-val-num { color: #1C1F1B; }
+.weight-theme-card .summary-val-unit { color: #743542; }
+
+.med-theme-card .summary-card-label { color: #2F4F24; }
+.meals-theme-card .summary-card-label { color: #5C3B1E; }
+
+.card-theme-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+  display: block;
+}
+
+.theme-wave-level {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -14px;
+  display: block;
+  z-index: 1;
+  pointer-events: none;
+  transition: height 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.weight-wave-level {
+  height: calc(var(--weight-level, 36%) + 14px);
+}
+
+.med-wave-level {
+  height: calc(var(--med-level, 30%) + 14px);
+}
+
+.meals-wave-level {
+  height: calc(var(--meals-level, 30%) + 14px);
 }
 
 .water-wave-level {
@@ -4003,6 +3982,7 @@ body:not(.is-logged-in) #app-bottom-nav {
   top: 0;
   width: 200%;
   height: 100%;
+  display: block;
   background-repeat: repeat-x;
   background-position: 0 top;
   background-size: 50% 100%;
@@ -4020,6 +4000,193 @@ body:not(.is-logged-in) #app-bottom-nav {
   animation: waterWaveFlow 3.8s linear infinite;
 }
 
+/* Nền Cân nặng: sóng lụa hồng + thước chia vạch + đồng hồ kim cân */
+.water-wave-layer.weight-wave-back {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 140' preserveAspectRatio='none'%3E%3Cpath d='M0,11 Q30,2 60,11 T120,11 L120,140 L0,140 Z' fill='%23FECDD3' fill-opacity='0.26'/%3E%3C/svg%3E");
+}
+
+.water-wave-layer.weight-wave-front {
+  top: 3px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 140' preserveAspectRatio='none'%3E%3Cpath d='M0,13 Q30,4 60,13 T120,13 L120,140 L0,140 Z' fill='%23FDA4AF' fill-opacity='0.22'/%3E%3C/svg%3E");
+}
+
+.weight-scale-ruler {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 200%;
+  height: 11px;
+  opacity: 0.42;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='11' viewBox='0 0 36 11'%3E%3Cpath d='M2 11V4 M9 11V7 M16 11V7 M23 11V6 M30 11V7' stroke='%23E55B6C' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-position: 0 bottom;
+}
+
+.weight-scale-dial-wrap {
+  position: absolute;
+  right: 4px;
+  bottom: 2px;
+  width: 68px;
+  height: 54px;
+  display: block;
+}
+
+.weight-scale-svg {
+  display: block;
+  width: 68px;
+  height: 54px;
+}
+
+.weight-needle-svg {
+  position: absolute;
+  left: 30px;
+  top: 24px;
+  width: 12px;
+  height: 24px;
+  transform: rotate(-16deg);
+  transform-origin: 6px 20px;
+}
+
+/* Nền Thuốc bổ gan: sóng thảo mộc + lá xanh + viên nang + bọt hồi phục */
+.water-wave-layer.med-wave-back {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 140' preserveAspectRatio='none'%3E%3Cpath d='M0,10 Q30,0 60,10 T120,10 L120,140 L0,140 Z' fill='%23BBF7D0' fill-opacity='0.28'/%3E%3C/svg%3E");
+}
+
+.water-wave-layer.med-wave-front {
+  top: 3px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 140' preserveAspectRatio='none'%3E%3Cpath d='M0,12 Q30,3 60,12 T120,12 L120,140 L0,140 Z' fill='%234ADE80' fill-opacity='0.16'/%3E%3C/svg%3E");
+}
+
+.med-leaf-svg {
+  position: absolute;
+  right: -2px;
+  bottom: 0;
+  transform-origin: 82% 88%;
+}
+
+.med-pill-svg {
+  position: absolute;
+  right: 14px;
+  top: 10px;
+  opacity: 0.85;
+}
+
+.med-bubble {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(94, 148, 71, 0.24);
+  border: 1px solid rgba(94, 148, 71, 0.28);
+}
+
+.med-bubble.bubble-1 { width: 6px; height: 6px; right: 26px; bottom: 16px; }
+.med-bubble.bubble-2 { width: 5px; height: 5px; right: 44px; bottom: 10px; }
+.med-bubble.bubble-3 { width: 7px; height: 7px; right: 12px; bottom: 26px; }
+
+/* Nền Ăn uống: sóng mật ong ấm + bát healthy + làn khói thơm bốc lên */
+.water-wave-layer.meals-wave-back {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 140' preserveAspectRatio='none'%3E%3Cpath d='M0,10 Q30,1 60,10 T120,10 L120,140 L0,140 Z' fill='%23FDE68A' fill-opacity='0.26'/%3E%3C/svg%3E");
+}
+
+.water-wave-layer.meals-wave-front {
+  top: 3px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 140' preserveAspectRatio='none'%3E%3Cpath d='M0,12 Q30,3 60,12 T120,12 L120,140 L0,140 Z' fill='%23FDBA74' fill-opacity='0.20'/%3E%3C/svg%3E");
+}
+
+.meals-bowl-svg {
+  position: absolute;
+  right: 4px;
+  bottom: 2px;
+  transform-origin: center bottom;
+}
+
+.meals-steam-wrap {
+  position: absolute;
+  right: 16px;
+  bottom: 26px;
+  width: 38px;
+  height: 28px;
+  display: block;
+}
+
+.meals-steam {
+  position: absolute;
+  bottom: 0;
+}
+
+.meals-steam.steam-1 { left: 2px; }
+.meals-steam.steam-2 { left: 14px; }
+.meals-steam.steam-3 { left: 26px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .theme-wave-level {
+    animation: waterBobUpDown 3.6s ease-in-out infinite;
+  }
+
+  .water-wave-layer.weight-wave-back,
+  .water-wave-layer.med-wave-back,
+  .water-wave-layer.meals-wave-back {
+    animation: waterWaveFlow 6.2s linear infinite reverse;
+  }
+
+  .water-wave-layer.weight-wave-front,
+  .water-wave-layer.med-wave-front,
+  .water-wave-layer.meals-wave-front {
+    animation: waterWaveFlow 4.2s linear infinite;
+  }
+
+  .weight-scale-ruler {
+    animation: weightRulerSlide 7s linear infinite;
+  }
+
+  .weight-needle-svg {
+    animation: weightNeedleSwing 3.8s ease-in-out infinite;
+  }
+
+  .weight-sparkle.sparkle-1 {
+    animation: themeSparklePulse 2.8s ease-in-out infinite;
+  }
+
+  .weight-sparkle.sparkle-2 {
+    animation: themeSparklePulse 2.8s ease-in-out 1.4s infinite;
+  }
+
+  .med-leaf-svg {
+    animation: medLeafSway 4.8s ease-in-out infinite;
+  }
+
+  .med-pill-svg {
+    animation: medPillFloat 4.2s ease-in-out infinite;
+  }
+
+  .med-bubble.bubble-1 {
+    animation: medBubbleRise 3.8s ease-out infinite;
+  }
+
+  .med-bubble.bubble-2 {
+    animation: medBubbleRise 4.6s ease-out 1.2s infinite;
+  }
+
+  .med-bubble.bubble-3 {
+    animation: medBubbleRise 4.2s ease-out 2.3s infinite;
+  }
+
+  .meals-bowl-svg {
+    animation: mealsBowlBreathe 4.6s ease-in-out infinite;
+  }
+
+  .meals-steam.steam-1 {
+    animation: mealsSteamRise 3.2s ease-in-out infinite;
+  }
+
+  .meals-steam.steam-2 {
+    animation: mealsSteamRise 3.2s ease-in-out 1.05s infinite;
+  }
+
+  .meals-steam.steam-3 {
+    animation: mealsSteamRise 3.2s ease-in-out 2.1s infinite;
+  }
+}
+
 @keyframes waterWaveFlow {
   0% { transform: translate3d(0, 0, 0); }
   100% { transform: translate3d(-50%, 0, 0); }
@@ -4028,6 +4195,49 @@ body:not(.is-logged-in) #app-bottom-nav {
 @keyframes waterBobUpDown {
   0%, 100% { transform: translate3d(0, 4px, 0); }
   50% { transform: translate3d(0, -5px, 0); }
+}
+
+@keyframes weightRulerSlide {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-144px, 0, 0); }
+}
+
+@keyframes weightNeedleSwing {
+  0%, 100% { transform: rotate(-28deg); }
+  50% { transform: rotate(10deg); }
+}
+
+@keyframes themeSparklePulse {
+  0%, 100% { opacity: 0.16; }
+  50% { opacity: 0.52; }
+}
+
+@keyframes medLeafSway {
+  0%, 100% { transform: rotate(-3deg); }
+  50% { transform: rotate(4deg); }
+}
+
+@keyframes medPillFloat {
+  0%, 100% { transform: translate3d(0, 2px, 0) rotate(-4deg); }
+  50% { transform: translate3d(0, -4px, 0) rotate(5deg); }
+}
+
+@keyframes medBubbleRise {
+  0% { transform: translate3d(0, 6px, 0) scale(0.75); opacity: 0; }
+  25% { opacity: 0.72; }
+  100% { transform: translate3d(-3px, -28px, 0) scale(1.1); opacity: 0; }
+}
+
+@keyframes mealsBowlBreathe {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(0, -2px, 0) scale(1.03); }
+}
+
+@keyframes mealsSteamRise {
+  0% { transform: translate3d(0, 6px, 0); opacity: 0; }
+  35% { opacity: 0.78; }
+  70% { transform: translate3d(2px, -8px, 0); opacity: 0.5; }
+  100% { transform: translate3d(-1px, -18px, 0); opacity: 0; }
 }
 
 /* ==========================================================================
@@ -4489,25 +4699,6 @@ body:not(.is-logged-in) #app-bottom-nav {
   max-height: 90vh;
 }
 
-.work-month-cell-btn {
-  width: 100%;
-  font-family: inherit;
-  border: 1px solid transparent;
-  cursor: pointer;
-  transition: transform 0.15s ease-out, background-color 0.15s ease-out, border-color 0.15s ease-out;
-}
-
-.work-month-cell-btn:not(:disabled):active {
-  transform: scale(0.97);
-}
-
-@media (hover: hover) {
-  .work-month-cell-btn:hover {
-    background-color: rgba(255, 255, 255, 0.92);
-    border-color: #C7DFB8;
-  }
-}
-
 .work-borrow-summary-btn {
   width: 100%;
   min-height: 62px;
@@ -4595,14 +4786,6 @@ body:not(.is-logged-in) #app-bottom-nav {
   background-color: #E2F4D6;
   border-color: #B7DF9C;
   color: #1E4611;
-}
-
-.work-borrow-btn-sub {
-  font-size: 12px;
-  font-weight: 600;
-  color: #4A5246;
-  overflow-wrap: break-word;
-  line-height: 1.3;
 }
 
 .work-borrow-btn-right {
