@@ -2575,6 +2575,15 @@
       preview.textContent = '= ' + formatVND(n);
     };
 
+    window.openAddWorkJobModal = function () {
+      renderWorkSuggestions();
+      openModal('modal-add-work-job');
+      setTimeout(() => {
+        const custInp = document.getElementById('work-job-customer');
+        if (custInp && !custInp.value) custInp.focus();
+      }, 80);
+    };
+
     window.submitWorkJob = async function (e) {
       e.preventDefault();
       const customer = document.getElementById('work-job-customer').value.trim();
@@ -2606,6 +2615,7 @@
         document.getElementById('work-job-price').value = '';
         updateWorkPricePreview('');
         document.querySelectorAll('#work-job-form .btn-price-chip').forEach(b => b.classList.remove('active'));
+        closeModal('modal-add-work-job');
         showToast(`Đã lưu đơn ${customer} (${formatShortK(price)} - ${status})`);
         await loadWorkData(workState.date);
       } catch (err) {
@@ -2628,6 +2638,7 @@
         document.getElementById('work-job-price').value = '';
         updateWorkPricePreview('');
         document.querySelectorAll('#work-job-form .btn-price-chip').forEach(b => b.classList.remove('active'));
+        closeModal('modal-add-work-job');
         showToast(`Đã lưu đơn ${customer} vào máy cá nhân (tự đồng bộ khi mạng/server sẵn sàng)`);
         computeWorkFromLocalVault(jobDate);
       }
@@ -2648,7 +2659,7 @@
         container.innerHTML = `
         <div class="empty-state-box">
           Chưa có đơn dịch vụ nào trong ngày ${formatVNDate(workState.date)}.<br>
-          Chọn nhanh <strong>Khách quen + Dịch vụ + Mệnh giá</strong> ở khung trên để lưu đơn chỉ trong vài giây.
+          Bấm nút <strong>+ Ghi đơn mới</strong> để lưu đơn chỉ trong vài giây.
         </div>
       `;
         return;
@@ -3039,6 +3050,14 @@
       }
     };
 
+    window.openAddWorkLedgerModal = function () {
+      openModal('modal-add-work-ledger');
+      setTimeout(() => {
+        const amtInp = document.getElementById('work-ledger-amount');
+        if (amtInp) amtInp.focus();
+      }, 80);
+    };
+
     window.submitWorkLedger = async function (e) {
       e.preventDefault();
       const category = document.getElementById('work-ledger-category').value || 'expense';
@@ -3064,6 +3083,7 @@
         });
         document.getElementById('work-ledger-amount').value = '';
         document.getElementById('work-ledger-note').value = '';
+        closeModal('modal-add-work-ledger');
         showToast('Đã lưu khoản mục vào sổ');
         await loadWorkData(workState.date);
       } catch (err) {
@@ -3080,6 +3100,7 @@
         saveFinanceVaultToDevice(v);
         document.getElementById('work-ledger-amount').value = '';
         document.getElementById('work-ledger-note').value = '';
+        closeModal('modal-add-work-ledger');
         showToast('Đã lưu khoản mục vào máy cá nhân');
         computeWorkFromLocalVault(ledgerDate);
       }
@@ -3204,7 +3225,8 @@
       if (list.length === 0) {
         container.innerHTML = `
         <div class="empty-state-box">
-          Chưa có khoản chi tiêu, nộp quỹ hay mượn/trả nợ nào trong ngày ${dm || formatVNDate(workState.date)}.
+          Chưa có khoản chi tiêu, nộp quỹ hay mượn/trả nợ nào trong ngày ${dm || formatVNDate(workState.date)}.<br>
+          Bấm nút <strong>+ Ghi thu chi</strong> để thêm khoản mục mới.
         </div>
       `;
         return;

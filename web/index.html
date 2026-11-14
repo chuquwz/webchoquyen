@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=42">
+  <link rel="stylesheet" href="/style.css?v=43">
 </head>
 <body>
   <!-- Container Toast thông báo -->
@@ -522,76 +522,17 @@
                PHÂN KHU 1: ĐƠN DỊCH VỤ KHÁCH HÀNG TRONG NGÀY
                =============================================================== -->
           <div id="work-subpane-jobs" class="work-subpane active">
-            <!-- Form Nhập Đơn Dịch Vụ Siêu Tốc Cho Điện Thoại -->
-            <form id="work-job-form" class="work-quick-card" onsubmit="submitWorkJob(event)">
-              <div class="work-card-title-row">
-                <h2 class="work-card-heading">+ Ghi đơn mới</h2>
-                <!-- Chọn kênh liên hệ ZL / FB 1 chạm -->
-                <div class="work-channel-toggle" role="group" aria-label="Kênh liên hệ khách hàng">
-                  <button type="button" id="btn-ch-zl" class="work-ch-btn active" onclick="setWorkJobChannel('ZL')">Zalo</button>
-                  <button type="button" id="btn-ch-fb" class="work-ch-btn" onclick="setWorkJobChannel('FB')">Facebook</button>
-                </div>
-              </div>
-              <input type="hidden" id="work-job-channel" value="ZL">
-
-              <!-- 1. Tên Khách Hàng + Dải Chip Khách Quen -->
-              <div class="form-group" style="margin-top: 10px;">
-                <label class="form-label" for="work-job-customer">Tên khách hàng / cửa hàng</label>
-                <input type="text" id="work-job-customer" class="form-input work-mobile-input" placeholder="Ví dụ: Điện Thoại Nguyên Trường" maxlength="100" autocomplete="off" required>
-                <div class="work-chips-label">Chạm chọn nhanh khách quen:</div>
-                <div id="work-customer-chips" class="work-chips-scroll" aria-label="Gợi ý khách hàng quen thuộc"></div>
-              </div>
-
-              <!-- 2. Dịch Vụ / Dòng Máy + Chip Tiền Tố Nhanh -->
-              <div class="form-group" style="margin-top: 12px;">
-                <label class="form-label" for="work-job-service">Dịch vụ &amp; dòng máy</label>
-                <input type="text" id="work-job-service" class="form-input work-mobile-input" placeholder="Ví dụ: FIX VOLTE OPPO A55S 5G" maxlength="150" autocomplete="off" required>
-                <div class="work-chips-label">Chạm điền nhanh dịch vụ hay làm:</div>
-                <div id="work-service-chips" class="work-chips-scroll" aria-label="Gợi ý dịch vụ thường làm"></div>
-              </div>
-
-              <!-- 3. Giá Tiền + Chip Mệnh Giá 1 Chạm -->
-              <div class="form-group" style="margin-top: 12px;">
-                <div style="display: flex; justify-content: space-between; align-items: baseline;">
-                  <label class="form-label" for="work-job-price">Giá tiền (gõ số nghìn: 200 = 200.000đ)</label>
-                  <span id="work-job-price-preview" class="work-price-preview font-tabular"></span>
-                </div>
-                <input type="number" id="work-job-price" class="form-input work-mobile-input font-tabular" placeholder="Ví dụ: 200 hoặc 200000" inputmode="numeric" min="1" required oninput="updateWorkPricePreview(this.value)">
-                <div class="work-price-Preset-grid" aria-label="Chọn nhanh mệnh giá tiền">
-                  <button type="button" class="btn-price-chip font-tabular" onclick="setWorkJobPrice(35000)">35k</button>
-                  <button type="button" class="btn-price-chip font-tabular" onclick="setWorkJobPrice(50000)">50k</button>
-                  <button type="button" class="btn-price-chip font-tabular" onclick="setWorkJobPrice(70000)">70k</button>
-                  <button type="button" class="btn-price-chip font-tabular" onclick="setWorkJobPrice(80000)">80k</button>
-                  <button type="button" class="btn-price-chip font-tabular" onclick="setWorkJobPrice(100000)">100k</button>
-                  <button type="button" class="btn-price-chip font-tabular" onclick="setWorkJobPrice(150000)">150k</button>
-                  <button type="button" class="btn-price-chip font-tabular" onclick="setWorkJobPrice(200000)">200k</button>
-                  <button type="button" class="btn-price-chip font-tabular" onclick="setWorkJobPrice(250000)">250k</button>
-                  <button type="button" class="btn-price-chip font-tabular" onclick="setWorkJobPrice(350000)">350k</button>
-                </div>
-              </div>
-
-              <!-- 4. Trạng Thái Thanh Toán (TT vs CTT) + Nút Lưu -->
-              <div class="work-status-submit-row">
-                <div class="work-status-selector" role="group" aria-label="Trạng thái thanh toán">
-                  <input type="hidden" id="work-job-status" value="TT">
-                  <button type="button" id="btn-st-tt" class="work-status-opt active-tt" onclick="setWorkJobStatus('TT')">
-                    <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
-                    <span>Đã thu (TT)</span>
-                  </button>
-                  <button type="button" id="btn-st-ctt" class="work-status-opt" onclick="setWorkJobStatus('CTT')">
-                    <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-                    <span>Khách nợ (CTT)</span>
-                  </button>
-                </div>
-                <button type="submit" class="btn-green-pill btn-work-submit">Lưu đơn</button>
-              </div>
-            </form>
-
             <!-- Danh Sách Đơn Dịch Vụ Trong Ngày -->
-            <div class="section-container" style="margin-top: 18px;">
+            <div class="section-container" style="margin-top: 14px;">
               <div class="section-title-header">
-                <h2 class="section-heading">Danh sách đơn trong ngày</h2>
-                <span id="work-jobs-list-sub" class="work-list-sub font-tabular">0 đơn</span>
+                <div>
+                  <h2 class="section-heading">Danh sách đơn trong ngày</h2>
+                  <span id="work-jobs-list-sub" class="work-list-sub font-tabular">0 đơn</span>
+                </div>
+                <button type="button" class="btn-plus-header" onclick="openAddWorkJobModal()" aria-label="Ghi đơn mới">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  <span>Ghi đơn mới</span>
+                </button>
               </div>
               <div id="work-jobs-list" class="work-items-stack"></div>
             </div>
@@ -716,6 +657,10 @@
               <div id="work-month-full-days-list" class="work-items-stack"></div>
             </div>
           </div>
+
+          <button type="button" class="btn-fab-plus" onclick="openAddWorkJobModal()" aria-label="Mở popup ghi đơn mới" title="Ghi đơn mới">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
         </section>
 
         <!-- =====================================================================
@@ -837,78 +782,17 @@
             </div>
           </div>
 
-          <!-- Form Ghi Thu Chi Cá Nhân -->
-          <form id="work-ledger-form" class="work-quick-card" onsubmit="submitWorkLedger(event)">
-            <h2 class="work-card-heading">+ Ghi thu chi cá nhân</h2>
-            <p class="work-helper-text" style="margin-top: 4px; margin-bottom: 10px;">
-              Ghi nhận nhanh các khoản chi tiêu cá nhân, thuê tool, nộp quỹ, số quỹ, mượn và trả nợ theo ngày - tháng.
-            </p>
-
-            <!-- Chọn Phân Loại -->
-            <div class="form-group">
-              <label class="form-label" for="work-ledger-category">Phân loại khoản mục</label>
-              <div class="work-cat-grid" role="group" aria-label="Chọn phân loại thu chi">
-                <button type="button" class="work-cat-chip active" data-cat="expense" onclick="setWorkLedgerCategory('expense')">
-                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-                  <span>Chi tiêu / Phát sinh</span>
-                </button>
-                <button type="button" class="work-cat-chip" data-cat="fund_in" onclick="setWorkLedgerCategory('fund_in')">
-                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                  <span>Nộp Quỹ</span>
-                </button>
-                <button type="button" class="work-cat-chip" data-cat="fund_bal" onclick="setWorkLedgerCategory('fund_bal')">
-                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-                  <span>Số Quỹ</span>
-                </button>
-                <button type="button" class="work-cat-chip" data-cat="borrow" onclick="setWorkLedgerCategory('borrow')">
-                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="17" y1="7" x2="7" y2="17"/><polyline points="17 17 7 17 7 7"/></svg>
-                  <span>Mượn</span>
-                </button>
-                <button type="button" class="work-cat-chip" data-cat="repay" onclick="setWorkLedgerCategory('repay')">
-                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
-                  <span>Trả Nợ</span>
-                </button>
-              </div>
-              <input type="hidden" id="work-ledger-category" value="expense">
-            </div>
-
-            <!-- Số tiền -->
-            <div class="form-group" style="margin-top: 10px;">
-              <label class="form-label" for="work-ledger-amount">Số tiền (gõ số nghìn: 50 = 50.000đ)</label>
-              <input type="number" id="work-ledger-amount" class="form-input work-mobile-input font-tabular" placeholder="Ví dụ: 50 hoặc 50000" inputmode="numeric" min="1" required>
-              <div class="work-price-Preset-grid" aria-label="Chọn nhanh số tiền">
-                <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(10000)">10k</button>
-                <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(35000)">35k</button>
-                <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(50000)">50k</button>
-                <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(100000)">100k</button>
-                <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(150000)">150k</button>
-                <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(200000)">200k</button>
-                <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(500000)">500k</button>
-              </div>
-            </div>
-
-            <!-- Nội dung chi tiết + Chip gợi ý nhanh -->
-            <div class="form-group" style="margin-top: 10px;">
-              <label class="form-label" for="work-ledger-note">Nội dung chi tiết</label>
-              <input type="text" id="work-ledger-note" class="form-input work-mobile-input" placeholder="Ví dụ: Mua cơm, Thuê tools, Đổ xăng..." maxlength="300" required>
-              <div class="work-chips-scroll" style="margin-top: 6px;" aria-label="Gợi ý nội dung chi tiêu">
-                <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Thuê tools', 10000)">Thuê tools (10k)</button>
-                <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Mua cơm', 50000)">Mua cơm (50k)</button>
-                <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Ăn sáng', 35000)">Ăn sáng (35k)</button>
-                <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Đổ xăng', 150000)">Đổ xăng (150k)</button>
-                <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Đi ăn', 200000)">Đi ăn</button>
-                <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Nộp quỹ ngày', 100000)">Nộp quỹ ngày</button>
-              </div>
-            </div>
-
-            <button type="submit" class="btn-green-pill" style="width: 100%; margin-top: 14px;">Lưu khoản mục</button>
-          </form>
-
           <!-- Danh sách phát sinh trong ngày đang xem -->
-          <div class="section-container" style="margin-top: 18px;">
+          <div class="section-container" style="margin-top: 14px;">
             <div class="section-title-header">
-              <h2 id="ledger-day-list-title" class="section-heading">Phát sinh trong ngày</h2>
-              <span id="ledger-day-list-sub" class="work-list-sub font-tabular">0 khoản</span>
+              <div>
+                <h2 id="ledger-day-list-title" class="section-heading">Phát sinh trong ngày</h2>
+                <span id="ledger-day-list-sub" class="work-list-sub font-tabular">0 khoản</span>
+              </div>
+              <button type="button" class="btn-plus-header" onclick="openAddWorkLedgerModal()" aria-label="Ghi thu chi cá nhân">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <span>Ghi thu chi</span>
+              </button>
             </div>
             <div id="work-ledger-list" class="work-items-stack"></div>
           </div>
@@ -921,6 +805,10 @@
             </div>
             <div id="ledger-month-days-list" class="work-items-stack"></div>
           </div>
+
+          <button type="button" class="btn-fab-plus" onclick="openAddWorkLedgerModal()" aria-label="Mở popup ghi thu chi cá nhân" title="Ghi thu chi cá nhân">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
         </section>
 
       </div>
@@ -1210,6 +1098,153 @@
     </div>
   </div>
 
-  <script src="/app.js?v=42"></script>
+  <!-- MODAL: Ghi Đơn Dịch Vụ Mới -->
+  <div id="modal-add-work-job" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-add-job-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="modal-add-job-title" class="modal-title">+ Ghi đơn mới</h3>
+        <button type="button" class="modal-close" aria-label="Đóng hộp thoại ghi đơn mới" onclick="closeModal('modal-add-work-job')">&times;</button>
+      </div>
+      <form id="work-job-form" class="work-quick-card" onsubmit="submitWorkJob(event)">
+        <div class="work-card-title-row">
+          <span class="form-label" style="margin: 0;">Kênh liên hệ</span>
+          <!-- Chọn kênh liên hệ ZL / FB 1 chạm -->
+          <div class="work-channel-toggle" role="group" aria-label="Kênh liên hệ khách hàng">
+            <button type="button" id="btn-ch-zl" class="work-ch-btn active" onclick="setWorkJobChannel('ZL')">Zalo</button>
+            <button type="button" id="btn-ch-fb" class="work-ch-btn" onclick="setWorkJobChannel('FB')">Facebook</button>
+          </div>
+        </div>
+        <input type="hidden" id="work-job-channel" value="ZL">
+
+        <!-- 1. Tên Khách Hàng + Dải Chip Khách Quen -->
+        <div class="form-group" style="margin-top: 10px;">
+          <label class="form-label" for="work-job-customer">Tên khách hàng / cửa hàng</label>
+          <input type="text" id="work-job-customer" class="form-input work-mobile-input" placeholder="Ví dụ: Điện Thoại Nguyên Trường" maxlength="100" autocomplete="off" required>
+          <div class="work-chips-label">Chạm chọn nhanh khách quen:</div>
+          <div id="work-customer-chips" class="work-chips-scroll" aria-label="Gợi ý khách hàng quen thuộc"></div>
+        </div>
+
+        <!-- 2. Dịch Vụ / Dòng Máy + Chip Tiền Tố Nhanh -->
+        <div class="form-group" style="margin-top: 12px;">
+          <label class="form-label" for="work-job-service">Dịch vụ &amp; dòng máy</label>
+          <input type="text" id="work-job-service" class="form-input work-mobile-input" placeholder="Ví dụ: FIX VOLTE OPPO A55S 5G" maxlength="150" autocomplete="off" required>
+          <div class="work-chips-label">Chạm điền nhanh dịch vụ hay làm:</div>
+          <div id="work-service-chips" class="work-chips-scroll" aria-label="Gợi ý dịch vụ thường làm"></div>
+        </div>
+
+        <!-- 3. Giá Tiền + Chip Mệnh Giá 1 Chạm -->
+        <div class="form-group" style="margin-top: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline;">
+            <label class="form-label" for="work-job-price">Giá tiền (gõ số nghìn: 200 = 200.000đ)</label>
+            <span id="work-job-price-preview" class="work-price-preview font-tabular"></span>
+          </div>
+          <input type="number" id="work-job-price" class="form-input work-mobile-input font-tabular" placeholder="Ví dụ: 200 hoặc 200000" inputmode="numeric" min="1" required oninput="updateWorkPricePreview(this.value)">
+          <div class="work-price-Preset-grid" aria-label="Chọn nhanh mệnh giá tiền">
+            <button type="button" class="btn-price-chip font-tabular" onclick="setWorkJobPrice(35000)">35k</button>
+            <button type="button" class="btn-price-chip font-tabular" onclick="setWorkJobPrice(50000)">50k</button>
+            <button type="button" class="btn-price-chip font-tabular" onclick="setWorkJobPrice(70000)">70k</button>
+            <button type="button" class="btn-price-chip font-tabular" onclick="setWorkJobPrice(80000)">80k</button>
+            <button type="button" class="btn-price-chip font-tabular" onclick="setWorkJobPrice(100000)">100k</button>
+            <button type="button" class="btn-price-chip font-tabular" onclick="setWorkJobPrice(150000)">150k</button>
+            <button type="button" class="btn-price-chip font-tabular" onclick="setWorkJobPrice(200000)">200k</button>
+            <button type="button" class="btn-price-chip font-tabular" onclick="setWorkJobPrice(250000)">250k</button>
+            <button type="button" class="btn-price-chip font-tabular" onclick="setWorkJobPrice(350000)">350k</button>
+          </div>
+        </div>
+
+        <!-- 4. Trạng Thái Thanh Toán (TT vs CTT) + Nút Lưu -->
+        <div class="work-status-submit-row">
+          <div class="work-status-selector" role="group" aria-label="Trạng thái thanh toán">
+            <input type="hidden" id="work-job-status" value="TT">
+            <button type="button" id="btn-st-tt" class="work-status-opt active-tt" onclick="setWorkJobStatus('TT')">
+              <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+              <span>Đã thu (TT)</span>
+            </button>
+            <button type="button" id="btn-st-ctt" class="work-status-opt" onclick="setWorkJobStatus('CTT')">
+              <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+              <span>Khách nợ (CTT)</span>
+            </button>
+          </div>
+          <button type="submit" class="btn-green-pill btn-work-submit">Lưu đơn</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Ghi Thu Chi Cá Nhân -->
+  <div id="modal-add-work-ledger" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-add-ledger-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="modal-add-ledger-title" class="modal-title">+ Ghi thu chi cá nhân</h3>
+        <button type="button" class="modal-close" aria-label="Đóng hộp thoại ghi thu chi" onclick="closeModal('modal-add-work-ledger')">&times;</button>
+      </div>
+      <form id="work-ledger-form" class="work-quick-card" onsubmit="submitWorkLedger(event)">
+        <p class="work-helper-text" style="margin-top: 0; margin-bottom: 10px;">
+          Ghi nhận nhanh các khoản chi tiêu cá nhân, thuê tool, nộp quỹ, số quỹ, mượn và trả nợ theo ngày - tháng.
+        </p>
+
+        <!-- Chọn Phân Loại -->
+        <div class="form-group">
+          <label class="form-label" for="work-ledger-category">Phân loại khoản mục</label>
+          <div class="work-cat-grid" role="group" aria-label="Chọn phân loại thu chi">
+            <button type="button" class="work-cat-chip active" data-cat="expense" onclick="setWorkLedgerCategory('expense')">
+              <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+              <span>Chi tiêu / Phát sinh</span>
+            </button>
+            <button type="button" class="work-cat-chip" data-cat="fund_in" onclick="setWorkLedgerCategory('fund_in')">
+              <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              <span>Nộp Quỹ</span>
+            </button>
+            <button type="button" class="work-cat-chip" data-cat="fund_bal" onclick="setWorkLedgerCategory('fund_bal')">
+              <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+              <span>Số Quỹ</span>
+            </button>
+            <button type="button" class="work-cat-chip" data-cat="borrow" onclick="setWorkLedgerCategory('borrow')">
+              <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="17" y1="7" x2="7" y2="17"/><polyline points="17 17 7 17 7 7"/></svg>
+              <span>Mượn</span>
+            </button>
+            <button type="button" class="work-cat-chip" data-cat="repay" onclick="setWorkLedgerCategory('repay')">
+              <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
+              <span>Trả Nợ</span>
+            </button>
+          </div>
+          <input type="hidden" id="work-ledger-category" value="expense">
+        </div>
+
+        <!-- Số tiền -->
+        <div class="form-group" style="margin-top: 10px;">
+          <label class="form-label" for="work-ledger-amount">Số tiền (gõ số nghìn: 50 = 50.000đ)</label>
+          <input type="number" id="work-ledger-amount" class="form-input work-mobile-input font-tabular" placeholder="Ví dụ: 50 hoặc 50000" inputmode="numeric" min="1" required>
+          <div class="work-price-Preset-grid" aria-label="Chọn nhanh số tiền">
+            <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(10000)">10k</button>
+            <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(35000)">35k</button>
+            <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(50000)">50k</button>
+            <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(100000)">100k</button>
+            <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(150000)">150k</button>
+            <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(200000)">200k</button>
+            <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(500000)">500k</button>
+          </div>
+        </div>
+
+        <!-- Nội dung chi tiết + Chip gợi ý nhanh -->
+        <div class="form-group" style="margin-top: 10px;">
+          <label class="form-label" for="work-ledger-note">Nội dung chi tiết</label>
+          <input type="text" id="work-ledger-note" class="form-input work-mobile-input" placeholder="Ví dụ: Mua cơm, Thuê tools, Đổ xăng..." maxlength="300" required>
+          <div class="work-chips-scroll" style="margin-top: 6px;" aria-label="Gợi ý nội dung chi tiêu">
+            <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Thuê tools', 10000)">Thuê tools (10k)</button>
+            <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Mua cơm', 50000)">Mua cơm (50k)</button>
+            <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Ăn sáng', 35000)">Ăn sáng (35k)</button>
+            <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Đổ xăng', 150000)">Đổ xăng (150k)</button>
+            <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Đi ăn', 200000)">Đi ăn</button>
+            <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Nộp quỹ ngày', 100000)">Nộp quỹ ngày</button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-green-pill" style="width: 100%; margin-top: 14px;">Lưu khoản mục</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="/app.js?v=43"></script>
 </body>
 </html>
