@@ -3024,6 +3024,10 @@
     };
 
     window.openAddWorkLedgerModal = function () {
+      const hidden = document.getElementById('work-ledger-category');
+      if (hidden && !['expense', 'fund_in', 'borrow'].includes(hidden.value)) {
+        setWorkLedgerCategory('expense');
+      }
       openModal('modal-add-work-ledger');
       setTimeout(() => {
         const amtInp = document.getElementById('work-ledger-amount');
@@ -3155,7 +3159,6 @@
       const expEl = document.getElementById('ledger-hero-expense');
       if (expEl) expEl.classList.toggle('is-long', expStr.length >= 12);
 
-      setTxt('ledger-hero-net', formatVND(activeSum.net_cash || 0));
       setTxt('ledger-stat-expense', formatShortK(activeSum.expense_amount || 0));
       setTxt('ledger-stat-fund-in', formatShortK(activeSum.fund_in || 0));
       setTxt('ledger-stat-borrow', formatShortK(activeSum.borrow_amount || 0));

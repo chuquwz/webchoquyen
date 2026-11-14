@@ -3247,8 +3247,8 @@ body:not(.is-logged-in) #app-bottom-nav {
 }
 
 .work-cat-chip {
-  min-height: 38px;
-  padding: 6px 11px;
+  min-height: 44px;
+  padding: 8px 12px;
   border-radius: 12px;
   background-color: #F5F8F4;
   border: 1.5px solid #DCE7D8;

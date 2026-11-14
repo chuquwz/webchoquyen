@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=49">
+  <link rel="stylesheet" href="/style.css?v=51">
 </head>
 <body>
   <!-- Container Toast thông báo -->
@@ -679,11 +679,6 @@
               <span id="ledger-hero-expense" class="work-huge-money font-tabular">0đ</span>
             </div>
 
-            <div class="work-bank-net-bar">
-              <span class="work-net-label">Thực còn (Đã thu đơn &minus; Chi)</span>
-              <span id="ledger-hero-net" class="work-net-val font-tabular">0đ</span>
-            </div>
-
             <!-- Lưới 4 chỉ số thu chi (Chi tiêu, Nộp quỹ, Mượn, Trả nợ) -->
             <div class="work-month-grid-4 font-tabular">
               <div class="work-month-cell">
@@ -1099,7 +1094,7 @@
       </div>
       <form id="work-ledger-form" class="work-quick-card" onsubmit="submitWorkLedger(event)">
         <p class="work-helper-text" style="margin-top: 0; margin-bottom: 10px;">
-          Ghi nhận nhanh các khoản chi tiêu cá nhân, thuê tool, nộp quỹ, số quỹ, mượn và trả nợ theo ngày - tháng.
+          Ghi nhận nhanh các khoản chi tiêu cá nhân, thuê tool, nộp quỹ và mượn theo ngày - tháng.
         </p>
 
         <!-- Chọn Phân Loại -->
@@ -1114,17 +1109,9 @@
               <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
               <span>Nộp Quỹ</span>
             </button>
-            <button type="button" class="work-cat-chip" data-cat="fund_bal" onclick="setWorkLedgerCategory('fund_bal')">
-              <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-              <span>Số Quỹ</span>
-            </button>
             <button type="button" class="work-cat-chip" data-cat="borrow" onclick="setWorkLedgerCategory('borrow')">
               <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="17" y1="7" x2="7" y2="17"/><polyline points="17 17 7 17 7 7"/></svg>
               <span>Mượn</span>
-            </button>
-            <button type="button" class="work-cat-chip" data-cat="repay" onclick="setWorkLedgerCategory('repay')">
-              <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
-              <span>Trả Nợ</span>
             </button>
           </div>
           <input type="hidden" id="work-ledger-category" value="expense">
@@ -1164,6 +1151,6 @@
     </div>
   </div>
 
-  <script src="/app.js?v=49"></script>
+  <script src="/app.js?v=51"></script>
 </body>
 </html>
