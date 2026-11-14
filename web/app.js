@@ -243,6 +243,7 @@
     if (tabId === 'work' || tabId === 'ledger') loadWorkData();
     if (tabId === 'settings') {
       loadSettingsData();
+      renderFinanceVaultStatus();
     }
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -552,6 +553,11 @@
       const waterSummary = document.getElementById('summary-water-display');
       if (waterSummary) {
         waterSummary.textContent = (curWater / 1000).toFixed(1);
+      }
+      const waterWaveEl = document.getElementById('summary-water-wave-level');
+      if (waterWaveEl) {
+        const wavePct = Math.round(28 + waterRatio * 64); // 28% khi 0L -> 92% khi đạt 100%
+        waterWaveEl.style.setProperty('--water-level', `${wavePct}%`);
       }
       const weightSummary = document.getElementById('summary-weight-display');
       if (weightSummary) {
@@ -2395,23 +2401,6 @@
       setTxt('work-day-unpaid', formatShortK(activeSum.unpaid_amount || 0));
       setTxt('work-day-expense', formatShortK(activeSum.expense_amount || 0));
 
-      // Extra badges (Nộp quỹ, Số quỹ, Mượn, Trả nợ)
-      const extraEl = document.getElementById('work-day-extra-badges');
-      if (extraEl) {
-        const pills = [];
-        if (activeSum.fund_in > 0) pills.push(`<span class="work-extra-pill font-tabular">${workIconSVG('fund_in', 13)} <span>Nộp quỹ: ${formatShortK(activeSum.fund_in)}</span></span>`);
-        if (activeSum.fund_bal > 0) pills.push(`<span class="work-extra-pill font-tabular">${workIconSVG('fund_bal', 13)} <span>Số quỹ: ${formatShortK(activeSum.fund_bal)}</span></span>`);
-        if (activeSum.borrow_amount > 0) pills.push(`<span class="work-extra-pill font-tabular">${workIconSVG('borrow', 13)} <span>Mượn: ${formatShortK(activeSum.borrow_amount)}</span></span>`);
-        if (activeSum.repay_amount > 0) pills.push(`<span class="work-extra-pill font-tabular">${workIconSVG('repay', 13)} <span>Trả nợ: ${formatShortK(activeSum.repay_amount)}</span></span>`);
-        if (pills.length > 0) {
-          extraEl.style.display = 'flex';
-          extraEl.innerHTML = pills.join('');
-        } else {
-          extraEl.style.display = 'none';
-          extraEl.innerHTML = '';
-        }
-      }
-
       // Subtab badges
       setTxt('work-badge-day-jobs', String(workState.jobs.length));
       setTxt('work-badge-unpaid-all', String(workState.totalUnpaidJobs || 0));
@@ -3161,7 +3150,6 @@
         if (el) el.textContent = val;
       };
 
-      setTxt('ledger-month-badge', monthHuman);
       setTxt(
         'ledger-summary-date-label',
         isMonthScope

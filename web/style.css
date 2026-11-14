@@ -2509,8 +2509,8 @@ body:not(.is-logged-in) #app-bottom-nav {
 }
 
 .btn-vault-action {
-  height: 34px;
-  padding: 0 6px;
+  min-height: 44px;
+  padding: 6px;
   border-radius: 10px;
   background-color: #F4F8F2;
   border: 1px solid #D5E4CE;
@@ -3996,6 +3996,77 @@ body:not(.is-logged-in) #app-bottom-nav {
   box-shadow: none;
   padding: 0;
   background: transparent;
+}
+
+/* Water Summary Card Animated Waves */
+.water-wave-card {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.water-wave-card .summary-card-header,
+.water-wave-card .summary-val-row {
+  position: relative;
+  z-index: 2;
+}
+
+.water-wave-card .summary-card-label {
+  color: #344E5C;
+}
+
+.water-wave-card .summary-val-num {
+  color: #0F2937;
+}
+
+.water-wave-card .summary-val-unit {
+  color: #3D5B6B;
+}
+
+.water-wave-level {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -14px;
+  height: calc(var(--water-level, 28%) + 14px);
+  z-index: 1;
+  pointer-events: none;
+  transition: height 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: waterBobUpDown 3.2s ease-in-out infinite;
+  will-change: transform;
+}
+
+.water-wave-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 200%;
+  height: 100%;
+  background-repeat: repeat-x;
+  background-position: 0 top;
+  background-size: 50% 100%;
+  will-change: transform;
+}
+
+.water-wave-layer.wave-back {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 140' preserveAspectRatio='none'%3E%3Cpath d='M0,10 Q30,0 60,10 T120,10 L120,140 L0,140 Z' fill='%2338BDF8' fill-opacity='0.24'/%3E%3C/svg%3E");
+  animation: waterWaveFlow 5.4s linear infinite reverse;
+}
+
+.water-wave-layer.wave-front {
+  top: 3px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 140' preserveAspectRatio='none'%3E%3Cpath d='M0,12 Q30,2 60,12 T120,12 L120,140 L0,140 Z' fill='%230EA5E9' fill-opacity='0.26'/%3E%3C/svg%3E");
+  animation: waterWaveFlow 3.8s linear infinite;
+}
+
+@keyframes waterWaveFlow {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-50%, 0, 0); }
+}
+
+@keyframes waterBobUpDown {
+  0%, 100% { transform: translate3d(0, 4px, 0); }
+  50% { transform: translate3d(0, -5px, 0); }
 }
 
 /* Media Queries for Accessibility */
