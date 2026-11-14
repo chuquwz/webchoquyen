@@ -30,15 +30,24 @@
     const container = document.getElementById('toast-container');
     if (!container) return;
     const toast = document.createElement('div');
-    toast.className = 'toast';
-    toast.style.borderLeft = isErr ? '4px solid #ef4444' : '4px solid #5E9447';
-    toast.innerHTML = `<span>${msg}</span><button style="background:none;border:none;color:#8A9185;font-size:16px;cursor:pointer;" onclick="this.parentElement.remove()">&times;</button>`;
+    toast.className = isErr ? 'toast toast-error' : 'toast';
+    toast.setAttribute('role', isErr ? 'alert' : 'status');
+    const iconSvg = isErr
+      ? '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12.5"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'
+      : '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>';
+    toast.innerHTML = `
+      <span class="toast-icon-badge" aria-hidden="true">${iconSvg}</span>
+      <span class="toast-msg">${escapeHtml(String(msg == null ? '' : msg))}</span>
+      <button type="button" class="toast-close-btn" aria-label="Đóng thông báo" onclick="const t=this.parentElement;if(t){t.classList.add('is-leaving');setTimeout(()=>t.remove(),180);}">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    `;
     container.appendChild(toast);
+    const stayMs = isErr ? 4500 : 3400;
     setTimeout(() => {
-      toast.style.opacity = '0';
-      toast.style.transition = 'opacity 0.3s';
-      setTimeout(() => toast.remove(), 300);
-    }, 3500);
+      toast.classList.add('is-leaving');
+      setTimeout(() => toast.remove(), 180);
+    }, stayMs);
   };
 
   // API wrapper
@@ -70,6 +79,8 @@
   // Khởi tạo & Kiểm tra đăng nhập
   async function init() {
     registerServiceWorker();
+    setupHeroGreetingWatcher();
+    renderDynamicGreeting();
     setupRouting();
     try {
       const me = await api('/api/me');
@@ -242,6 +253,7 @@
       navBtn.setAttribute('aria-selected', 'true');
     }
 
+    if (tabId === 'today') renderDynamicGreeting();
     if (tabId === 'work' || tabId === 'ledger') loadWorkData();
     if (tabId === 'settings') {
       loadSettingsData();
@@ -453,7 +465,337 @@
       }
     }
 
+    const HERO_GREETING_STORAGE_KEY = 'qh_hero_greeting_v1';
+    const HERO_GREETING_SLOTS = {
+      early_morning: {
+        id: 'early_morning',
+        chipLabel: 'Sáng sớm',
+        topSub: 'Chào sáng sớm,',
+        iconSvg: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v3"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m8 6 4-4 4 4"/><path d="M16 18a4 4 0 0 0-8 0"/></svg>',
+        items: [
+          {
+            headline: 'Sáng nay bạn thấy trong người thế nào?',
+            sub: 'Bắt đầu ngày mới với một ly nước ấm và bước lên cân nhé.'
+          },
+          {
+            headline: 'Ngày mới tinh khôi, khởi động nhẹ nhàng nào!',
+            sub: 'Từng thói quen nhỏ buổi sáng sẽ tạo nên khác biệt lớn.'
+          },
+          {
+            headline: 'Chào bình minh! Hôm nay năng lượng thế nào?',
+            sub: 'Đừng quên bữa sáng đủ chất và cữ thuốc đầu ngày nhé.'
+          },
+          {
+            headline: 'Một buổi sáng an lành đang chờ phía trước!',
+            sub: 'Hít thở sâu, uống ngụm nước mát và giữ nhịp độ thật êm.'
+          },
+          {
+            headline: 'Thức dậy sớm thật tuyệt, sẵn sàng chưa nào?',
+            sub: 'Cân sáng, uống nước và chăm sóc bản thân thật chu đáo nhé.'
+          },
+          {
+            headline: 'Mong bạn có một khởi đầu thật nhẹ nhàng!',
+            sub: 'Hôm nay cứ đi từng bước vững vàng cho mục tiêu sức khoẻ.'
+          }
+        ]
+      },
+      morning: {
+        id: 'morning',
+        chipLabel: 'Buổi sáng',
+        topSub: 'Chào buổi sáng,',
+        iconSvg: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>',
+        items: [
+          {
+            headline: 'Buổi sáng của bạn đang trôi qua thế nào?',
+            sub: 'Nhấp thêm ngụm nước lọc để giữ đầu óc luôn tỉnh táo nhé.'
+          },
+          {
+            headline: 'Giữ nhịp tập trung thật tốt cho sáng nay nhé!',
+            sub: 'Làm việc hiệu quả nhưng nhớ vươn vai thư giãn vài phút.'
+          },
+          {
+            headline: 'Chúc bạn một buổi sáng nhiều năng lượng tích cực!',
+            sub: 'Mọi đơn việc và mục tiêu hôm nay đều đang chờ bạn chinh phục.'
+          },
+          {
+            headline: 'Nửa buổi sáng rồi, sức khoẻ hôm nay ổn chứ?',
+            sub: 'Uống đều nước lọc từ sáng sẽ giúp cơ thể nhẹ nhõm cả ngày.'
+          },
+          {
+            headline: 'Hôm nay bạn cảm thấy tinh thần ra sao?',
+            sub: 'Cứ giữ sự bền bỉ mỗi ngày, kết quả tốt sẽ tự tìm đến.'
+          },
+          {
+            headline: 'Chào ngày làm việc suôn sẻ và nhiều niềm vui!',
+            sub: 'Một ly nước đầy bên cạnh sẽ giúp buổi sáng thêm sảng khoái.'
+          }
+        ]
+      },
+      noon: {
+        id: 'noon',
+        chipLabel: 'Buổi trưa',
+        topSub: 'Chào buổi trưa,',
+        iconSvg: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><path d="M12 1v2"/><path d="M12 21v2"/><path d="M4.22 4.22l1.42 1.42"/><path d="M18.36 18.36l1.42 1.42"/><path d="M1 12h2"/><path d="M21 12h2"/><path d="M4.22 19.78l1.42-1.42"/><path d="M18.36 5.64l1.42-1.42"/></svg>',
+        items: [
+          {
+            headline: 'Đến giờ nghỉ trưa rồi, bạn thấy thế nào?',
+            sub: 'Ăn trưa đủ chất và tranh thủ chợp mắt một chút cho lại sức.'
+          },
+          {
+            headline: 'Tạm gác công việc để nạp năng lượng trưa nhé!',
+            sub: 'Nhớ kiểm tra cữ thuốc buổi trưa và uống thêm nước lọc.'
+          },
+          {
+            headline: 'Chúc bạn một bữa trưa thật ngon miệng!',
+            sub: 'Ăn chậm, chọn món thanh đạm để buổi chiều luôn nhẹ nhàng.'
+          },
+          {
+            headline: 'Nửa ngày đã qua, cơ thể bạn thấy ổn chứ?',
+            sub: 'Nghỉ ngơi đúng giờ trưa giúp chiều làm việc tỉnh táo hơn nhiều.'
+          },
+          {
+            headline: 'Trưa nay hãy chiều chuộng bản thân bằng sự thư thái!',
+            sub: 'Thả lỏng vai gáy, uống ngụm nước và ăn bữa trưa lành mạnh.'
+          },
+          {
+            headline: 'Chào buổi trưa an nhiên, nạp lại pin nào!',
+            sub: 'Đừng bỏ bữa trưa dù bận rộn, sức khoẻ luôn là ưu tiên số một.'
+          }
+        ]
+      },
+      afternoon: {
+        id: 'afternoon',
+        chipLabel: 'Buổi chiều',
+        topSub: 'Chào buổi chiều,',
+        iconSvg: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 10V2"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="M20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m16 6-4 4-4-4"/><path d="M16 18a4 4 0 0 0-8 0"/></svg>',
+        items: [
+          {
+            headline: 'Chiều nay năng lượng của bạn thế nào?',
+            sub: 'Bổ sung thêm nước lọc để vượt qua cơn uể oải đầu giờ chiều.'
+          },
+          {
+            headline: 'Giữ vững phong độ cho chặng cuối ngày nhé!',
+            sub: 'Chăm chỉ một chút nữa thôi, mọi việc sẽ sớm gọn gàng.'
+          },
+          {
+            headline: 'Chiều nay bạn cảm thấy trong người ra sao?',
+            sub: 'Nhìn lại tiến độ nước uống và bữa ăn để giữ điểm sức khoẻ cao.'
+          },
+          {
+            headline: 'Một buổi chiều trôi chảy và thật nhiều suôn sẻ!',
+            sub: 'Đứng dậy đi lại vài bước nếu đã ngồi làm việc quá lâu nhé.'
+          },
+          {
+            headline: 'Sắp hết ngày làm việc rồi, cố thêm chút nữa!',
+            sub: 'Cân bằng giữa công việc và nghỉ ngơi giúp bạn bền bỉ dài lâu.'
+          },
+          {
+            headline: 'Chiều dịu nắng rồi, nhớ tiếp nước đầy đủ nhé!',
+            sub: 'Mỗi cữ nước đúng giờ là một điểm cộng cho cơ thể khoẻ mạnh.'
+          }
+        ]
+      },
+      evening: {
+        id: 'evening',
+        chipLabel: 'Buổi tối',
+        topSub: 'Chào buổi tối,',
+        iconSvg: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>',
+        items: [
+          {
+            headline: 'Một ngày đã qua, tối nay bạn thấy thế nào?',
+            sub: 'Thư giãn tinh thần, ăn tối vừa đủ và nhớ cữ thuốc buổi tối nhé.'
+          },
+          {
+            headline: 'Chúc bạn một buổi tối thật ấm áp và nhẹ lòng!',
+            sub: 'Hôm nay bạn đã nỗ lực rất nhiều rồi, giờ là lúc nghỉ ngơi.'
+          },
+          {
+            headline: 'Tối rồi, hãy dành thời gian lắng nghe cơ thể mình!',
+            sub: 'Ghi lại bữa tối, rà soát sổ công việc và thả lỏng đầu óc nhé.'
+          },
+          {
+            headline: 'Buổi tối bình yên nhé, hôm nay ổn cả chứ?',
+            sub: 'Hoàn thành nốt mục tiêu nước lọc và chuẩn bị cho giấc ngủ ngon.'
+          },
+          {
+            headline: 'Gác lại âu lo, tận hưởng buổi tối thư thái nào!',
+            sub: 'Chăm sóc bản thân từ những điều nhỏ bé trước khi ngày khép lại.'
+          },
+          {
+            headline: 'Hôm nay dù bận thế nào bạn cũng đã rất cố gắng!',
+            sub: 'Ngồi nghỉ một chút, uống thuốc đủ cữ và mỉm cười thật nhẹ.'
+          }
+        ]
+      },
+      night: {
+        id: 'night',
+        chipLabel: 'Đêm khuya',
+        topSub: 'Khuya rồi nhé,',
+        iconSvg: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/><path d="M19 3v4"/><path d="M21 5h-4"/></svg>',
+        items: [
+          {
+            headline: 'Đêm đã muộn rồi, bạn thấy buồn ngủ chưa?',
+            sub: 'Sắp xếp công việc lại và lên giường sớm để cơ thể phục hồi nhé.'
+          },
+          {
+            headline: 'Chúc bạn một đêm ngon giấc và thật bình yên!',
+            sub: 'Giấc ngủ sâu giúp kiểm soát cân nặng và gan khoẻ hơn mỗi ngày.'
+          },
+          {
+            headline: 'Thả lỏng cơ thể, sẵn sàng chìm vào giấc ngủ nào!',
+            sub: 'Đặt điện thoại xuống sớm hơn một chút sẽ giúp bạn dễ ngủ hơn.'
+          },
+          {
+            headline: 'Khuya rồi đấy, giữ sức đừng thức quá muộn nhé!',
+            sub: 'Nhấp một ngụm nước nhỏ rồi nghỉ ngơi cho ngày mai thật tỉnh táo.'
+          },
+          {
+            headline: 'Khép lại ngày hôm nay thật nhẹ nhàng nhé!',
+            sub: 'Mọi chuyện còn lại cứ để sáng mai giải quyết, ngủ thật ngon nào.'
+          },
+          {
+            headline: 'Bầu trời đã về khuya, chúc bạn ngủ thật say!',
+            sub: 'Nghỉ ngơi đủ giấc là món quà tốt nhất cho sức khoẻ lúc này.'
+          }
+        ]
+      }
+    };
+
+    const heroGreetingState = {
+      slotId: null,
+      index: -1,
+      intervalId: null,
+      switchTimerId: null,
+      watcherBound: false
+    };
+
+    function getGreetingTimeSlot(dateObj) {
+      const d = (dateObj instanceof Date && !isNaN(dateObj.getTime())) ? dateObj : new Date();
+      const h = d.getHours();
+      if (h >= 5 && h < 9) return HERO_GREETING_SLOTS.early_morning;
+      if (h >= 9 && h < 11) return HERO_GREETING_SLOTS.morning;
+      if (h >= 11 && h < 14) return HERO_GREETING_SLOTS.noon;
+      if (h >= 14 && h < 18) return HERO_GREETING_SLOTS.afternoon;
+      if (h >= 18 && h < 22) return HERO_GREETING_SLOTS.evening;
+      return HERO_GREETING_SLOTS.night;
+    }
+
+    function readStoredGreetingIndices() {
+      try {
+        const raw = localStorage.getItem(HERO_GREETING_STORAGE_KEY);
+        if (!raw) return {};
+        const parsed = JSON.parse(raw);
+        return (parsed && typeof parsed === 'object') ? parsed : {};
+      } catch (e) {
+        return {};
+      }
+    }
+
+    function writeStoredGreetingIndex(slotId, idx) {
+      try {
+        const map = readStoredGreetingIndices();
+        map[slotId] = idx;
+        localStorage.setItem(HERO_GREETING_STORAGE_KEY, JSON.stringify(map));
+      } catch (e) { }
+    }
+
+    function pickGreetingIndex(slot, opts) {
+      const count = slot.items.length;
+      if (opts && typeof opts.index === 'number' && !isNaN(opts.index)) {
+        return ((Math.floor(opts.index) % count) + count) % count;
+      }
+      if (opts && opts.rotate && heroGreetingState.slotId === slot.id && heroGreetingState.index >= 0) {
+        return (heroGreetingState.index + 1) % count;
+      }
+      if (!opts?.forceFresh && heroGreetingState.slotId === slot.id && heroGreetingState.index >= 0) {
+        return heroGreetingState.index % count;
+      }
+      const stored = readStoredGreetingIndices();
+      const prevIdx = typeof stored[slot.id] === 'number' ? stored[slot.id] : -1;
+      let nextIdx = Math.floor(Math.random() * count);
+      if (count > 1 && nextIdx === prevIdx) {
+        nextIdx = (nextIdx + 1) % count;
+      }
+      return nextIdx;
+    }
+
+    function applyGreetingDom(slot, item) {
+      const topSubEl = document.getElementById('hero-greeting-sub');
+      const chipEl = document.getElementById('hero-time-chip');
+      const iconEl = document.getElementById('hero-time-icon');
+      const labelEl = document.getElementById('hero-time-label');
+      const titleEl = document.getElementById('hero-feeling-title');
+      const subEl = document.getElementById('hero-feeling-sub');
+
+      if (topSubEl) topSubEl.textContent = slot.topSub;
+      if (chipEl) {
+        chipEl.className = `hero-time-chip hero-slot-${slot.id}`;
+        chipEl.setAttribute('aria-label', `${slot.chipLabel} • Bấm để đổi câu chào khác`);
+      }
+      if (iconEl) iconEl.innerHTML = slot.iconSvg;
+      if (labelEl) labelEl.textContent = slot.chipLabel;
+      if (titleEl) titleEl.textContent = item.headline;
+      if (subEl) subEl.textContent = item.sub;
+    }
+
+    function renderDynamicGreeting(opts = {}) {
+      const slot = getGreetingTimeSlot(opts.now);
+      const nextIdx = pickGreetingIndex(slot, opts);
+      heroGreetingState.slotId = slot.id;
+      heroGreetingState.index = nextIdx;
+      writeStoredGreetingIndex(slot.id, nextIdx);
+
+      const item = slot.items[nextIdx] || slot.items[0];
+      const blockEl = document.getElementById('hero-greeting-block');
+      const reducedMotion = typeof window.matchMedia === 'function'
+        && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      if (opts.animate && blockEl && !reducedMotion) {
+        if (heroGreetingState.switchTimerId) {
+          clearTimeout(heroGreetingState.switchTimerId);
+        }
+        blockEl.classList.add('is-switching');
+        heroGreetingState.switchTimerId = setTimeout(() => {
+          applyGreetingDom(slot, item);
+          blockEl.classList.remove('is-switching');
+          heroGreetingState.switchTimerId = null;
+        }, 120);
+      } else {
+        if (blockEl) blockEl.classList.remove('is-switching');
+        applyGreetingDom(slot, item);
+      }
+
+      return { slotId: slot.id, chipLabel: slot.chipLabel, topSub: slot.topSub, index: nextIdx, item };
+    }
+
+    window.cycleHeroGreeting = function () {
+      return renderDynamicGreeting({ rotate: true, animate: true });
+    };
+
+    function setupHeroGreetingWatcher() {
+      if (heroGreetingState.watcherBound) return;
+      heroGreetingState.watcherBound = true;
+      heroGreetingState.intervalId = setInterval(() => {
+        if (typeof document !== 'undefined' && document.hidden) return;
+        const currentSlot = getGreetingTimeSlot();
+        if (currentSlot.id !== heroGreetingState.slotId) {
+          renderDynamicGreeting({ forceFresh: true });
+        }
+      }, 60000);
+      if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+        document.addEventListener('visibilitychange', () => {
+          if (!document.hidden) {
+            const currentSlot = getGreetingTimeSlot();
+            if (currentSlot.id !== heroGreetingState.slotId) {
+              renderDynamicGreeting({ forceFresh: true });
+            }
+          }
+        });
+      }
+    }
+
     function renderTodayHeader() {
+      renderDynamicGreeting();
       const nameEl = document.getElementById('user-display-name');
       if (nameEl) {
         if (state.currentUser === 'dev') {
@@ -3006,22 +3348,12 @@
 
     function renderWorkJobsList() {
       const container = document.getElementById('work-jobs-list');
-      const subEl = document.getElementById('work-jobs-list-sub');
       if (!container) return;
 
       const jobs = workState.jobs || [];
-      const ds = workState.daySummary || {};
-      if (subEl) {
-        subEl.textContent = `${jobs.length} đơn • Tổng ${formatShortK(ds.total_revenue || 0)}`;
-      }
 
       if (jobs.length === 0) {
-        container.innerHTML = `
-        <div class="empty-state-box">
-          Chưa có đơn dịch vụ nào trong ngày ${formatVNDate(workState.date)}.<br>
-          Bấm nút <strong>+</strong> ở góc dưới phải để lưu đơn chỉ trong vài giây.
-        </div>
-      `;
+        container.innerHTML = `<div class="empty-state-box">Chưa có đơn dịch vụ nào trong ngày ${formatVNDate(workState.date)}.</div>`;
         return;
       }
 
