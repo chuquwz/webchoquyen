@@ -2198,12 +2198,19 @@
       ledger: [],
       allBorrows: [],
       borrowFilter: 'all', // 'all' | 'unpaid' | 'settled'
+      borrowSearchQuery: '',
       dayRepayments: [],
       daySummary: {},
       monthSummary: {},
       unpaidGroups: [],
       debtGroups: [],
       debtFilter: 'all',
+      debtSearchQuery: '',
+      debtTimeMode: 'all', // 'all' | 'day' | 'month' | 'range'
+      debtTimeDate: '',
+      debtTimeMonth: '',
+      debtTimeFrom: '',
+      debtTimeTo: '',
       totalUnpaidAll: 0,
       totalUnpaidJobs: 0,
       recentDays: [],
@@ -2323,6 +2330,96 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+    }
+
+    /** Normalizes Vietnamese text for diacritic- and case-insensitive search. */
+    function normalizeSearchText(str) {
+      return String(str || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[đĐ]/g, 'd')
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    /** Matches a date token like 15/11, 15/11/2026, 11/2026, or 2026-11 against YYYY-MM-DD. */
+    function doesDateMatchSearchToken(dateStr, token) {
+      if (!dateStr || !token) return false;
+      const parts = String(dateStr).split('-');
+      if (parts.length !== 3) return false;
+      const y = Number(parts[0]);
+      const m = Number(parts[1]);
+      const d = Number(parts[2]);
+      if (!y || !m || !d) return false;
+
+      let match = token.match(/^(\d{1,2})[\/\-](\d{1,2})$/);
+      if (match) {
+        return Number(match[1]) === d && Number(match[2]) === m;
+      }
+      match = token.match(/^(\d{1,2})[\/\-](\d{4})$/);
+      if (match) {
+        return Number(match[1]) === m && Number(match[2]) === y;
+      }
+      match = token.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+      if (match) {
+        let yy = Number(match[3]);
+        if (match[3].length === 2) yy += 2000;
+        return Number(match[1]) === d && Number(match[2]) === m && yy === y;
+      }
+      match = token.match(/^(\d{4})[\/\-](\d{1,2})(?:[\/\-](\d{1,2}))?$/);
+      if (match) {
+        const dy = Number(match[1]);
+        const dm = Number(match[2]);
+        const dd = match[3] ? Number(match[3]) : null;
+        return dy === y && dm === m && (dd === null || dd === d);
+      }
+      return false;
+    }
+
+    /** Returns true when every whitespace token in query matches fields or optional dateStr. */
+    function matchesTokenizedQuery(query, fields, dateStrOpt) {
+      const qNorm = normalizeSearchText(query);
+      if (!qNorm) return true;
+      const combined = normalizeSearchText((fields || []).filter(Boolean).join(' '));
+      const tokens = qNorm.split(' ');
+      return tokens.every(tok => combined.includes(tok) || (dateStrOpt ? doesDateMatchSearchToken(dateStrOpt, tok) : false));
+    }
+
+    /** Keeps a search input and clear button synced without interrupting active IME input. */
+    function syncSearchInputUI(inputId, clearBtnId, rawQuery) {
+      const inputEl = document.getElementById(inputId);
+      const val = String(rawQuery || '');
+      if (inputEl && document.activeElement !== inputEl && inputEl.value !== val) {
+        inputEl.value = val;
+      }
+      const clearBtn = document.getElementById(clearBtnId);
+      if (clearBtn) {
+        clearBtn.hidden = !val.trim();
+      }
+    }
+
+    /** Updates the search summary bar and permanent screen-reader status live region. */
+    function renderSearchStatusBanner(statusId, liveId, isActive, text, resetFnName, isEmpty) {
+      const statusEl = document.getElementById(statusId);
+      const liveEl = document.getElementById(liveId);
+      if (statusEl) {
+        if (!isActive) {
+          statusEl.hidden = true;
+          statusEl.classList.remove('is-empty-result');
+          statusEl.innerHTML = '';
+        } else {
+          statusEl.hidden = false;
+          statusEl.classList.toggle('is-empty-result', Boolean(isEmpty));
+          statusEl.innerHTML = `
+            <span class="work-search-status-text">${escapeHTML(text)}</span>
+            <button type="button" class="btn-search-reset" onclick="${resetFnName}()">Xoá lọc</button>
+          `;
+        }
+      }
+      if (liveEl) {
+        liveEl.textContent = isActive ? text : '';
+      }
     }
 
     function workIconSVG(name, size = 14) {
@@ -3597,6 +3694,220 @@
       renderWorkUnpaidGroups();
     };
 
+    function getDefaultWorkDateStr() {
+      return workState.date || workState.today || state.today || new Date().toISOString().slice(0, 10);
+    }
+
+    function formatMonthHumanLabel(monthStr) {
+      if (!monthStr || !monthStr.includes('-')) return monthStr || '';
+      const parts = monthStr.split('-');
+      return `Tháng ${parseInt(parts[1], 10)}/${parts[0]}`;
+    }
+
+    function getAvailableDebtMonths(groups) {
+      const counts = {};
+      (groups || []).forEach(g => {
+        (g.jobs || []).forEach(j => {
+          const m = String((j && j.date) || '').slice(0, 7);
+          if (/^\d{4}-\d{2}$/.test(m)) {
+            counts[m] = (counts[m] || 0) + 1;
+          }
+        });
+      });
+      const fallbackMonth = (workState.month || getDefaultWorkDateStr().slice(0, 7));
+      if (/^\d{4}-\d{2}$/.test(fallbackMonth) && !(fallbackMonth in counts)) {
+        counts[fallbackMonth] = 0;
+      }
+      if (workState.debtTimeMonth && /^\d{4}-\d{2}$/.test(workState.debtTimeMonth) && !(workState.debtTimeMonth in counts)) {
+        counts[workState.debtTimeMonth] = 0;
+      }
+      return Object.keys(counts)
+        .sort((a, b) => (a < b ? 1 : -1))
+        .map(m => ({ month: m, count: counts[m] }));
+    }
+
+    function syncDebtFilterControls(groups) {
+      syncSearchInputUI('debt-search-input', 'debt-search-clear', workState.debtSearchQuery);
+
+      const mode = workState.debtTimeMode || 'all';
+      document.querySelectorAll('#debt-time-modes .work-time-mode-pill').forEach(btn => {
+        const active = btn.getAttribute('data-mode') === mode;
+        btn.classList.toggle('active', active);
+        btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+      });
+
+      const dayRow = document.getElementById('debt-time-day-row');
+      const monthRow = document.getElementById('debt-time-month-row');
+      const rangeRow = document.getElementById('debt-time-range-row');
+      if (dayRow) dayRow.hidden = mode !== 'day';
+      if (monthRow) monthRow.hidden = mode !== 'month';
+      if (rangeRow) rangeRow.hidden = mode !== 'range';
+
+      const dateInput = document.getElementById('debt-filter-date');
+      if (dateInput && document.activeElement !== dateInput && dateInput.value !== (workState.debtTimeDate || '')) {
+        dateInput.value = workState.debtTimeDate || '';
+      }
+
+      const monthSelect = document.getElementById('debt-filter-month');
+      if (monthSelect) {
+        const monthItems = getAvailableDebtMonths(groups);
+        if (!workState.debtTimeMonth && mode === 'month' && monthItems.length > 0) {
+          const withData = monthItems.find(x => x.count > 0);
+          workState.debtTimeMonth = (withData || monthItems[0]).month;
+        }
+        const sig = monthItems.map(x => `${x.month}:${x.count}`).join('|');
+        if (monthSelect.dataset.sig !== sig) {
+          monthSelect.dataset.sig = sig;
+          monthSelect.innerHTML = monthItems.map(x => {
+            const label = x.count > 0
+              ? `${formatMonthHumanLabel(x.month)} (${x.count} đơn)`
+              : formatMonthHumanLabel(x.month);
+            return `<option value="${escapeHTML(x.month)}">${escapeHTML(label)}</option>`;
+          }).join('');
+        }
+        if (workState.debtTimeMonth && monthSelect.value !== workState.debtTimeMonth) {
+          monthSelect.value = workState.debtTimeMonth;
+        }
+      }
+
+      const fromInput = document.getElementById('debt-filter-from');
+      if (fromInput && document.activeElement !== fromInput && fromInput.value !== (workState.debtTimeFrom || '')) {
+        fromInput.value = workState.debtTimeFrom || '';
+      }
+      const toInput = document.getElementById('debt-filter-to');
+      if (toInput && document.activeElement !== toInput && toInput.value !== (workState.debtTimeTo || '')) {
+        toInput.value = workState.debtTimeTo || '';
+      }
+    }
+
+    function hasActiveDebtTimeConstraint() {
+      const mode = workState.debtTimeMode || 'all';
+      if (mode === 'day') return Boolean((workState.debtTimeDate || '').trim());
+      if (mode === 'month') return Boolean((workState.debtTimeMonth || '').trim());
+      if (mode === 'range') return Boolean((workState.debtTimeFrom || '').trim() || (workState.debtTimeTo || '').trim());
+      return false;
+    }
+
+    function matchesDebtTimeFilter(dateStr) {
+      const mode = workState.debtTimeMode || 'all';
+      const d = String(dateStr || '');
+      if (mode === 'day') {
+        const target = (workState.debtTimeDate || '').trim();
+        return !target || d === target;
+      }
+      if (mode === 'month') {
+        const target = (workState.debtTimeMonth || '').trim();
+        return !target || d.startsWith(target + '-');
+      }
+      if (mode === 'range') {
+        const from = (workState.debtTimeFrom || '').trim();
+        const to = (workState.debtTimeTo || '').trim();
+        if (!from && !to) return true;
+        if (!d) return false;
+        if (from && to) {
+          const start = from <= to ? from : to;
+          const end = from <= to ? to : from;
+          return d >= start && d <= end;
+        }
+        return from ? d >= from : d <= to;
+      }
+      return true;
+    }
+
+    function describeDebtTimeFilter() {
+      const mode = workState.debtTimeMode || 'all';
+      if (mode === 'day' && workState.debtTimeDate) {
+        return `ngày ${formatVNDate(workState.debtTimeDate)}`;
+      }
+      if (mode === 'month' && workState.debtTimeMonth) {
+        return formatMonthHumanLabel(workState.debtTimeMonth).toLowerCase();
+      }
+      if (mode === 'range') {
+        const from = (workState.debtTimeFrom || '').trim();
+        const to = (workState.debtTimeTo || '').trim();
+        if (from && to) {
+          const start = from <= to ? from : to;
+          const end = from <= to ? to : from;
+          return `từ ${formatVNDate(start)} đến ${formatVNDate(end)}`;
+        }
+        if (from) return `từ ngày ${formatVNDate(from)}`;
+        if (to) return `đến ngày ${formatVNDate(to)}`;
+      }
+      return '';
+    }
+
+    window.onDebtSearchInput = function (val) {
+      workState.debtSearchQuery = String(val || '');
+      renderWorkUnpaidGroups();
+    };
+
+    window.onDebtSearchKeydown = function (e) {
+      if (e.key === 'Escape') {
+        const hasText = Boolean((workState.debtSearchQuery || '').trim() || (e.target && e.target.value));
+        if (hasText) {
+          e.preventDefault();
+          window.clearDebtSearch();
+        }
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+      }
+    };
+
+    window.clearDebtSearch = function () {
+      workState.debtSearchQuery = '';
+      const inputEl = document.getElementById('debt-search-input');
+      if (inputEl) inputEl.value = '';
+      renderWorkUnpaidGroups();
+      if (inputEl) inputEl.focus();
+    };
+
+    window.setDebtTimeMode = function (mode) {
+      if (!['all', 'day', 'month', 'range'].includes(mode)) mode = 'all';
+      workState.debtTimeMode = mode;
+      if (mode === 'day' && !workState.debtTimeDate) {
+        workState.debtTimeDate = getDefaultWorkDateStr();
+      } else if (mode === 'month' && !workState.debtTimeMonth) {
+        const groups = Array.isArray(workState.debtGroups) && workState.debtGroups.length > 0
+          ? workState.debtGroups
+          : (workState.unpaidGroups || []);
+        const months = getAvailableDebtMonths(groups);
+        const withData = months.find(x => x.count > 0);
+        workState.debtTimeMonth = (withData || months[0] || { month: getDefaultWorkDateStr().slice(0, 7) }).month;
+      }
+      renderWorkUnpaidGroups();
+    };
+
+    window.setDebtFilterToday = function () {
+      workState.debtTimeMode = 'day';
+      workState.debtTimeDate = workState.today || state.today || new Date().toISOString().slice(0, 10);
+      renderWorkUnpaidGroups();
+    };
+
+    window.onDebtTimeDetailChange = function () {
+      const dateInput = document.getElementById('debt-filter-date');
+      const monthSelect = document.getElementById('debt-filter-month');
+      const fromInput = document.getElementById('debt-filter-from');
+      const toInput = document.getElementById('debt-filter-to');
+      if (dateInput) workState.debtTimeDate = dateInput.value || '';
+      if (monthSelect) workState.debtTimeMonth = monthSelect.value || '';
+      if (fromInput) workState.debtTimeFrom = fromInput.value || '';
+      if (toInput) workState.debtTimeTo = toInput.value || '';
+      renderWorkUnpaidGroups();
+    };
+
+    window.resetDebtFilters = function () {
+      workState.debtSearchQuery = '';
+      workState.debtTimeMode = 'all';
+      workState.debtTimeDate = '';
+      workState.debtTimeMonth = '';
+      workState.debtTimeFrom = '';
+      workState.debtTimeTo = '';
+      const inputEl = document.getElementById('debt-search-input');
+      if (inputEl) inputEl.value = '';
+      renderWorkUnpaidGroups();
+      if (inputEl) inputEl.focus();
+    };
+
     function findDebtGroupByKeyOrIdx(custEncOrIdx) {
       const allGroups = (workState.debtGroups && workState.debtGroups.length > 0)
         ? workState.debtGroups
@@ -3621,16 +3932,31 @@
         ? workState.debtGroups
         : (workState.unpaidGroups || []);
 
+      syncDebtFilterControls(groups);
+
+      const rawQuery = (workState.debtSearchQuery || '').trim();
+      const hasTimeFilter = hasActiveDebtTimeConstraint();
+      const hasSearchOrTimeFilter = Boolean(rawQuery || hasTimeFilter);
+
       let allJobsCount = 0;
       let unpaidJobsCount = 0;
       let settledJobsCount = 0;
-      groups.forEach(g => {
-        (g.jobs || []).forEach(j => {
+
+      const searchMatchedGroups = groups.map(g => {
+        const jobs = (g.jobs || []).filter(j => {
+          if (!matchesDebtTimeFilter(j.date)) return false;
+          if (!matchesTokenizedQuery(rawQuery, [j.customer || g.customer, j.service, j.note], j.date)) {
+            return false;
+          }
+          return true;
+        });
+        jobs.forEach(j => {
           allJobsCount++;
           if (getDebtJobTotals(j).remaining > 0) unpaidJobsCount++;
           else settledJobsCount++;
         });
-      });
+        return jobs.length > 0 ? { ...g, _matchedJobs: jobs } : null;
+      }).filter(Boolean);
 
       const setTxt = (id, val) => {
         const el = document.getElementById(id);
@@ -3647,6 +3973,37 @@
         btn.setAttribute('aria-selected', active ? 'true' : 'false');
       });
 
+      const filteredGroups = searchMatchedGroups.map(g => {
+        const matchedJobs = g._matchedJobs.filter(j => {
+          const isSettledJob = getDebtJobTotals(j).remaining <= 0;
+          if (filter === 'unpaid') return !isSettledJob;
+          if (filter === 'settled') return isSettledJob;
+          return true;
+        });
+        return matchedJobs.length > 0 ? { ...g, _visibleJobs: matchedJobs } : null;
+      }).filter(Boolean);
+
+      let visibleJobsCount = 0;
+      let visibleRemainingTotal = 0;
+      filteredGroups.forEach(g => {
+        g._visibleJobs.forEach(j => {
+          visibleJobsCount++;
+          visibleRemainingTotal += Math.max(0, getDebtJobTotals(j).remaining);
+        });
+      });
+
+      const statusText = visibleJobsCount > 0
+        ? `Tìm thấy ${filteredGroups.length} khách (${visibleJobsCount} đơn) • Còn nợ ${formatVND(visibleRemainingTotal)}`
+        : 'Không có đơn nợ nào khớp điều kiện đang lọc';
+      renderSearchStatusBanner(
+        'debt-search-status',
+        'debt-search-live',
+        hasSearchOrTimeFilter && groups.length > 0,
+        statusText,
+        'resetDebtFilters',
+        visibleJobsCount === 0
+      );
+
       if (!listEl) return;
 
       if (groups.length === 0) {
@@ -3659,17 +4016,38 @@
         return;
       }
 
-      const filteredGroups = groups.map(g => {
-        const matchedJobs = (g.jobs || []).filter(j => {
-          const isSettledJob = getDebtJobTotals(j).remaining <= 0;
-          if (filter === 'unpaid') return !isSettledJob;
-          if (filter === 'settled') return isSettledJob;
-          return true;
-        });
-        return matchedJobs.length > 0 ? { ...g, _visibleJobs: matchedJobs } : null;
-      }).filter(Boolean);
-
       if (filteredGroups.length === 0) {
+        if (hasSearchOrTimeFilter) {
+          const criteriaParts = [];
+          if (rawQuery) criteriaParts.push(`"${escapeHTML(rawQuery)}"`);
+          const timeDesc = describeDebtTimeFilter();
+          if (timeDesc) criteriaParts.push(escapeHTML(timeDesc));
+          const criteriaText = criteriaParts.join(' trong ');
+
+          if (allJobsCount > 0 && filter !== 'all') {
+            const tabLabel = filter === 'unpaid' ? 'Chưa trả' : 'Đã trả xong';
+            listEl.innerHTML = `
+              <div class="empty-state-box">
+                Không có đơn khớp ${criteriaText} ở mục <strong>${tabLabel}</strong>.
+                <div class="empty-state-actions">
+                  <button type="button" class="btn-search-reset" onclick="setDebtListFilter('all')">Xem tất cả (${allJobsCount})</button>
+                  <button type="button" class="btn-search-reset" onclick="resetDebtFilters()">Xoá lọc</button>
+                </div>
+              </div>
+            `;
+          } else {
+            listEl.innerHTML = `
+              <div class="empty-state-box">
+                Không tìm thấy đơn nợ nào khớp ${criteriaText || 'bộ lọc hiện tại'}.
+                <div class="empty-state-actions">
+                  <button type="button" class="btn-search-reset" onclick="resetDebtFilters()">Xoá bộ lọc</button>
+                </div>
+              </div>
+            `;
+          }
+          return;
+        }
+
         const emptyMsg = filter === 'unpaid'
           ? 'Tuyệt vời! Tất cả các đơn trong Sổ nợ đều đã trả xong. Bấm tab "Đã trả xong" hoặc "Tất cả" để xem lại.'
           : 'Chưa có đơn nợ nào đã trả xong.';
@@ -3687,11 +4065,18 @@
         const unpaidJobCnt = Number(g.job_count) || 0;
         const totalJobCnt = Number(g.total_job_count) || (g.jobs || []).length;
 
-        const subText = groupSettled
-          ? `${totalJobCnt} đơn đều đã trả xong • Đã thu ${formatShortK(groupPaidAmt)}`
-          : (groupPaidAmt > 0
-            ? `${unpaidJobCnt}/${totalJobCnt} đơn chưa trả • Đã thu ${formatShortK(groupPaidAmt)}`
-            : `${unpaidJobCnt} đơn chưa thanh toán`);
+        const visibleUnpaidAmt = g._visibleJobs.reduce((acc, j) => acc + Math.max(0, getDebtJobTotals(j).remaining), 0);
+        const visibleOrigAmt = g._visibleJobs.reduce((acc, j) => acc + Math.max(0, getDebtJobTotals(j).orig), 0);
+        const isPartialView = hasSearchOrTimeFilter && g._visibleJobs.length < totalJobCnt;
+        const headerDisplayAmt = isPartialView ? visibleUnpaidAmt : groupUnpaidAmt;
+
+        const subText = isPartialView
+          ? `Khớp ${g._visibleJobs.length}/${totalJobCnt} đơn • Tổng nợ cả sổ ${formatShortK(groupUnpaidAmt)}`
+          : (groupSettled
+            ? `${totalJobCnt} đơn đều đã trả xong • Đã thu ${formatShortK(groupPaidAmt)}`
+            : (groupPaidAmt > 0
+              ? `${unpaidJobCnt}/${totalJobCnt} đơn chưa trả • Đã thu ${formatShortK(groupPaidAmt)}`
+              : `${unpaidJobCnt} đơn chưa thanh toán`));
 
         const itemsHtml = g._visibleJobs.map(j => {
           const dt = getDebtJobTotals(j);
@@ -3737,14 +4122,16 @@
               <span style="font-size: 11.5px; color: var(--text-sub);">${subText}</span>
             </div>
             <div class="work-ledger-amt-col font-tabular">
-              <span class="work-debt-total-val">${formatVND(groupUnpaidAmt)}</span>
-              ${groupPaidAmt > 0 ? `<span class="work-borrow-orig-sub">Gốc ${formatShortK(groupOrigAmt)}</span>` : ''}
+              <span class="work-debt-total-val">${formatVND(headerDisplayAmt)}</span>
+              ${isPartialView
+                ? (visibleOrigAmt > 0 ? `<span class="work-borrow-orig-sub">Gốc khớp ${formatShortK(visibleOrigAmt)}</span>` : '')
+                : (groupPaidAmt > 0 ? `<span class="work-borrow-orig-sub">Gốc ${formatShortK(groupOrigAmt)}</span>` : '')}
             </div>
           </div>
           <div class="work-debt-items-list">${itemsHtml}</div>
           <div class="work-debt-group-actions${groupSettled ? ' is-single' : ''}">
             <button type="button" class="btn-debt-copy" onclick="copyCustomerDebtText('${encCust}')">${workIconSVG('copy', 14)} <span>${groupSettled ? 'Copy lịch sử trả' : 'Copy báo nợ'}</span></button>
-            ${groupSettled ? '' : `<button type="button" class="btn-debt-payall" onclick="payAllCustomerDebt('${encCust}')">${workIconSVG('check', 14)} <span>Đã thu hết (${formatShortK(groupUnpaidAmt)})</span></button>`}
+            ${groupSettled ? '' : `<button type="button" class="btn-debt-payall" onclick="payAllCustomerDebt('${encCust}')">${workIconSVG('check', 14)} <span>${isPartialView ? `Thu hết sổ (${formatShortK(groupUnpaidAmt)})` : `Đã thu hết (${formatShortK(groupUnpaidAmt)})`}</span></button>`}
           </div>
         </div>
       `;
@@ -4097,7 +4484,36 @@
       renderBorrowListModal();
     };
 
+    window.onBorrowSearchInput = function (val) {
+      workState.borrowSearchQuery = String(val || '');
+      renderBorrowListModal();
+    };
+
+    window.onBorrowSearchKeydown = function (e) {
+      if (e.key === 'Escape') {
+        const hasText = Boolean((workState.borrowSearchQuery || '').trim() || (e.target && e.target.value));
+        if (hasText) {
+          e.preventDefault();
+          e.stopPropagation();
+          window.clearBorrowSearch();
+        }
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+      }
+    };
+
+    window.clearBorrowSearch = function () {
+      workState.borrowSearchQuery = '';
+      const inputEl = document.getElementById('borrow-search-input');
+      if (inputEl) inputEl.value = '';
+      renderBorrowListModal();
+      if (inputEl) inputEl.focus();
+    };
+
     window.openBorrowListModal = function () {
+      workState.borrowSearchQuery = '';
+      const inputEl = document.getElementById('borrow-search-input');
+      if (inputEl) inputEl.value = '';
       renderBorrowListModal();
       openModal('modal-borrow-list');
     };
@@ -4120,19 +4536,7 @@
         remEl.classList.toggle('is-remaining', !isZero);
       }
 
-      setTxt('borrow-cnt-all', String(sum.totalCount));
-      setTxt('borrow-cnt-unpaid', String(sum.unpaidCount));
-      setTxt('borrow-cnt-settled', String(sum.settledCount));
-
-      const activeFilter = workState.borrowFilter || 'all';
-      document.querySelectorAll('#borrow-list-filters .borrow-filter-pill').forEach(btn => {
-        const isAct = btn.getAttribute('data-filter') === activeFilter;
-        btn.classList.toggle('active', isAct);
-        btn.setAttribute('aria-selected', isAct ? 'true' : 'false');
-      });
-
-      const listEl = document.getElementById('borrow-modal-list');
-      if (!listEl) return;
+      syncSearchInputUI('borrow-search-input', 'borrow-search-clear', workState.borrowSearchQuery);
 
       const sorted = [...sum.items].sort((a, b) => {
         const ra = getBorrowTotals(a).remaining > 0 ? 0 : 1;
@@ -4144,13 +4548,56 @@
         return (Number(b.id) || 0) - (Number(a.id) || 0);
       });
 
-      const filtered = sorted.filter(item => {
+      const rawQuery = (workState.borrowSearchQuery || '').trim();
+      const queryMatched = rawQuery
+        ? sorted.filter(item => matchesTokenizedQuery(rawQuery, [item.note]))
+        : sorted;
+
+      let matchedUnpaidCount = 0;
+      let matchedSettledCount = 0;
+      queryMatched.forEach(item => {
+        const { orig, remaining } = getBorrowTotals(item);
+        const isSettled = remaining <= 0 && orig > 0;
+        if (isSettled) matchedSettledCount++;
+        else matchedUnpaidCount++;
+      });
+
+      setTxt('borrow-cnt-all', String(queryMatched.length));
+      setTxt('borrow-cnt-unpaid', String(matchedUnpaidCount));
+      setTxt('borrow-cnt-settled', String(matchedSettledCount));
+
+      const activeFilter = workState.borrowFilter || 'all';
+      document.querySelectorAll('#borrow-list-filters .borrow-filter-pill').forEach(btn => {
+        const isAct = btn.getAttribute('data-filter') === activeFilter;
+        btn.classList.toggle('active', isAct);
+        btn.setAttribute('aria-selected', isAct ? 'true' : 'false');
+      });
+
+      const filtered = queryMatched.filter(item => {
         const { orig, remaining } = getBorrowTotals(item);
         const isSettled = remaining <= 0 && orig > 0;
         if (activeFilter === 'unpaid') return !isSettled;
         if (activeFilter === 'settled') return isSettled;
         return true;
       });
+
+      const filteredRemaining = filtered.reduce((acc, item) => acc + getBorrowTotals(item).remaining, 0);
+      const statusText = filtered.length > 0
+        ? `Tìm thấy ${filtered.length} khoản khớp "${rawQuery}" • Còn phải trả ${formatVND(filteredRemaining)}`
+        : (queryMatched.length > 0
+          ? `Không có khoản khớp "${rawQuery}" trong mục đang chọn`
+          : `Không tìm thấy khoản mượn nào khớp "${rawQuery}"`);
+      renderSearchStatusBanner(
+        'borrow-search-status',
+        'borrow-search-live',
+        Boolean(rawQuery && sum.totalCount > 0),
+        statusText,
+        'clearBorrowSearch',
+        filtered.length === 0
+      );
+
+      const listEl = document.getElementById('borrow-modal-list');
+      if (!listEl) return;
 
       if (filtered.length === 0) {
         if (sum.totalCount === 0) {
@@ -4159,6 +4606,26 @@
               Quyền chưa có khoản mượn tiền nào.<br>
               Bấm nút <strong>+ Thêm khoản mượn mới</strong> phía trên để ghi lại.
             </div>`;
+        } else if (rawQuery) {
+          if (queryMatched.length > 0 && activeFilter !== 'all') {
+            const tabLabel = activeFilter === 'unpaid' ? 'Chưa trả' : 'Đã trả xong';
+            listEl.innerHTML = `
+              <div class="empty-state-box">
+                Không có khoản mượn khớp "${escapeHTML(rawQuery)}" ở mục <strong>${tabLabel}</strong>.
+                <div class="empty-state-actions">
+                  <button type="button" class="btn-search-reset" onclick="setBorrowModalFilter('all')">Xem tất cả (${queryMatched.length})</button>
+                  <button type="button" class="btn-search-reset" onclick="clearBorrowSearch()">Xoá tìm kiếm</button>
+                </div>
+              </div>`;
+          } else {
+            listEl.innerHTML = `
+              <div class="empty-state-box">
+                Không tìm thấy khoản mượn nào có tên khớp "${escapeHTML(rawQuery)}".
+                <div class="empty-state-actions">
+                  <button type="button" class="btn-search-reset" onclick="clearBorrowSearch()">Xoá tìm kiếm</button>
+                </div>
+              </div>`;
+          }
         } else if (activeFilter === 'unpaid') {
           listEl.innerHTML = `<div class="empty-state-box">Tuyệt vời! Tất cả các khoản mượn đều đã trả xong.</div>`;
         } else {

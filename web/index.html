@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=74">
+  <link rel="stylesheet" href="/style.css?v=75">
 </head>
 
 <body>
@@ -741,6 +741,74 @@
               <span id="work-unpaid-count-all" class="work-job-count-pill badge-alert font-tabular">0 đơn nợ</span>
             </div>
 
+            <div id="debt-search-panel" class="work-search-card" role="search" aria-label="Tìm kiếm sổ nợ">
+              <div class="work-search-field-group">
+                <label class="work-search-label" for="debt-search-input">Tìm tên khách hàng, dịch vụ hoặc ngày</label>
+                <div class="work-search-input-wrap">
+                  <svg class="work-search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none"
+                    stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
+                    aria-hidden="true">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  <input type="search" id="debt-search-input" class="form-input work-mobile-input work-search-input"
+                    placeholder="Ví dụ: Tiến, FRP OPPO, 15/11" autocomplete="off" enterkeyhint="search"
+                    oninput="onDebtSearchInput(this.value)" onkeydown="onDebtSearchKeydown(event)">
+                  <button type="button" id="debt-search-clear" class="work-search-clear"
+                    aria-label="Xoá từ khoá tìm kiếm sổ nợ" onclick="clearDebtSearch()" hidden>
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+                      stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="work-time-filter-group">
+                <span id="debt-time-label" class="work-search-label">Thời gian</span>
+                <div id="debt-time-modes" class="work-time-mode-bar" role="group" aria-labelledby="debt-time-label">
+                  <button type="button" class="work-time-mode-pill active" data-mode="all" aria-pressed="true"
+                    onclick="setDebtTimeMode('all')">Tất cả</button>
+                  <button type="button" class="work-time-mode-pill" data-mode="day" aria-pressed="false"
+                    onclick="setDebtTimeMode('day')">Theo ngày</button>
+                  <button type="button" class="work-time-mode-pill" data-mode="month" aria-pressed="false"
+                    onclick="setDebtTimeMode('month')">Theo tháng</button>
+                  <button type="button" class="work-time-mode-pill" data-mode="range" aria-pressed="false"
+                    onclick="setDebtTimeMode('range')">Từ – Đến</button>
+                </div>
+
+                <div id="debt-time-day-row" class="work-time-detail-row" hidden>
+                  <div class="work-time-day-wrap">
+                    <label class="sr-only" for="debt-filter-date">Chọn ngày cần tìm trong sổ nợ</label>
+                    <input type="date" id="debt-filter-date" class="form-input work-mobile-input font-tabular"
+                      onchange="onDebtTimeDetailChange()">
+                    <button type="button" class="btn-work-today-chip work-time-today-btn"
+                      onclick="setDebtFilterToday()">Hôm nay</button>
+                  </div>
+                </div>
+
+                <div id="debt-time-month-row" class="work-time-detail-row" hidden>
+                  <label class="sr-only" for="debt-filter-month">Chọn tháng cần tìm trong sổ nợ</label>
+                  <select id="debt-filter-month" class="form-input work-mobile-input font-tabular"
+                    onchange="onDebtTimeDetailChange()"></select>
+                </div>
+
+                <div id="debt-time-range-row" class="work-time-detail-row work-time-range-grid" hidden>
+                  <div class="work-time-range-cell">
+                    <label class="work-time-sub-label" for="debt-filter-from">Từ ngày</label>
+                    <input type="date" id="debt-filter-from" class="form-input work-mobile-input font-tabular"
+                      onchange="onDebtTimeDetailChange()">
+                  </div>
+                  <div class="work-time-range-cell">
+                    <label class="work-time-sub-label" for="debt-filter-to">Đến ngày</label>
+                    <input type="date" id="debt-filter-to" class="form-input work-mobile-input font-tabular"
+                      onchange="onDebtTimeDetailChange()">
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div id="debt-list-filters" class="borrow-filter-bar font-tabular" role="tablist"
               aria-label="Lọc trạng thái sổ nợ">
               <button type="button" class="borrow-filter-pill active" data-filter="all" role="tab" aria-selected="true"
@@ -750,6 +818,9 @@
               <button type="button" class="borrow-filter-pill" data-filter="settled" role="tab" aria-selected="false"
                 onclick="setDebtListFilter('settled')">Đã trả xong (<span id="debt-cnt-settled">0</span>)</button>
             </div>
+
+            <div id="debt-search-status" class="work-search-status font-tabular" hidden></div>
+            <p id="debt-search-live" class="sr-only" role="status" aria-live="polite"></p>
 
             <div id="work-unpaid-groups-list" class="work-items-stack" style="margin-bottom: 24px;"></div>
           </div>
@@ -1386,6 +1457,31 @@
         </button>
       </div>
 
+      <div id="borrow-search-panel" class="work-search-card work-search-card-compact" role="search"
+        aria-label="Tìm kiếm khoản mượn theo tên">
+        <div class="work-search-field-group">
+          <label class="work-search-label" for="borrow-search-input">Tìm khoản mượn theo tên</label>
+          <div class="work-search-input-wrap">
+            <svg class="work-search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+              stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input type="search" id="borrow-search-input" class="form-input work-mobile-input work-search-input"
+              placeholder="Ví dụ: Anh Nam, Chị Hoa, Tiền nhà" autocomplete="off" enterkeyhint="search"
+              oninput="onBorrowSearchInput(this.value)" onkeydown="onBorrowSearchKeydown(event)">
+            <button type="button" id="borrow-search-clear" class="work-search-clear"
+              aria-label="Xoá từ khoá tìm kiếm khoản mượn" onclick="clearBorrowSearch()" hidden>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4"
+                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div id="borrow-list-filters" class="borrow-filter-bar font-tabular" role="tablist"
         aria-label="Lọc trạng thái khoản mượn">
         <button type="button" class="borrow-filter-pill active" data-filter="all" role="tab" aria-selected="true"
@@ -1395,6 +1491,9 @@
         <button type="button" class="borrow-filter-pill" data-filter="settled" role="tab" aria-selected="false"
           onclick="setBorrowModalFilter('settled')">Đã trả xong (<span id="borrow-cnt-settled">0</span>)</button>
       </div>
+
+      <div id="borrow-search-status" class="work-search-status font-tabular" hidden></div>
+      <p id="borrow-search-live" class="sr-only" role="status" aria-live="polite"></p>
 
       <div id="borrow-modal-list" class="work-items-stack"></div>
     </div>
@@ -1665,7 +1764,7 @@
     </div>
   </div>
 
-  <script src="/app.js?v=74"></script>
+  <script src="/app.js?v=75"></script>
 </body>
 
 </html>
