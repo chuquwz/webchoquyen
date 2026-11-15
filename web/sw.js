@@ -1,9 +1,9 @@
-const CACHE_NAME = 'quyenhealth-v75';
+const CACHE_NAME = 'quyenhealth-v76';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/style.css?v=75',
-  '/app.js?v=75',
+  '/style.css?v=76',
+  '/app.js?v=76',
   '/manifest.webmanifest',
   '/icons/icon-192.png?v=31',
   '/icons/icon-512.png?v=31'

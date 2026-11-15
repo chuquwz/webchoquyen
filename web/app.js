@@ -50,14 +50,437 @@
     }, stayMs);
   };
 
+  // Đồng bộ đa thiết bị & Hàng đợi offline (Outbox Queue)
+  const SYNC_QUEUE_KEY = 'qh_sync_queue_v1';
+  const SYNC_POLL_MS = 8000;
+  const syncState = {
+    healthRev: 0,
+    workRev: 0,
+    dbId: '',
+    today: '',
+    authenticated: false,
+    checking: false,
+    flushing: false,
+    pollTimer: null,
+    listenersBound: false,
+    lastCheckAt: 0
+  };
+
+  function genClientUID(prefix) {
+    return (prefix || 'uid') + '_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+  }
+
+  function isQueueableSyncError(err) {
+    if (!err) return false;
+    if (err.message === 'Chưa đăng nhập') return false;
+    if (typeof err.status === 'number' && err.status >= 400 && err.status < 500) return false;
+    return true;
+  }
+
+  function computeWorkJobSig(j) {
+    if (!j) return '';
+    const d = String(j.date || '');
+    const c = String(j.customer || '').trim().toLowerCase();
+    const ch = j.channel === 'FB' ? 'FB' : 'ZL';
+    const s = String(j.service || '').trim().toLowerCase();
+    const p = Math.max(0, Math.round(Number(j.price) || 0));
+    const ts = Number(j.ts) || 0;
+    if (!d || !c || !s || !p || !ts) return '';
+    return `${d}|${c}|${ch}|${s}|${p}|${ts}`;
+  }
+
+  function computeWorkLedgerSig(l) {
+    if (!l) return '';
+    const d = String(l.date || '');
+    const cat = String(l.category || '');
+    const amt = Math.max(0, Math.round(Number(l.amount) || 0));
+    const note = String(l.note || '').trim().toLowerCase();
+    const ts = Number(l.ts) || 0;
+    if (!d || !cat || !amt || !ts) return '';
+    return `${d}|${cat}|${amt}|${note}|${ts}`;
+  }
+
+  function computeInstallmentSig(it) {
+    if (!it) return '';
+    const d = String(it.date || '');
+    const amt = Math.max(0, Math.round(Number(it.amount) || 0));
+    const note = String(it.note || '').trim().toLowerCase();
+    const ts = Number(it.ts) || 0;
+    if (!d || !amt) return '';
+    return `${d}|${amt}|${note}|${ts}`;
+  }
+
+  function readSyncQueueSync() {
+    try {
+      const raw = localStorage.getItem(SYNC_QUEUE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function writeSyncQueueSync(queue) {
+    const clean = Array.isArray(queue) ? queue : [];
+    try {
+      localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(clean));
+    } catch (_) { }
+    if (typeof idbSet === 'function') {
+      idbSet('sync_queue', clean);
+    }
+    if (typeof renderFinanceVaultStatus === 'function') {
+      renderFinanceVaultStatus();
+    }
+    return clean;
+  }
+
+  async function hydrateSyncQueueFromIDB() {
+    if (typeof idbGet !== 'function') return readSyncQueueSync();
+    const localQ = readSyncQueueSync();
+    const idbQ = await idbGet('sync_queue');
+    if (Array.isArray(idbQ) && idbQ.length > 0 && localQ.length === 0) {
+      try {
+        localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(idbQ));
+      } catch (_) { }
+      return idbQ;
+    }
+    return localQ;
+  }
+
+  function enqueueSyncOp(opItem) {
+    let queue = readSyncQueueSync();
+    const item = Object.assign({
+      qid: genClientUID('q'),
+      created_at: Date.now()
+    }, opItem || {});
+
+    if (item.op === 'med_put' && item.payload && item.payload.date) {
+      queue = queue.filter(q => !(q.op === 'med_put' && q.payload && q.payload.date === item.payload.date));
+    } else if (item.op === 'weight_post' && item.payload && item.payload.date) {
+      queue = queue.filter(q => !(q.op === 'weight_post' && q.payload && q.payload.date === item.payload.date));
+    } else if (item.op === 'meal_check' && item.payload && item.payload.date && item.payload.slot) {
+      queue = queue.filter(q => !(q.op === 'meal_check' && q.payload && q.payload.date === item.payload.date && q.payload.slot === item.payload.slot));
+    } else if (item.op === 'work_job_del' && item.target_uid) {
+      queue = queue.filter(q => !(
+        (q.op === 'work_job_add' && q.payload && q.payload.uid === item.target_uid) ||
+        (q.op === 'work_job_put' && q.target_uid === item.target_uid) ||
+        (q.op === 'work_job_pay' && q.job_uid === item.target_uid)
+      ));
+    } else if (item.op === 'work_ledger_del' && item.target_uid) {
+      queue = queue.filter(q => !(
+        (q.op === 'work_ledger_add' && q.payload && q.payload.uid === item.target_uid) ||
+        (q.op === 'work_repay_add' && q.ledger_uid === item.target_uid)
+      ));
+    } else if (item.op === 'work_job_pay_del' && item.target_uid) {
+      queue = queue.filter(q => !(q.op === 'work_job_pay' && q.payload && q.payload.uid === item.target_uid));
+    } else if (item.op === 'work_repay_del' && item.target_uid) {
+      queue = queue.filter(q => !(q.op === 'work_repay_add' && q.payload && q.payload.uid === item.target_uid));
+    }
+
+    queue.push(item);
+    writeSyncQueueSync(queue);
+    return item;
+  }
+
+  function removePendingWaterFromQueue(cid) {
+    if (!cid) return false;
+    const prev = readSyncQueueSync();
+    const next = prev.filter(q => !(q.op === 'water_add' && q.payload && q.payload.cid === cid));
+    if (next.length !== prev.length) {
+      writeSyncQueueSync(next);
+      return true;
+    }
+    return false;
+  }
+
+  function clearPendingSyncQueue(domainOpt) {
+    if (!domainOpt) {
+      writeSyncQueueSync([]);
+      return;
+    }
+    const next = readSyncQueueSync().filter(q => q.domain !== domainOpt);
+    writeSyncQueueSync(next);
+  }
+
+  async function dispatchQueuedSyncOp(qItem) {
+    switch (qItem.op) {
+      case 'water_add':
+        return await api('/api/water', { method: 'POST', body: JSON.stringify(qItem.payload || {}), silent: true });
+      case 'med_put':
+        return await api('/api/med', { method: 'PUT', body: JSON.stringify(qItem.payload || {}), silent: true });
+      case 'weight_post':
+        return await api('/api/weight', { method: 'POST', body: JSON.stringify(qItem.payload || {}), silent: true });
+      case 'meal_check':
+        return await api('/api/meals/check', { method: 'POST', body: JSON.stringify(qItem.payload || {}), silent: true });
+      case 'work_job_add':
+        return await api('/api/work/job', { method: 'POST', body: JSON.stringify(qItem.payload || {}), silent: true });
+      case 'work_job_put':
+        return await api(`/api/work/job/${Number(qItem.target_id) || 0}?uid=${encodeURIComponent(qItem.target_uid || '')}`, {
+          method: 'PUT',
+          body: JSON.stringify(qItem.payload || {}),
+          silent: true
+        });
+      case 'work_job_del':
+        return await api(`/api/work/job/${Number(qItem.target_id) || 0}?uid=${encodeURIComponent(qItem.target_uid || '')}&sig=${encodeURIComponent(qItem.sig || '')}`, {
+          method: 'DELETE',
+          silent: true
+        });
+      case 'work_pay_customer':
+        return await api('/api/work/job/pay-customer', { method: 'POST', body: JSON.stringify(qItem.payload || {}), silent: true });
+      case 'work_job_pay':
+        return await api(`/api/work/job/${Number(qItem.job_id) || 0}/pay?job_uid=${encodeURIComponent(qItem.job_uid || '')}`, {
+          method: 'POST',
+          body: JSON.stringify(qItem.payload || {}),
+          silent: true
+        });
+      case 'work_job_pay_del':
+        return await api(`/api/work/job-payment/${Number(qItem.target_id) || 0}?uid=${encodeURIComponent(qItem.target_uid || '')}&sig=${encodeURIComponent(qItem.sig || '')}`, {
+          method: 'DELETE',
+          silent: true
+        });
+      case 'work_ledger_add':
+        return await api('/api/work/ledger', { method: 'POST', body: JSON.stringify(qItem.payload || {}), silent: true });
+      case 'work_ledger_del':
+        return await api(`/api/work/ledger/${Number(qItem.target_id) || 0}?uid=${encodeURIComponent(qItem.target_uid || '')}&sig=${encodeURIComponent(qItem.sig || '')}`, {
+          method: 'DELETE',
+          silent: true
+        });
+      case 'work_repay_add':
+        return await api(`/api/work/ledger/${Number(qItem.ledger_id) || 0}/repay?ledger_uid=${encodeURIComponent(qItem.ledger_uid || '')}`, {
+          method: 'POST',
+          body: JSON.stringify(qItem.payload || {}),
+          silent: true
+        });
+      case 'work_repay_del':
+        return await api(`/api/work/repayment/${Number(qItem.target_id) || 0}?uid=${encodeURIComponent(qItem.target_uid || '')}&sig=${encodeURIComponent(qItem.sig || '')}`, {
+          method: 'DELETE',
+          silent: true
+        });
+      default:
+        return { ok: true };
+    }
+  }
+
+  async function flushPendingSyncQueues(opts = {}) {
+    if (syncState.flushing || !syncState.authenticated) {
+      return { flushedHealth: 0, flushedWork: 0, remaining: readSyncQueueSync().length };
+    }
+    const snapshot = readSyncQueueSync();
+    if (snapshot.length === 0) {
+      return { flushedHealth: 0, flushedWork: 0, remaining: 0 };
+    }
+    syncState.flushing = true;
+    let flushedHealth = 0;
+    let flushedWork = 0;
+    try {
+      for (const qItem of snapshot) {
+        try {
+          const res = await dispatchQueuedSyncOp(qItem);
+          const nextQ = readSyncQueueSync().filter(x => x.qid !== qItem.qid);
+          writeSyncQueueSync(nextQ);
+          if (res && typeof res.health_rev === 'number') {
+            syncState.healthRev = Math.max(syncState.healthRev, res.health_rev);
+          }
+          if (res && typeof res.work_rev === 'number') {
+            syncState.workRev = Math.max(syncState.workRev, res.work_rev);
+          }
+          if (qItem.domain === 'health') flushedHealth++;
+          else flushedWork++;
+        } catch (err) {
+          if (err && err.message === 'Chưa đăng nhập') break;
+          if (err && typeof err.status === 'number' && err.status >= 400 && err.status < 500) {
+            const nextQ = readSyncQueueSync().filter(x => x.qid !== qItem.qid);
+            writeSyncQueueSync(nextQ);
+            continue;
+          }
+          break;
+        }
+      }
+    } finally {
+      syncState.flushing = false;
+    }
+
+    const totalFlushed = flushedHealth + flushedWork;
+    if (!opts.silent && totalFlushed > 0) {
+      showToast(`Đã đồng bộ ${totalFlushed} thay đổi chờ lên máy chủ`);
+    }
+    return { flushedHealth, flushedWork, remaining: readSyncQueueSync().length };
+  }
+
+  function applyPendingHealthOpsToState() {
+    const queue = readSyncQueueSync().filter(q => q && q.domain === 'health');
+    if (queue.length === 0) return;
+    const todayStr = state.today || '';
+    for (const q of queue) {
+      const p = q.payload || {};
+      if (q.op === 'water_add' && (!p.date || p.date === todayStr)) {
+        const ml = Number(p.ml) || 0;
+        const cid = p.cid || '';
+        const exists = cid && (state.waterEntries || []).some(e => e && e.cid === cid);
+        if (ml > 0 && !exists) {
+          state.waterTotal = (state.waterTotal || 0) + ml;
+          state.waterEntries = (state.waterEntries || []).concat([{
+            id: -Math.abs(Number(q.created_at) || Date.now()),
+            cid,
+            ml,
+            ts: Number(p.ts) || Math.floor(Date.now() / 1000)
+          }]);
+        }
+      } else if (q.op === 'med_put' && (!p.date || p.date === todayStr)) {
+        const target = Math.max(1, (state.medTimes && state.medTimes.length) || state.medTargetCount || 3);
+        if (Array.isArray(p.doses)) {
+          state.medDosesTaken = Array.from({ length: target }, (_, i) => Boolean(p.doses[i]));
+          state.medTakenCount = state.medDosesTaken.filter(Boolean).length;
+          state.medTaken = state.medTakenCount >= target;
+          if (typeof persistMedDosesTaken === 'function') persistMedDosesTaken();
+        }
+      } else if (q.op === 'weight_post' && (!p.date || p.date === todayStr)) {
+        const kg = Number(p.kg);
+        if (kg >= 40 && kg <= 200) {
+          state.todayWeight = kg;
+          state.currentWeight = kg;
+        }
+      } else if (q.op === 'meal_check' && (!p.date || p.date === todayStr) && p.slot) {
+        const meal = (state.todayMeals || []).find(m => m && m.slot === p.slot);
+        if (meal) {
+          meal.status = p.status || 'done';
+          meal.note = p.note || '';
+        }
+      }
+    }
+  }
+
+  function isElementFocusedInside(containerSelector) {
+    const active = document.activeElement;
+    if (!active || active === document.body) return false;
+    return Boolean(active.closest && active.closest(containerSelector));
+  }
+
+  async function refreshWorkVaultSnapshotSilently() {
+    try {
+      const srv = await api('/api/work/vault', { silent: true });
+      if (srv && srv.ok) {
+        saveFinanceVaultToDevice({
+          db_id: srv.db_id || '',
+          dirty: false,
+          jobs: Array.isArray(srv.jobs) ? srv.jobs : [],
+          ledger: Array.isArray(srv.ledger) ? srv.ledger : [],
+          tombstones: Array.isArray(srv.tombstones) ? srv.tombstones : []
+        });
+        if (typeof srv.work_rev === 'number') {
+          syncState.workRev = Math.max(syncState.workRev, srv.work_rev);
+        }
+      }
+    } catch (_) { }
+  }
+
+  async function checkRemoteSyncState(opts = {}) {
+    if (!syncState.authenticated || syncState.checking) return;
+    if (!opts.force && (Date.now() - syncState.lastCheckAt) < 2500) return;
+    syncState.checking = true;
+    syncState.lastCheckAt = Date.now();
+    try {
+      const flushed = await flushPendingSyncQueues({ silent: Boolean(opts.silent) });
+      const st = await api('/api/sync/state', { silent: true });
+      if (!st || !st.ok) return;
+
+      const dbChanged = Boolean(st.db_id && syncState.dbId && st.db_id !== syncState.dbId);
+      const dayChanged = Boolean(st.today && state.today && st.today !== state.today);
+      const healthChanged = dbChanged || dayChanged || Boolean(opts.forceHealth) ||
+        (typeof st.health_rev === 'number' && st.health_rev > syncState.healthRev) ||
+        flushed.flushedHealth > 0;
+      const workChanged = dbChanged || Boolean(opts.forceWork) ||
+        (typeof st.work_rev === 'number' && st.work_rev > syncState.workRev) ||
+        flushed.flushedWork > 0;
+
+      syncState.dbId = st.db_id || syncState.dbId;
+      syncState.today = st.today || syncState.today;
+
+      const localVault = typeof readFinanceVaultSync === 'function' ? readFinanceVaultSync() : null;
+      const vaultDbMismatch = Boolean(localVault && localVault.db_id && st.db_id && localVault.db_id !== st.db_id);
+
+      if (vaultDbMismatch) {
+        await syncFinanceVaultOnBoot({ silent: true });
+        if (state.activeTab === 'work' || state.activeTab === 'ledger') {
+          await loadWorkData(workState.date, { silent: true });
+        }
+      } else if (workChanged) {
+        if (state.activeTab === 'work' || state.activeTab === 'ledger') {
+          await loadWorkData(workState.date, { silent: true });
+        } else {
+          await refreshWorkVaultSnapshotSilently();
+        }
+      }
+
+      if (healthChanged) {
+        const typingWeight = document.getElementById('modal-weight')?.classList.contains('open') &&
+          isElementFocusedInside('#modal-weight');
+        if (!typingWeight) {
+          await loadToday({ silent: true });
+        }
+        if (state.activeTab === 'settings' && !isElementFocusedInside('#tab-settings form')) {
+          loadSettingsData({ silent: true });
+        }
+      }
+    } catch (_) {
+    } finally {
+      syncState.checking = false;
+    }
+  }
+
+  function startSyncWatcher() {
+    stopSyncWatcher();
+    if (!syncState.authenticated) return;
+    syncState.pollTimer = setInterval(() => {
+      if (document.visibilityState === 'visible' && syncState.authenticated) {
+        checkRemoteSyncState({ silent: true });
+      }
+    }, SYNC_POLL_MS);
+  }
+
+  function stopSyncWatcher() {
+    if (syncState.pollTimer) {
+      clearInterval(syncState.pollTimer);
+      syncState.pollTimer = null;
+    }
+  }
+
+  function bindSyncLifecycleListeners() {
+    if (syncState.listenersBound) return;
+    syncState.listenersBound = true;
+    const onWake = () => {
+      if (!syncState.authenticated) return;
+      if (document.visibilityState === 'hidden') return;
+      checkRemoteSyncState({ silent: true, force: true });
+    };
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') onWake();
+    });
+    window.addEventListener('focus', onWake);
+    window.addEventListener('pageshow', onWake);
+    window.addEventListener('online', () => {
+      if (!syncState.authenticated) return;
+      checkRemoteSyncState({ silent: false, force: true });
+    });
+  }
+
   // API wrapper
   async function api(path, opts = {}) {
-    opts.headers = Object.assign({
+    const silent = Boolean(opts.silent);
+    const deferQueueToast = Boolean(opts.deferQueueToast);
+    const fetchOpts = Object.assign({}, opts);
+    delete fetchOpts.silent;
+    delete fetchOpts.deferQueueToast;
+    fetchOpts.cache = fetchOpts.cache || 'no-store';
+    fetchOpts.headers = Object.assign({
       'Content-Type': 'application/json'
     }, opts.headers || {});
     try {
-      const resp = await fetch(path, opts);
+      const resp = await fetch(path, fetchOpts);
       if (resp.status === 401) {
+        syncState.authenticated = false;
+        stopSyncWatcher();
         showLoginView();
         throw new Error('Chưa đăng nhập');
       }
@@ -69,11 +492,25 @@
       }
       return data;
     } catch (err) {
-      if (err.message !== 'Chưa đăng nhập') {
+      if (!silent && err.message !== 'Chưa đăng nhập' && (!deferQueueToast || !isQueueableSyncError(err))) {
         showToast(err.message, true);
       }
       throw err;
     }
+  }
+
+  async function onAuthenticatedBoot() {
+    syncState.authenticated = true;
+    await hydrateSyncQueueFromIDB();
+    if (typeof hydrateVaultFromIDB === 'function') {
+      await hydrateVaultFromIDB();
+    }
+    bindSyncLifecycleListeners();
+    startSyncWatcher();
+    await flushPendingSyncQueues({ silent: true });
+    await loadToday({ silent: true });
+    await syncFinanceVaultOnBoot();
+    await checkRemoteSyncState({ silent: true, force: true });
   }
 
   // Khởi tạo & Kiểm tra đăng nhập
@@ -91,8 +528,7 @@
         }
         showAppView();
         initMotivationSection();
-        await loadToday();
-        syncFinanceVaultOnBoot();
+        await onAuthenticatedBoot();
       } else {
         showLoginView();
       }
@@ -210,7 +646,8 @@
           state.currentUser = res.user || (pin === '1401' ? 'dev' : 'quyen');
           localStorage.setItem('qh_user', state.currentUser);
           showAppView();
-          await loadToday();
+          initMotivationSection();
+          await onAuthenticatedBoot();
           if (state.currentUser === 'dev') {
             showToast('Chào mừng Developer! Bạn đang ở chế độ Dev');
           } else {
@@ -224,8 +661,12 @@
   window.logout = async function () {
     if (!confirm('Bạn có chắc muốn đăng xuất khỏi thiết bị này?')) return;
     try {
-      await api('/api/logout', { method: 'POST' });
+      await api('/api/logout', { method: 'POST', silent: true });
     } catch (e) { }
+    syncState.authenticated = false;
+    syncState.healthRev = 0;
+    syncState.workRev = 0;
+    stopSyncWatcher();
     localStorage.removeItem('qh_user');
     state.currentUser = 'quyen';
     showLoginView();
@@ -253,7 +694,12 @@
       navBtn.setAttribute('aria-selected', 'true');
     }
 
-    if (tabId === 'today') renderDynamicGreeting();
+    if (tabId === 'today') {
+      renderDynamicGreeting();
+      if (syncState.authenticated) {
+        checkRemoteSyncState({ silent: true, force: true });
+      }
+    }
     if (tabId === 'work' || tabId === 'ledger') loadWorkData();
     if (tabId === 'settings') {
       loadSettingsData();
@@ -326,10 +772,16 @@
       } catch (_) { }
     }
 
-    function reconcileMedDosesTaken(target, serverCount) {
+    function reconcileMedDosesTaken(target, serverCount, serverDoses) {
       pruneOldMedDoseStorage(state.today);
       const count = Math.min(target, Math.max(0, serverCount || 0));
       let doses = null;
+      if (Array.isArray(serverDoses) && serverDoses.length > 0) {
+        doses = Array.from({ length: target }, (_, i) => Boolean(serverDoses[i]));
+        state.medDosesTaken = doses;
+        persistMedDosesTaken();
+        return;
+      }
       if (state.today) {
         try {
           const raw = localStorage.getItem(getMedDoseStorageKey(state.today));
@@ -358,7 +810,8 @@
           s.remind_med_times = '08:00,12:30,20:00';
           api('/api/settings', {
             method: 'PUT',
-            body: JSON.stringify({ remind_med_times: '08:00,12:30,20:00', t_med: '08:00', t_med2: '12:30' })
+            body: JSON.stringify({ remind_med_times: '08:00,12:30,20:00', t_med: '08:00', t_med2: '12:30' }),
+            silent: true
           }).catch(() => { });
         }
         localStorage.setItem('qh_med_default_3x_v2', '1');
@@ -388,20 +841,25 @@
       } else if (apiMedObj && typeof apiMedObj.taken === 'boolean' && state.medTakenCount === 0) {
         state.medTakenCount = apiMedObj.taken ? state.medTargetCount : 0;
       }
-      reconcileMedDosesTaken(state.medTargetCount, state.medTakenCount);
+      const serverDoses = apiMedObj && Array.isArray(apiMedObj.doses) ? apiMedObj.doses : null;
+      reconcileMedDosesTaken(state.medTargetCount, state.medTakenCount, serverDoses);
       state.medTakenCount = state.medDosesTaken.filter(Boolean).length;
       state.medTaken = state.medTakenCount >= state.medTargetCount;
     }
 
     // ================= 1. HÔM NAY =================
-    async function loadToday() {
+    async function loadToday(opts = {}) {
       try {
-        const data = await api('/api/today');
+        const data = await api('/api/today', { silent: Boolean(opts.silent) });
+        if (typeof data.health_rev === 'number') {
+          syncState.healthRev = Math.max(syncState.healthRev, data.health_rev);
+        }
         if (data.user) {
           state.currentUser = data.user;
           localStorage.setItem('qh_user', data.user);
         }
         state.today = data.date;
+        syncState.today = data.date || syncState.today;
         state.settings = data.settings || {};
         state.targetKcal = data.target_kcal || 1800;
         state.waterTotal = data.water ? data.water.total : 0;
@@ -422,6 +880,7 @@
 
         state.todayMeals = data.meals || [];
         state.mealsTarget = data.meals_target || (state.todayMeals.length > 0 ? state.todayMeals.length : 3);
+        applyPendingHealthOpsToState();
 
         renderTodayHeader();
         renderWaterWidget();
@@ -1094,20 +1553,42 @@
     }
 
     window.addWater = async function (ml) {
+      const cid = 'w_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+      const ts = Math.floor(Date.now() / 1000);
+      const targetDate = state.today;
       state.waterTotal += ml;
       renderWaterWidget();
 
       try {
-        const cid = 'w_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
         const res = await api('/api/water', {
           method: 'POST',
-          body: JSON.stringify({ ml, cid, ts: Math.floor(Date.now() / 1000) })
+          deferQueueToast: true,
+          body: JSON.stringify({ date: targetDate, ml, cid, ts })
         });
+        if (res && typeof res.health_rev === 'number') {
+          syncState.healthRev = Math.max(syncState.healthRev, res.health_rev);
+        }
         state.waterTotal = res.total;
         state.waterEntries = res.entries || [];
         renderWaterWidget();
         showToast(`+${ml}ml nước lọc`);
       } catch (e) {
+        if (isQueueableSyncError(e)) {
+          state.waterEntries = (state.waterEntries || []).concat([{
+            id: -Date.now(),
+            cid,
+            ml,
+            ts
+          }]);
+          enqueueSyncOp({
+            domain: 'health',
+            op: 'water_add',
+            payload: { date: targetDate, ml, cid, ts }
+          });
+          renderWaterWidget();
+          showToast(`+${ml}ml nước (đang chờ đồng bộ)`);
+          return;
+        }
         state.waterTotal -= ml;
         renderWaterWidget();
       }
@@ -1116,8 +1597,19 @@
     window.undoLastWater = async function () {
       if (state.waterEntries.length === 0) return;
       const last = state.waterEntries[state.waterEntries.length - 1];
+      if (Number(last.id) < 0 && last.cid) {
+        removePendingWaterFromQueue(last.cid);
+        state.waterEntries = state.waterEntries.slice(0, -1);
+        state.waterTotal = Math.max(0, (state.waterTotal || 0) - (Number(last.ml) || 0));
+        renderWaterWidget();
+        showToast('Đã hoàn tác lần uống nước vừa rồi');
+        return;
+      }
       try {
         const res = await api('/api/water/' + last.id, { method: 'DELETE' });
+        if (res && typeof res.health_rev === 'number') {
+          syncState.healthRev = Math.max(syncState.healthRev, res.health_rev);
+        }
         state.waterTotal = res.total;
         state.waterEntries = res.entries || [];
         renderWaterWidget();
@@ -1237,22 +1729,30 @@
       const prevCount = state.medTakenCount || 0;
       const backupDoses = Array.isArray(prevDoses) ? prevDoses : (state.medDosesTaken || []).slice();
       const target = Math.max(1, (state.medTimes && state.medTimes.length) || state.medTargetCount || 3);
+      const dosesPayload = Array.from({ length: target }, (_, i) => Boolean(state.medDosesTaken && state.medDosesTaken[i]));
       const clamped = Math.min(target, Math.max(0, nextCount));
       state.medTakenCount = clamped;
       state.medTaken = clamped >= target;
       renderMedWidget();
+      const bodyPayload = { date: state.today, taken_count: clamped, taken: clamped >= target, doses: dosesPayload };
       try {
         const res = await api('/api/med', {
           method: 'PUT',
-          body: JSON.stringify({ date: state.today, taken_count: clamped, taken: clamped >= target })
+          deferQueueToast: true,
+          body: JSON.stringify(bodyPayload)
         });
+        if (res && typeof res.health_rev === 'number') {
+          syncState.healthRev = Math.max(syncState.healthRev, res.health_rev);
+        }
         if (res && typeof res.taken_count === 'number') {
           state.medTakenCount = res.taken_count;
         }
         if (res && typeof res.target_count === 'number') {
           state.medTargetCount = res.target_count;
         }
-        if (state.medDosesTaken.filter(Boolean).length !== state.medTakenCount) {
+        if (res && Array.isArray(res.doses)) {
+          reconcileMedDosesTaken(state.medTargetCount, state.medTakenCount, res.doses);
+        } else if (state.medDosesTaken.filter(Boolean).length !== state.medTakenCount) {
           reconcileMedDosesTaken(state.medTargetCount, state.medTakenCount);
         }
         state.medTaken = state.medTakenCount >= state.medTargetCount;
@@ -1267,6 +1767,16 @@
           showToast('Đã đặt lại trạng thái thuốc hôm nay (0/' + target + ')');
         }
       } catch (e) {
+        if (isQueueableSyncError(e)) {
+          persistMedDosesTaken();
+          enqueueSyncOp({
+            domain: 'health',
+            op: 'med_put',
+            payload: bodyPayload
+          });
+          showToast((customToast || `Đã lưu thuốc (${clamped}/${target})`) + ' • chờ đồng bộ');
+          return;
+        }
         state.medTakenCount = prevCount;
         state.medDosesTaken = backupDoses;
         persistMedDosesTaken();
@@ -1445,11 +1955,16 @@
         showToast('Cân nặng phải từ 40 đến 200 kg', true);
         return;
       }
+      const payload = { kg, date: state.today };
       try {
         const res = await api('/api/weight', {
           method: 'POST',
-          body: JSON.stringify({ kg, date: state.today })
+          deferQueueToast: true,
+          body: JSON.stringify(payload)
         });
+        if (res && typeof res.health_rev === 'number') {
+          syncState.healthRev = Math.max(syncState.healthRev, res.health_rev);
+        }
         if (res && Array.isArray(res.rows)) {
           state.weights = res.rows;
         }
@@ -1458,7 +1973,20 @@
         renderWeightStepper();
         closeModal('modal-weight');
         showToast(`Đã lưu cân nặng hôm nay: ${kg.toFixed(1)} kg`);
-      } catch (err) { }
+      } catch (err) {
+        if (isQueueableSyncError(err)) {
+          state.todayWeight = kg;
+          state.currentWeight = kg;
+          enqueueSyncOp({
+            domain: 'health',
+            op: 'weight_post',
+            payload
+          });
+          renderWeightStepper();
+          closeModal('modal-weight');
+          showToast(`Đã lưu cân nặng ${kg.toFixed(1)} kg (chờ đồng bộ)`);
+        }
+      }
     };
 
     // --- CHECKLIST 3 BỮA ĂN HEALTHY HÔM NAY (GIỐNG THUỐC BỔ GAN: ĐÃ ĂN / CHƯA ĂN) ---
@@ -1549,6 +2077,9 @@
       const prevStatus = meal.status;
       const prevNote = meal.note || '';
       const nextStatus = prevStatus === 'done' ? 'pending' : 'done';
+      const targetDate = state.today;
+      const meta = MEAL_SLOT_META[slot] || { label: slot };
+      const bodyPayload = { date: targetDate, slot, status: nextStatus, note: '' };
 
       meal.status = nextStatus;
       meal.note = '';
@@ -1558,8 +2089,12 @@
       try {
         const res = await api('/api/meals/check', {
           method: 'POST',
-          body: JSON.stringify({ date: state.today, slot, status: nextStatus, note: '' })
+          deferQueueToast: true,
+          body: JSON.stringify(bodyPayload)
         });
+        if (res && typeof res.health_rev === 'number') {
+          syncState.healthRev = Math.max(syncState.healthRev, res.health_rev);
+        }
         meal.status = res.status;
         meal.note = res.note || '';
         renderMealsWidget();
@@ -1567,7 +2102,6 @@
 
         const target = MEAL_SLOT_ORDER.length;
         const doneCount = state.todayMeals.filter(m => m.status === 'done').length;
-        const meta = MEAL_SLOT_META[slot] || { label: slot };
         if (res.status === 'done') {
           showToast(doneCount >= target
             ? `Đã ăn đủ ${doneCount}/${target} bữa Healthy hôm nay!`
@@ -1576,6 +2110,15 @@
           showToast(`Đã bỏ đánh dấu ${meta.label} (${doneCount}/${target} bữa)`);
         }
       } catch (e) {
+        if (isQueueableSyncError(e)) {
+          enqueueSyncOp({
+            domain: 'health',
+            op: 'meal_check',
+            payload: bodyPayload
+          });
+          showToast(`Đã lưu ${meta.label} (chờ đồng bộ)`);
+          return;
+        }
         meal.status = prevStatus;
         meal.note = prevNote;
         renderMealsWidget();
@@ -1591,9 +2134,12 @@
       sleep: ['22:30']
     };
 
-    async function loadSettingsData() {
+    async function loadSettingsData(opts = {}) {
       try {
-        const data = await api('/api/settings');
+        const data = await api('/api/settings', { silent: Boolean(opts.silent) });
+        if (typeof data.health_rev === 'number') {
+          syncState.healthRev = Math.max(syncState.healthRev, data.health_rev);
+        }
         if (data.user) {
           state.currentUser = data.user;
           localStorage.setItem('qh_user', data.user);
@@ -1732,6 +2278,9 @@
           method: 'PUT',
           body: JSON.stringify(payload)
         });
+        if (res && typeof res.health_rev === 'number') {
+          syncState.healthRev = Math.max(syncState.healthRev, res.health_rev);
+        }
         state.settings = res.settings;
         syncMedScheduleFromSettings(state.settings);
         renderMedWidget();
@@ -1764,6 +2313,9 @@
           method: 'PUT',
           body: JSON.stringify(payload)
         });
+        if (res && typeof res.health_rev === 'number') {
+          syncState.healthRev = Math.max(syncState.healthRev, res.health_rev);
+        }
         state.settings = res.settings;
         state.targetKcal = res.target_kcal;
         syncMedScheduleFromSettings(state.settings);
@@ -2323,6 +2875,17 @@
       return (v.ledger || []).find(l => Number(l.id) === targetId) || null;
     }
 
+    function findLedgerItemById(ledgerId) {
+      const targetId = Number(ledgerId);
+      if (!targetId) return null;
+      const inState = (workState.ledger || []).find(l => Number(l.id) === targetId);
+      if (inState) return inState;
+      const inAll = (workState.allBorrows || []).find(l => Number(l.id) === targetId);
+      if (inAll) return inAll;
+      const v = readFinanceVaultSync();
+      return (v.ledger || []).find(l => Number(l.id) === targetId) || null;
+    }
+
     function escapeHTML(str) {
       return String(str || '')
         .replace(/&/g, '&amp;')
@@ -2521,17 +3084,18 @@
     function readFinanceVaultSync() {
       try {
         const raw = localStorage.getItem(FINANCE_VAULT_KEY);
-        if (!raw) return { db_id: '', updated_at: 0, dirty: false, jobs: [], ledger: [] };
+        if (!raw) return { db_id: '', updated_at: 0, dirty: false, jobs: [], ledger: [], tombstones: [] };
         const parsed = JSON.parse(raw);
         return {
           db_id: parsed.db_id || '',
           updated_at: parsed.updated_at || 0,
           dirty: Boolean(parsed.dirty),
           jobs: Array.isArray(parsed.jobs) ? parsed.jobs : [],
-          ledger: Array.isArray(parsed.ledger) ? parsed.ledger : []
+          ledger: Array.isArray(parsed.ledger) ? parsed.ledger : [],
+          tombstones: Array.isArray(parsed.tombstones) ? parsed.tombstones : []
         };
       } catch (e) {
-        return { db_id: '', updated_at: 0, dirty: false, jobs: [], ledger: [] };
+        return { db_id: '', updated_at: 0, dirty: false, jobs: [], ledger: [], tombstones: [] };
       }
     }
 
@@ -2549,10 +3113,11 @@
         const localCount = (local.jobs ? local.jobs.length : 0) + (local.ledger ? local.ledger.length : 0);
         const idbCount = idbVault.jobs.length + (Array.isArray(idbVault.ledger) ? idbVault.ledger.length : 0);
         if (localCount === 0 && idbCount > 0) {
+          const normalized = Object.assign({ tombstones: [] }, idbVault);
           try {
-            localStorage.setItem(FINANCE_VAULT_KEY, JSON.stringify(idbVault));
+            localStorage.setItem(FINANCE_VAULT_KEY, JSON.stringify(normalized));
           } catch (e) { }
-          return idbVault;
+          return normalized;
         }
       }
       return local;
@@ -2575,12 +3140,13 @@
       const cur = readFinanceVaultSync();
       const payload = {
         app: 'QuyenHealth-FinanceVault',
-        version: 1,
+        version: 2,
         db_id: vaultInput.db_id !== undefined ? vaultInput.db_id : cur.db_id,
         updated_at: Date.now(),
         dirty: Boolean(vaultInput.dirty),
         jobs: Array.isArray(vaultInput.jobs) ? vaultInput.jobs : cur.jobs,
-        ledger: Array.isArray(vaultInput.ledger) ? vaultInput.ledger : cur.ledger
+        ledger: Array.isArray(vaultInput.ledger) ? vaultInput.ledger : cur.ledger,
+        tombstones: Array.isArray(vaultInput.tombstones) ? vaultInput.tombstones.slice(-1500) : (cur.tombstones || [])
       };
       try {
         localStorage.setItem(FINANCE_VAULT_KEY, JSON.stringify(payload));
@@ -2591,10 +3157,37 @@
       return payload;
     }
 
+    function appendTombstoneToVault(vaultObj, kind, uid, sig) {
+      if (!vaultObj || (!uid && !sig)) return;
+      const list = Array.isArray(vaultObj.tombstones) ? vaultObj.tombstones.slice() : [];
+      const key = uid || `sig:${kind}:${sig}`;
+      const deletedAt = Math.floor(Date.now() / 1000);
+      const next = list.filter(t => t && t.uid !== key);
+      next.push({ uid: key, kind, sig: sig || '', deleted_at: deletedAt });
+      vaultObj.tombstones = next.slice(-1500);
+    }
+
     function removeJobFromLocalVault(jobId, opts = {}) {
       const cur = readFinanceVaultSync();
+      const targetJob = (cur.jobs || []).find(j => Number(j.id) === Number(jobId));
+      if (opts.tombstone && targetJob) {
+        appendTombstoneToVault(cur, 'job', targetJob.uid || '', computeWorkJobSig(targetJob));
+      }
       cur.jobs = (cur.jobs || []).filter(j => Number(j.id) !== Number(jobId));
       if (opts.dirty) cur.dirty = true;
+      saveFinanceVaultToDevice(cur);
+    }
+
+    function updateJobInLocalVault(jobId, jobUid, patch) {
+      const cur = readFinanceVaultSync();
+      const nowTs = Math.floor(Date.now() / 1000);
+      cur.jobs = (cur.jobs || []).map(j => {
+        const matchId = jobId && Number(j.id) === Number(jobId);
+        const matchUid = jobUid && j.uid && j.uid === jobUid;
+        if (!matchId && !matchUid) return j;
+        const next = Object.assign({}, j, patch, { updated_at: nowTs });
+        return normalizeVaultJobAfterPaymentEdit(next, Array.isArray(next.payments) ? next.payments : []);
+      });
       saveFinanceVaultToDevice(cur);
     }
 
@@ -2608,7 +3201,7 @@
         payments: nextPays,
         paid_amount: paid,
         remaining_amount: rem,
-        status: rem === 0 ? 'TT' : 'CTT'
+        status: nextPays.length > 0 ? (rem === 0 ? 'TT' : 'CTT') : (j.status || 'TT')
       };
     }
 
@@ -2622,7 +3215,9 @@
         found = true;
         const nextPays = Array.isArray(j.payments) ? [...j.payments] : [];
         const payId = Number(payment.id);
-        if (!payId || !nextPays.some(p => Number(p.id) === payId)) {
+        const payUid = payment.uid || '';
+        const dup = (payUid && nextPays.some(p => p.uid === payUid)) || (payId && nextPays.some(p => Number(p.id) === payId));
+        if (!dup) {
           nextPays.push(payment);
         }
         return normalizeVaultJobAfterPaymentEdit(j, nextPays);
@@ -2646,8 +3241,12 @@
         if (!Array.isArray(j.payments) || !j.payments.some(p => Number(p.id) === targetPayId)) {
           return j;
         }
+        const victim = j.payments.find(p => Number(p.id) === targetPayId);
+        if (opts.tombstone && victim) {
+          appendTombstoneToVault(cur, 'job_payment', victim.uid || '', computeInstallmentSig(victim));
+        }
         const nextPays = j.payments.filter(p => Number(p.id) !== targetPayId);
-        return normalizeVaultJobAfterPaymentEdit(j, nextPays);
+        return normalizeVaultJobAfterPaymentEdit({ ...j, status: nextPays.length === 0 ? 'CTT' : j.status }, nextPays);
       });
       if (opts.dirty) cur.dirty = true;
       saveFinanceVaultToDevice(cur);
@@ -2666,6 +3265,7 @@
         if (dt.remaining > 0) {
           nextPays.push({
             id: ++seq,
+            uid: genClientUID('jpay'),
             job_id: j.id,
             date: todayStr,
             amount: dt.remaining,
@@ -2673,7 +3273,7 @@
             ts: nowTs
           });
         }
-        return normalizeVaultJobAfterPaymentEdit(j, nextPays);
+        return normalizeVaultJobAfterPaymentEdit({ ...j, updated_at: nowTs }, nextPays);
       });
       if (opts.dirty) cur.dirty = true;
       saveFinanceVaultToDevice(cur);
@@ -2681,6 +3281,10 @@
 
     function removeLedgerFromLocalVault(ledgerId, opts = {}) {
       const cur = readFinanceVaultSync();
+      const targetItem = (cur.ledger || []).find(l => Number(l.id) === Number(ledgerId));
+      if (opts.tombstone && targetItem) {
+        appendTombstoneToVault(cur, 'ledger', targetItem.uid || '', computeWorkLedgerSig(targetItem));
+      }
       cur.ledger = (cur.ledger || []).filter(l => Number(l.id) !== Number(ledgerId));
       if (opts.dirty) cur.dirty = true;
       saveFinanceVaultToDevice(cur);
@@ -2696,7 +3300,9 @@
         found = true;
         const nextReps = Array.isArray(l.repayments) ? [...l.repayments] : [];
         const repId = Number(repayment.id);
-        if (!repId || !nextReps.some(r => Number(r.id) === repId)) {
+        const repUid = repayment.uid || '';
+        const dup = (repUid && nextReps.some(r => r.uid === repUid)) || (repId && nextReps.some(r => Number(r.id) === repId));
+        if (!dup) {
           nextReps.push(repayment);
         }
         nextReps.sort((a, b) => (a.date === b.date ? (Number(a.id) - Number(b.id)) : (a.date < b.date ? -1 : 1)));
@@ -2735,6 +3341,10 @@
         if (!Array.isArray(l.repayments) || !l.repayments.some(r => Number(r.id) === targetRepId)) {
           return l;
         }
+        const victim = l.repayments.find(r => Number(r.id) === targetRepId);
+        if (opts.tombstone && victim) {
+          appendTombstoneToVault(cur, 'repayment', victim.uid || '', computeInstallmentSig(victim));
+        }
         const nextReps = l.repayments.filter(r => Number(r.id) !== targetRepId);
         const paid = nextReps.reduce((s, r) => s + Math.max(0, Number(r.amount) || 0), 0);
         const orig = Math.max(0, Number(l.amount) || 0);
@@ -2753,6 +3363,7 @@
       const lbl = document.getElementById('work-link-disk-label');
       const btn = document.getElementById('btn-work-link-disk');
       if (!lbl || !btn) return;
+      const pendingCount = readSyncQueueSync().length;
       if (linkedFinanceFileHandle) {
         lbl.textContent = 'Đã gắn ổ cứng';
         btn.classList.add('is-linked');
@@ -2760,7 +3371,7 @@
         lbl.textContent = 'Gắn file ổ cứng';
         btn.classList.remove('is-linked');
       } else {
-        lbl.textContent = 'Đồng bộ két';
+        lbl.textContent = pendingCount > 0 ? `Đồng bộ ngay (${pendingCount})` : 'Đồng bộ ngay';
         btn.classList.remove('is-linked');
       }
     }
@@ -2771,56 +3382,79 @@
       const subEl = document.getElementById('work-vault-sub');
       const jobCount = (v.jobs || []).length;
       const ledgerCount = (v.ledger || []).length;
+      const pendingCount = readSyncQueueSync().length;
 
       if (badgeEl) {
-        badgeEl.textContent = `Đã lưu ${jobCount} đơn • ${ledgerCount} thu chi`;
+        badgeEl.classList.toggle('is-pending', pendingCount > 0);
+        badgeEl.textContent = pendingCount > 0
+          ? `Chờ đồng bộ ${pendingCount} • ${jobCount} đơn`
+          : `Đã đồng bộ ${jobCount} đơn • ${ledgerCount} thu chi`;
       }
       if (subEl) {
         const timeStr = v.updated_at
           ? new Date(v.updated_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
           : '';
-        if (linkedFinanceFileHandle) {
-          subEl.textContent = `Đang tự động lưu kép vào trình duyệt & file ổ cứng máy cá nhân${timeStr ? ' (lúc ' + timeStr + ')' : ''}. Không lo mất dữ liệu khi redeploy.`;
+        if (pendingCount > 0) {
+          subEl.textContent = `Đang có ${pendingCount} thao tác lưu tạm trên thiết bị này — tự động đẩy lên máy chủ ngay khi có mạng.`;
+        } else if (linkedFinanceFileHandle) {
+          subEl.textContent = `Đã đồng bộ đa thiết bị & lưu kép vào file ổ cứng${timeStr ? ' (lúc ' + timeStr + ')' : ''}.`;
         } else {
-          subEl.textContent = `Đã khóa an toàn trên máy cá nhân${timeStr ? ' (cập nhật ' + timeStr + ')' : ''} — tự động khôi phục 100% mỗi khi redeploy web.`;
+          subEl.textContent = `Đã đồng bộ giữa các thiết bị${timeStr ? ' (cập nhật ' + timeStr + ')' : ''} & sao lưu an toàn trên máy.`;
         }
       }
       updateLinkDiskButtonUI();
     }
 
-    async function syncFinanceVaultOnBoot() {
+    async function syncFinanceVaultOnBoot(opts = {}) {
       try {
+        await flushPendingSyncQueues({ silent: true });
         const localVault = await hydrateVaultFromIDB();
         renderFinanceVaultStatus(localVault);
         const localHasData = (localVault.jobs && localVault.jobs.length > 0) || (localVault.ledger && localVault.ledger.length > 0);
-        const srv = await api('/api/work/vault');
+        const srv = await api('/api/work/vault', { silent: true });
+        if (srv && srv.db_id) {
+          syncState.dbId = srv.db_id;
+        }
+        if (srv && typeof srv.work_rev === 'number') {
+          syncState.workRev = Math.max(syncState.workRev, srv.work_rev);
+        }
         const srvJobs = srv.jobs || [];
         const srvLedger = srv.ledger || [];
+        const srvTombstones = Array.isArray(srv.tombstones) ? srv.tombstones : [];
         const srvEmpty = srvJobs.length === 0 && srvLedger.length === 0;
         const dbChanged = Boolean(localVault.db_id && srv.db_id && localVault.db_id !== srv.db_id);
 
         if (localHasData && (srvEmpty || dbChanged || localVault.dirty)) {
           const synced = await api('/api/work/vault', {
             method: 'POST',
+            silent: Boolean(opts.silent),
             body: JSON.stringify({
-              mode: localVault.dirty ? 'replace' : 'merge',
+              mode: 'merge',
               jobs: localVault.jobs,
-              ledger: localVault.ledger
+              ledger: localVault.ledger,
+              tombstones: localVault.tombstones || []
             })
           });
+          if (synced && typeof synced.work_rev === 'number') {
+            syncState.workRev = Math.max(syncState.workRev, synced.work_rev);
+          }
           saveFinanceVaultToDevice({
             db_id: synced.db_id || srv.db_id,
             dirty: false,
             jobs: synced.jobs || localVault.jobs,
-            ledger: synced.ledger || localVault.ledger
+            ledger: synced.ledger || localVault.ledger,
+            tombstones: Array.isArray(synced.tombstones) ? synced.tombstones : srvTombstones
           });
-          showToast('Đã tự động khôi phục dữ liệu tài chính từ máy cá nhân sau khi redeploy');
-        } else if (srvJobs.length > 0 || srvLedger.length > 0) {
+          if (!opts.silent) {
+            showToast('Đã đồng bộ & khôi phục an toàn dữ liệu Sổ công việc');
+          }
+        } else {
           saveFinanceVaultToDevice({
-            db_id: srv.db_id,
+            db_id: srv.db_id || localVault.db_id,
             dirty: false,
             jobs: srvJobs,
-            ledger: srvLedger
+            ledger: srvLedger,
+            tombstones: srvTombstones
           });
         }
       } catch (e) { }
@@ -3068,26 +3702,27 @@
           return;
         }
 
-        saveFinanceVaultToDevice({
-          dirty: true,
-          jobs,
-          ledger
-        });
-
+        const tombstones = Array.isArray(parsed.tombstones) ? parsed.tombstones : [];
         const synced = await api('/api/work/vault', {
           method: 'POST',
           body: JSON.stringify({
             mode: 'replace',
             jobs,
-            ledger
+            ledger,
+            tombstones
           })
         });
 
+        clearPendingSyncQueue('work');
+        if (synced && typeof synced.work_rev === 'number') {
+          syncState.workRev = Math.max(syncState.workRev, synced.work_rev);
+        }
         saveFinanceVaultToDevice({
           db_id: synced.db_id || '',
           dirty: false,
           jobs: synced.jobs || jobs,
-          ledger: synced.ledger || ledger
+          ledger: synced.ledger || ledger,
+          tombstones: Array.isArray(synced.tombstones) ? synced.tombstones : tombstones
         });
 
         showToast(`Đã nạp thành công ${jobs.length} đơn & ${ledger.length} khoản thu chi!`);
@@ -3164,22 +3799,28 @@
           return;
         }
 
+        const tombstones = Array.isArray(parsed.tombstones) ? parsed.tombstones : [];
         const synced = await api('/api/work/vault', {
           method: 'POST',
           body: JSON.stringify({
             mode: 'merge',
             jobs,
-            ledger
+            ledger,
+            tombstones
           })
         });
 
         const nextJobs = Array.isArray(synced.jobs) ? synced.jobs : jobs;
         const nextLedger = Array.isArray(synced.ledger) ? synced.ledger : ledger;
+        if (synced && typeof synced.work_rev === 'number') {
+          syncState.workRev = Math.max(syncState.workRev, synced.work_rev);
+        }
         saveFinanceVaultToDevice({
           db_id: synced.db_id || '',
           dirty: false,
           jobs: nextJobs,
-          ledger: nextLedger
+          ledger: nextLedger,
+          tombstones: Array.isArray(synced.tombstones) ? synced.tombstones : tombstones
         });
         renderFinanceVaultStatus();
         showToast(`Đã đồng bộ file lên Cloud: hiện có ${nextJobs.length} đơn & ${nextLedger.length} khoản thu chi!`);
@@ -3213,18 +3854,25 @@
         }
       }
 
-      await syncFinanceVaultOnBoot();
+      await checkRemoteSyncState({ silent: false, force: true, forceHealth: true, forceWork: true });
       const v = readFinanceVaultSync();
-      showToast(`Đã đồng bộ & lưu an toàn ${(v.jobs || []).length} đơn, ${(v.ledger || []).length} thu chi trên máy này`);
+      const pending = readSyncQueueSync().length;
+      if (pending > 0) {
+        showToast(`Chưa thể kết nối máy chủ — còn ${pending} thay đổi chờ đồng bộ`, true);
+      } else {
+        showToast(`Đã đồng bộ đa thiết bị (${(v.jobs || []).length} đơn, ${(v.ledger || []).length} thu chi)`);
+      }
     };
 
-    async function loadWorkData(targetDate) {
+    async function loadWorkData(targetDate, opts = {}) {
+      await hydrateSyncQueueFromIDB();
       await hydrateVaultFromIDB();
+      await flushPendingSyncQueues({ silent: true });
       const dateParam = targetDate || workState.date || state.today || '';
       const monthParam = dateParam ? dateParam.slice(0, 7) : '';
       const qs = dateParam ? `?date=${encodeURIComponent(dateParam)}&month=${encodeURIComponent(monthParam)}` : '';
       try {
-        let data = await api('/api/work' + qs);
+        let data = await api('/api/work' + qs, { silent: Boolean(opts.silent) });
         const localVault = readFinanceVaultSync();
         const localHasData = (localVault.jobs && localVault.jobs.length > 0) || (localVault.ledger && localVault.ledger.length > 0);
         const srvJobs = data.vault_jobs || [];
@@ -3232,25 +3880,36 @@
         const srvEmpty = srvJobs.length === 0 && srvLedger.length === 0;
         const dbChanged = Boolean(localVault.db_id && data.db_id && localVault.db_id !== data.db_id);
 
-        // Nếu server vừa bị reset do Redeploy (hoặc đang có dữ liệu lưu trên máy cá nhân chưa đẩy lên), tự động khôi phục ngay lập tức
+        // Nếu server vừa khởi tạo DB mới sau Redeploy (hoặc còn dữ liệu cục bộ chưa hợp nhất), tự động gộp an toàn (merge + tombstones)
         if (localHasData && (srvEmpty || dbChanged || localVault.dirty)) {
           await api('/api/work/vault', {
             method: 'POST',
+            silent: Boolean(opts.silent),
             body: JSON.stringify({
-              mode: localVault.dirty ? 'replace' : 'merge',
+              mode: 'merge',
               jobs: localVault.jobs,
-              ledger: localVault.ledger
+              ledger: localVault.ledger,
+              tombstones: localVault.tombstones || []
             })
           });
-          data = await api('/api/work' + qs);
-          showToast('Đã tự động khôi phục dữ liệu tài chính từ máy cá nhân');
+          data = await api('/api/work' + qs, { silent: Boolean(opts.silent) });
+          if (!opts.silent) {
+            showToast('Đã tự động hợp nhất dữ liệu tài chính với máy chủ');
+          }
         }
 
+        if (data.db_id) {
+          syncState.dbId = data.db_id;
+        }
+        if (typeof data.work_rev === 'number') {
+          syncState.workRev = Math.max(syncState.workRev, data.work_rev);
+        }
         saveFinanceVaultToDevice({
           db_id: data.db_id || localVault.db_id,
           dirty: false,
           jobs: data.vault_jobs || [],
-          ledger: data.vault_ledger || []
+          ledger: data.vault_ledger || [],
+          tombstones: Array.isArray(data.tombstones) ? data.tombstones : (localVault.tombstones || [])
         });
 
         workState.date = data.date || state.today;
@@ -3491,18 +4150,28 @@
 
       const price = rawPrice < 1000 ? rawPrice * 1000 : rawPrice;
       const jobDate = workState.date || state.today || new Date().toISOString().slice(0, 10);
+      const clientUid = genClientUID('job');
+      const nowTs = Math.floor(Date.now() / 1000);
+      const bodyPayload = {
+        uid: clientUid,
+        date: jobDate,
+        customer,
+        channel,
+        service,
+        price,
+        status,
+        note: '',
+        ts: nowTs
+      };
       try {
-        await api('/api/work/job', {
+        const res = await api('/api/work/job', {
           method: 'POST',
-          body: JSON.stringify({
-            date: jobDate,
-            customer,
-            channel,
-            service,
-            price,
-            status
-          })
+          deferQueueToast: true,
+          body: JSON.stringify(bodyPayload)
         });
+        if (res && typeof res.work_rev === 'number') {
+          syncState.workRev = Math.max(syncState.workRev, res.work_rev);
+        }
         document.getElementById('work-job-service').value = '';
         document.getElementById('work-job-price').value = '';
         updateWorkPricePreview('');
@@ -3511,10 +4180,11 @@
         showToast(`Đã lưu đơn ${customer} (${formatShortK(price)} - ${status})`);
         await loadWorkData(workState.date);
       } catch (err) {
-        // Dự phòng khi server đang redeploy: lưu trực tiếp vào máy cá nhân
+        if (!isQueueableSyncError(err)) return;
         const v = readFinanceVaultSync();
         v.jobs.push({
           id: Date.now(),
+          uid: clientUid,
           date: jobDate,
           customer,
           channel,
@@ -3522,16 +4192,21 @@
           price,
           status,
           note: '',
-          ts: Math.floor(Date.now() / 1000)
+          ts: nowTs,
+          updated_at: nowTs
         });
-        v.dirty = true;
         saveFinanceVaultToDevice(v);
+        enqueueSyncOp({
+          domain: 'work',
+          op: 'work_job_add',
+          payload: bodyPayload
+        });
         document.getElementById('work-job-service').value = '';
         document.getElementById('work-job-price').value = '';
         updateWorkPricePreview('');
         document.querySelectorAll('#work-job-form .btn-price-chip').forEach(b => b.classList.remove('active'));
         closeModal('modal-add-work-job');
-        showToast(`Đã lưu đơn ${customer} vào máy cá nhân (tự đồng bộ khi mạng/server sẵn sàng)`);
+        showToast(`Đã lưu đơn ${customer} vào máy này (sẽ tự đồng bộ lên Cloud)`);
         computeWorkFromLocalVault(jobDate);
       }
     };
@@ -3588,14 +4263,34 @@
     }
 
     window.toggleWorkJobStatus = async function (jobId, nextStatus) {
+      const existing = findDebtJobById(jobId);
+      const jobUid = existing && existing.uid ? existing.uid : '';
+      const payload = { uid: jobUid || undefined, status: nextStatus };
+      const qs = jobUid ? `?uid=${encodeURIComponent(jobUid)}` : '';
       try {
-        await api('/api/work/job/' + jobId, {
+        const res = await api('/api/work/job/' + jobId + qs, {
           method: 'PUT',
-          body: JSON.stringify({ status: nextStatus })
+          deferQueueToast: true,
+          body: JSON.stringify(payload)
         });
+        if (res && typeof res.work_rev === 'number') {
+          syncState.workRev = Math.max(syncState.workRev, res.work_rev);
+        }
         showToast(nextStatus === 'TT' ? 'Đã chuyển sang Đã thu tiền (TT)' : 'Đã chuyển sang Khách nợ (CTT)');
         await loadWorkData(workState.date);
-      } catch (e) { }
+      } catch (e) {
+        if (!isQueueableSyncError(e)) return;
+        updateJobInLocalVault(jobId, jobUid, { status: nextStatus });
+        enqueueSyncOp({
+          domain: 'work',
+          op: 'work_job_put',
+          target_id: Number(jobId) || 0,
+          target_uid: jobUid,
+          payload
+        });
+        showToast(nextStatus === 'TT' ? 'Đã đánh dấu Đã thu (TT) • chờ đồng bộ' : 'Đã đánh dấu Khách nợ (CTT) • chờ đồng bộ');
+        computeWorkFromLocalVault(workState.date);
+      }
     };
 
     window.openEditWorkJobModal = function (jobId) {
@@ -3624,15 +4319,36 @@
       const status = document.getElementById('edit-job-status').value;
 
       const price = rawPrice < 1000 ? rawPrice * 1000 : rawPrice;
+      const existing = findDebtJobById(id);
+      const jobUid = existing && existing.uid ? existing.uid : '';
+      const payload = { uid: jobUid || undefined, date, channel, customer, service, price, status };
+      const qs = jobUid ? `?uid=${encodeURIComponent(jobUid)}` : '';
       try {
-        await api('/api/work/job/' + id, {
+        const res = await api('/api/work/job/' + id + qs, {
           method: 'PUT',
-          body: JSON.stringify({ date, channel, customer, service, price, status })
+          deferQueueToast: true,
+          body: JSON.stringify(payload)
         });
+        if (res && typeof res.work_rev === 'number') {
+          syncState.workRev = Math.max(syncState.workRev, res.work_rev);
+        }
         closeModal('modal-edit-work-job');
         showToast('Đã cập nhật đơn dịch vụ');
         await loadWorkData(workState.date);
-      } catch (err) { }
+      } catch (err) {
+        if (!isQueueableSyncError(err)) return;
+        updateJobInLocalVault(id, jobUid, { date, channel, customer, service, price, status });
+        enqueueSyncOp({
+          domain: 'work',
+          op: 'work_job_put',
+          target_id: Number(id) || 0,
+          target_uid: jobUid,
+          payload
+        });
+        closeModal('modal-edit-work-job');
+        showToast('Đã cập nhật đơn trên máy này (sẽ tự đồng bộ)');
+        computeWorkFromLocalVault(workState.date);
+      }
     };
 
     window.deleteWorkJob = async function (jobId, opts = {}) {
@@ -3640,19 +4356,31 @@
         ? 'Xoá toàn bộ đơn nợ này và tất cả các lần trả tiền đã lưu? Thao tác này không thể hoàn tác.'
         : 'Xoá đơn dịch vụ này khỏi sổ công việc? Thao tác này không thể hoàn tác.';
       if (!confirm(confirmMsg)) return;
+      const existing = findDebtJobById(jobId);
+      const jobUid = existing && existing.uid ? existing.uid : '';
+      const jobSig = computeWorkJobSig(existing);
+      const qs = `?uid=${encodeURIComponent(jobUid)}&sig=${encodeURIComponent(jobSig)}`;
       try {
-        await api('/api/work/job/' + jobId, { method: 'DELETE' });
-        removeJobFromLocalVault(jobId, { dirty: false });
+        const res = await api('/api/work/job/' + jobId + qs, { method: 'DELETE', deferQueueToast: true });
+        if (res && typeof res.work_rev === 'number') {
+          syncState.workRev = Math.max(syncState.workRev, res.work_rev);
+        }
+        removeJobFromLocalVault(jobId, { dirty: false, tombstone: true });
         if (opts.closePayModal) closeModal('modal-pay-debt-job');
         showToast(opts.fromDebt ? 'Đã xoá đơn nợ' : 'Đã xoá đơn dịch vụ');
         await loadWorkData(workState.date);
       } catch (err) {
-        if (err && typeof err.status === 'number' && err.status >= 400 && err.status < 500) {
-          return;
-        }
-        removeJobFromLocalVault(jobId, { dirty: true });
+        if (!isQueueableSyncError(err)) return;
+        removeJobFromLocalVault(jobId, { dirty: false, tombstone: true });
+        enqueueSyncOp({
+          domain: 'work',
+          op: 'work_job_del',
+          target_id: Number(jobId) || 0,
+          target_uid: jobUid,
+          sig: jobSig
+        });
         if (opts.closePayModal) closeModal('modal-pay-debt-job');
-        showToast(opts.fromDebt ? 'Đã xoá đơn nợ trên máy cá nhân' : 'Đã xoá đơn dịch vụ trên máy cá nhân');
+        showToast(opts.fromDebt ? 'Đã xoá đơn nợ trên máy này (chờ đồng bộ)' : 'Đã xoá đơn trên máy này (chờ đồng bộ)');
         computeWorkFromLocalVault(workState.date);
       }
     };
@@ -4174,19 +4902,27 @@
       if (!g || g.total_amount <= 0) return;
       if (!confirm(`Xác nhận đã thu đủ ${formatVND(g.total_amount)} (${g.job_count} đơn) của khách "${g.customer}"?`)) return;
 
+      const payload = { customer: g.customer };
       try {
-        await api('/api/work/job/pay-customer', {
+        const res = await api('/api/work/job/pay-customer', {
           method: 'POST',
-          body: JSON.stringify({ customer: g.customer })
+          deferQueueToast: true,
+          body: JSON.stringify(payload)
         });
+        if (res && typeof res.work_rev === 'number') {
+          syncState.workRev = Math.max(syncState.workRev, res.work_rev);
+        }
         showToast(`Đã tất toán toàn bộ đơn nợ của ${g.customer}`);
         await loadWorkData(workState.date);
       } catch (err) {
-        if (err && typeof err.status === 'number' && err.status >= 400 && err.status < 500) {
-          return;
-        }
-        payCustomerDebtInLocalVault(g.customer, { dirty: true });
-        showToast(`Đã tất toán đơn nợ của ${g.customer} trên máy cá nhân`);
+        if (!isQueueableSyncError(err)) return;
+        payCustomerDebtInLocalVault(g.customer, { dirty: false });
+        enqueueSyncOp({
+          domain: 'work',
+          op: 'work_pay_customer',
+          payload
+        });
+        showToast(`Đã tất toán đơn nợ ${g.customer} trên máy này (chờ đồng bộ)`);
         computeWorkFromLocalVault(workState.date);
       }
     };
@@ -4248,37 +4984,53 @@
 
       const amount = rawAmt < 1000 ? rawAmt * 1000 : rawAmt;
       const ledgerDate = workState.date || state.today || new Date().toISOString().slice(0, 10);
+      const clientUid = genClientUID('ldg');
+      const nowTs = Math.floor(Date.now() / 1000);
+      const bodyPayload = {
+        uid: clientUid,
+        date: ledgerDate,
+        category,
+        amount,
+        note,
+        ts: nowTs
+      };
       try {
-        await api('/api/work/ledger', {
+        const res = await api('/api/work/ledger', {
           method: 'POST',
-          body: JSON.stringify({
-            date: ledgerDate,
-            category,
-            amount,
-            note
-          })
+          deferQueueToast: true,
+          body: JSON.stringify(bodyPayload)
         });
+        if (res && typeof res.work_rev === 'number') {
+          syncState.workRev = Math.max(syncState.workRev, res.work_rev);
+        }
         document.getElementById('work-ledger-amount').value = '';
         document.getElementById('work-ledger-note').value = '';
         closeModal('modal-add-work-ledger');
         showToast('Đã lưu khoản mục vào sổ');
         await loadWorkData(workState.date);
       } catch (err) {
+        if (!isQueueableSyncError(err)) return;
         const v = readFinanceVaultSync();
         v.ledger.push({
           id: Date.now(),
+          uid: clientUid,
           date: ledgerDate,
           category,
           amount,
           note,
-          ts: Math.floor(Date.now() / 1000)
+          ts: nowTs,
+          updated_at: nowTs
         });
-        v.dirty = true;
         saveFinanceVaultToDevice(v);
+        enqueueSyncOp({
+          domain: 'work',
+          op: 'work_ledger_add',
+          payload: bodyPayload
+        });
         document.getElementById('work-ledger-amount').value = '';
         document.getElementById('work-ledger-note').value = '';
         closeModal('modal-add-work-ledger');
-        showToast('Đã lưu khoản mục vào máy cá nhân');
+        showToast('Đã lưu khoản mục trên máy này (chờ đồng bộ)');
         computeWorkFromLocalVault(ledgerDate);
       }
     };
@@ -5004,11 +5756,28 @@
       };
 
       const overAmt = Math.max(0, amount - remaining);
+      const borrowItem = findBorrowLedgerItem(ledgerId);
+      const ledgerUid = borrowItem && borrowItem.uid ? borrowItem.uid : '';
+      const repUid = genClientUID('lrep');
+      const nowTs = Math.floor(Date.now() / 1000);
+      const bodyPayload = {
+        uid: repUid,
+        ledger_uid: ledgerUid || undefined,
+        date: repayDate,
+        amount,
+        note,
+        ts: nowTs
+      };
+      const qs = ledgerUid ? `?ledger_uid=${encodeURIComponent(ledgerUid)}` : '';
       try {
-        const res = await api(`/api/work/ledger/${ledgerId}/repay`, {
+        const res = await api(`/api/work/ledger/${ledgerId}/repay${qs}`, {
           method: 'POST',
-          body: JSON.stringify({ date: repayDate, amount, note })
+          deferQueueToast: true,
+          body: JSON.stringify(bodyPayload)
         });
+        if (res && typeof res.work_rev === 'number') {
+          syncState.workRev = Math.max(syncState.workRev, res.work_rev);
+        }
         if (res && res.repayment) {
           addRepaymentToLocalVault(ledgerId, res.repayment, { dirty: false });
         }
@@ -5030,24 +5799,32 @@
           }
         }
       } catch (err) {
-        if (err && typeof err.status === 'number' && err.status >= 400 && err.status < 500) {
+        if (!isQueueableSyncError(err)) {
           setRepayAmountError(err.message || 'Không thể lưu lần trả tiền này');
           return;
         }
         const offlineRep = {
           id: Date.now(),
+          uid: repUid,
           ledger_id: ledgerId,
           date: repayDate,
           amount,
           note,
-          ts: Math.floor(Date.now() / 1000)
+          ts: nowTs
         };
-        addRepaymentToLocalVault(ledgerId, offlineRep, { dirty: true });
+        addRepaymentToLocalVault(ledgerId, offlineRep, { dirty: false });
+        enqueueSyncOp({
+          domain: 'work',
+          op: 'work_repay_add',
+          ledger_id: Number(ledgerId) || 0,
+          ledger_uid: ledgerUid,
+          payload: bodyPayload
+        });
         resetFormFields();
         const nextRem = Math.max(0, remaining - amount);
         showToast(nextRem === 0
-          ? (overAmt > 0 ? `Đã trả xong, thừa +${formatShortK(overAmt)} (máy cá nhân)` : 'Đã trả xong (lưu trên máy cá nhân)')
-          : `Đã lưu trả ${formatShortK(amount)} trên máy cá nhân`);
+          ? (overAmt > 0 ? `Đã trả xong, thừa +${formatShortK(overAmt)} (chờ đồng bộ)` : 'Đã trả xong (lưu trên máy, chờ đồng bộ)')
+          : `Đã lưu trả ${formatShortK(amount)} trên máy (chờ đồng bộ)`);
         computeWorkFromLocalVault(workState.date);
         const refreshed = findBorrowLedgerItem(ledgerId);
         if (refreshed) {
@@ -5069,17 +5846,32 @@
     window.deleteBorrowRepayment = async function (repaymentId, ledgerId) {
       if (!confirm('Hoàn tác lần trả tiền này? Số tiền nợ còn lại sẽ được cộng lại tương ứng.')) return;
       const targetLedgerId = Number(ledgerId || activeRepayLedgerId);
+      const borrowItem = targetLedgerId ? findBorrowLedgerItem(targetLedgerId) : null;
+      const repItem = borrowItem && Array.isArray(borrowItem.repayments)
+        ? borrowItem.repayments.find(r => Number(r.id) === Number(repaymentId))
+        : null;
+      const repUid = repItem && repItem.uid ? repItem.uid : '';
+      const repSig = computeInstallmentSig(repItem);
+      const qs = `?uid=${encodeURIComponent(repUid)}&sig=${encodeURIComponent(repSig)}`;
       try {
-        await api('/api/work/repayment/' + repaymentId, { method: 'DELETE' });
-        removeRepaymentFromLocalVault(repaymentId, { dirty: false });
+        const res = await api('/api/work/repayment/' + repaymentId + qs, { method: 'DELETE', deferQueueToast: true });
+        if (res && typeof res.work_rev === 'number') {
+          syncState.workRev = Math.max(syncState.workRev, res.work_rev);
+        }
+        removeRepaymentFromLocalVault(repaymentId, { dirty: false, tombstone: true });
         showToast('Đã xoá lần trả tiền');
         await loadWorkData(workState.date);
       } catch (err) {
-        if (err && typeof err.status === 'number' && err.status >= 400 && err.status < 500) {
-          return;
-        }
-        removeRepaymentFromLocalVault(repaymentId, { dirty: true });
-        showToast('Đã xoá lần trả tiền trên máy cá nhân');
+        if (!isQueueableSyncError(err)) return;
+        removeRepaymentFromLocalVault(repaymentId, { dirty: false, tombstone: true });
+        enqueueSyncOp({
+          domain: 'work',
+          op: 'work_repay_del',
+          target_id: Number(repaymentId) || 0,
+          target_uid: repUid,
+          sig: repSig
+        });
+        showToast('Đã xoá lần trả tiền trên máy (chờ đồng bộ)');
         computeWorkFromLocalVault(workState.date);
       }
 
@@ -5102,19 +5894,31 @@
         ? 'Xoá toàn bộ khoản mượn này và tất cả các lần trả tiền đã lưu?'
         : 'Xoá khoản mục thu chi này?';
       if (!confirm(msg)) return;
+      const existing = findLedgerItemById(id);
+      const ldgUid = existing && existing.uid ? existing.uid : '';
+      const ldgSig = computeWorkLedgerSig(existing);
+      const qs = `?uid=${encodeURIComponent(ldgUid)}&sig=${encodeURIComponent(ldgSig)}`;
       try {
-        await api('/api/work/ledger/' + id, { method: 'DELETE' });
-        removeLedgerFromLocalVault(id, { dirty: false });
+        const res = await api('/api/work/ledger/' + id + qs, { method: 'DELETE', deferQueueToast: true });
+        if (res && typeof res.work_rev === 'number') {
+          syncState.workRev = Math.max(syncState.workRev, res.work_rev);
+        }
+        removeLedgerFromLocalVault(id, { dirty: false, tombstone: true });
         if (opts.closeRepayModal) closeModal('modal-repay-borrow');
         showToast(opts.isBorrow ? 'Đã xoá khoản mượn' : 'Đã xoá khoản mục');
         await loadWorkData(workState.date);
       } catch (err) {
-        if (err && typeof err.status === 'number' && err.status >= 400 && err.status < 500) {
-          return;
-        }
-        removeLedgerFromLocalVault(id, { dirty: true });
+        if (!isQueueableSyncError(err)) return;
+        removeLedgerFromLocalVault(id, { dirty: false, tombstone: true });
+        enqueueSyncOp({
+          domain: 'work',
+          op: 'work_ledger_del',
+          target_id: Number(id) || 0,
+          target_uid: ldgUid,
+          sig: ldgSig
+        });
         if (opts.closeRepayModal) closeModal('modal-repay-borrow');
-        showToast(opts.isBorrow ? 'Đã xoá khoản mượn trên máy cá nhân' : 'Đã xoá khoản mục trên máy cá nhân');
+        showToast(opts.isBorrow ? 'Đã xoá khoản mượn trên máy (chờ đồng bộ)' : 'Đã xoá khoản mục trên máy (chờ đồng bộ)');
         computeWorkFromLocalVault(workState.date);
       }
     };
@@ -5305,11 +6109,28 @@
       };
 
       const overAmt = Math.max(0, amount - remaining);
+      const debtJob = findDebtJobById(jobId);
+      const jobUid = debtJob && debtJob.uid ? debtJob.uid : '';
+      const payUid = genClientUID('jpay');
+      const nowTs = Math.floor(Date.now() / 1000);
+      const bodyPayload = {
+        uid: payUid,
+        job_uid: jobUid || undefined,
+        date: payDate,
+        amount,
+        note,
+        ts: nowTs
+      };
+      const qs = jobUid ? `?job_uid=${encodeURIComponent(jobUid)}` : '';
       try {
-        const res = await api(`/api/work/job/${jobId}/pay`, {
+        const res = await api(`/api/work/job/${jobId}/pay${qs}`, {
           method: 'POST',
-          body: JSON.stringify({ date: payDate, amount, note })
+          deferQueueToast: true,
+          body: JSON.stringify(bodyPayload)
         });
+        if (res && typeof res.work_rev === 'number') {
+          syncState.workRev = Math.max(syncState.workRev, res.work_rev);
+        }
         if (res && res.payment) {
           addJobPaymentToLocalVault(jobId, res.payment, { dirty: false });
         }
@@ -5331,24 +6152,32 @@
           }
         }
       } catch (err) {
-        if (err && typeof err.status === 'number' && err.status >= 400 && err.status < 500) {
+        if (!isQueueableSyncError(err)) {
           setDebtPayAmountError(err.message || 'Không thể lưu lần trả tiền này');
           return;
         }
         const offlinePay = {
           id: Date.now(),
+          uid: payUid,
           job_id: jobId,
           date: payDate,
           amount,
           note,
-          ts: Math.floor(Date.now() / 1000)
+          ts: nowTs
         };
-        addJobPaymentToLocalVault(jobId, offlinePay, { dirty: true });
+        addJobPaymentToLocalVault(jobId, offlinePay, { dirty: false });
+        enqueueSyncOp({
+          domain: 'work',
+          op: 'work_job_pay',
+          job_id: Number(jobId) || 0,
+          job_uid: jobUid,
+          payload: bodyPayload
+        });
         resetFormFields();
         const nextRem = Math.max(0, remaining - amount);
         showToast(nextRem === 0
-          ? (overAmt > 0 ? `Đã trả xong, thừa +${formatShortK(overAmt)} (máy cá nhân)` : 'Đã trả xong đơn nợ (lưu trên máy cá nhân)')
-          : `Đã lưu trả ${formatShortK(amount)} trên máy cá nhân`);
+          ? (overAmt > 0 ? `Đã trả xong, thừa +${formatShortK(overAmt)} (chờ đồng bộ)` : 'Đã trả xong đơn nợ trên máy (chờ đồng bộ)')
+          : `Đã lưu trả ${formatShortK(amount)} trên máy (chờ đồng bộ)`);
         computeWorkFromLocalVault(workState.date);
         const refreshed = findDebtJobById(jobId);
         if (refreshed) {
@@ -5370,17 +6199,32 @@
     window.deleteDebtJobPayment = async function (paymentId, jobId) {
       if (!confirm('Hoàn tác lần trả tiền này? Số tiền nợ còn lại sẽ được cộng lại tương ứng.')) return;
       const targetJobId = Number(jobId || activeDebtJobId);
+      const debtJob = targetJobId ? findDebtJobById(targetJobId) : null;
+      const payItem = debtJob && Array.isArray(debtJob.payments)
+        ? debtJob.payments.find(p => Number(p.id) === Number(paymentId))
+        : null;
+      const payUid = payItem && payItem.uid ? payItem.uid : '';
+      const paySig = computeInstallmentSig(payItem);
+      const qs = `?uid=${encodeURIComponent(payUid)}&sig=${encodeURIComponent(paySig)}`;
       try {
-        await api('/api/work/job-payment/' + paymentId, { method: 'DELETE' });
-        removeJobPaymentFromLocalVault(paymentId, { dirty: false });
+        const res = await api('/api/work/job-payment/' + paymentId + qs, { method: 'DELETE', deferQueueToast: true });
+        if (res && typeof res.work_rev === 'number') {
+          syncState.workRev = Math.max(syncState.workRev, res.work_rev);
+        }
+        removeJobPaymentFromLocalVault(paymentId, { dirty: false, tombstone: true });
         showToast('Đã xoá lần trả tiền');
         await loadWorkData(workState.date);
       } catch (err) {
-        if (err && typeof err.status === 'number' && err.status >= 400 && err.status < 500) {
-          return;
-        }
-        removeJobPaymentFromLocalVault(paymentId, { dirty: true });
-        showToast('Đã xoá lần trả tiền trên máy cá nhân');
+        if (!isQueueableSyncError(err)) return;
+        removeJobPaymentFromLocalVault(paymentId, { dirty: false, tombstone: true });
+        enqueueSyncOp({
+          domain: 'work',
+          op: 'work_job_pay_del',
+          target_id: Number(paymentId) || 0,
+          target_uid: payUid,
+          sig: paySig
+        });
+        showToast('Đã xoá lần trả tiền trên máy (chờ đồng bộ)');
         computeWorkFromLocalVault(workState.date);
       }
 

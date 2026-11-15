@@ -15,6 +15,7 @@ import (
 
 type workJobPayment struct {
 	ID     int64  `json:"id"`
+	UID    string `json:"uid,omitempty"`
 	JobID  int64  `json:"job_id"`
 	Date   string `json:"date"`
 	Amount int    `json:"amount"`
@@ -24,6 +25,7 @@ type workJobPayment struct {
 
 type workJob struct {
 	ID              int64            `json:"id"`
+	UID             string           `json:"uid,omitempty"`
 	Date            string           `json:"date"`
 	Customer        string           `json:"customer"`
 	Channel         string           `json:"channel"`
@@ -35,10 +37,12 @@ type workJob struct {
 	Status          string           `json:"status"` // "TT" hoặc "CTT"
 	Note            string           `json:"note"`
 	Ts              int64            `json:"ts"`
+	UpdatedAt       int64            `json:"updated_at,omitempty"`
 }
 
 type workLedgerRepayment struct {
 	ID       int64  `json:"id"`
+	UID      string `json:"uid,omitempty"`
 	LedgerID int64  `json:"ledger_id"`
 	Date     string `json:"date"`
 	Amount   int    `json:"amount"`
@@ -61,6 +65,7 @@ type workBorrowRepaymentView struct {
 
 type workLedger struct {
 	ID              int64                 `json:"id"`
+	UID             string                `json:"uid,omitempty"`
 	Date            string                `json:"date"`
 	Category        string                `json:"category"` // "expense" | "fund_in" | "fund_bal" | "borrow" | "repay"
 	Amount          int                   `json:"amount"`
@@ -69,6 +74,14 @@ type workLedger struct {
 	Repayments      []workLedgerRepayment `json:"repayments,omitempty"`
 	Note            string                `json:"note"`
 	Ts              int64                 `json:"ts"`
+	UpdatedAt       int64                 `json:"updated_at,omitempty"`
+}
+
+type workTombstone struct {
+	UID       string `json:"uid"`
+	Kind      string `json:"kind"`
+	Sig       string `json:"sig,omitempty"`
+	DeletedAt int64  `json:"deleted_at"`
 }
 
 type workSummary struct {
@@ -208,8 +221,102 @@ func normalizeInstallmentAmount(rawAmount, remBefore int) int {
 	return amt
 }
 
+func sanitizeSyncUID(v string) string {
+	v = strings.TrimSpace(v)
+	if len(v) > 80 {
+		v = v[:80]
+	}
+	return v
+}
+
+func validTombstoneKind(kind string) bool {
+	switch kind {
+	case "job", "job_payment", "ledger", "repayment":
+		return true
+	}
+	return false
+}
+
+func workJobSig(date, customer, channel, service string, price int, ts int64) string {
+	return fmt.Sprintf("%s|%s|%s|%s|%d|%d",
+		date,
+		strings.ToLower(strings.TrimSpace(customer)),
+		validChannel(channel),
+		strings.ToLower(strings.TrimSpace(service)),
+		normalizeVND(price),
+		ts,
+	)
+}
+
+func workLedgerSig(date, category string, amount int, note string, ts int64) string {
+	return fmt.Sprintf("%s|%s|%d|%s|%d",
+		date,
+		category,
+		normalizeVND(amount),
+		strings.ToLower(strings.TrimSpace(note)),
+		ts,
+	)
+}
+
 func installmentSig(date string, amt int, note string, ts int64) string {
 	return fmt.Sprintf("%s|%d|%s|%d", date, amt, strings.ToLower(strings.TrimSpace(note)), ts)
+}
+
+func recordTombstoneTx(tx *sql.Tx, kind, uid, sig string, deletedAt int64) error {
+	if !validTombstoneKind(kind) {
+		return nil
+	}
+	uid = sanitizeSyncUID(uid)
+	sig = strings.TrimSpace(sig)
+	key := uid
+	if key == "" && sig != "" {
+		key = "sig:" + kind + ":" + sig
+		if len(key) > 220 {
+			key = key[:220]
+		}
+	}
+	if key == "" {
+		return nil
+	}
+	if deletedAt <= 0 {
+		deletedAt = time.Now().Unix()
+	}
+	_, err := tx.Exec(
+		`INSERT INTO work_tombstones(uid, kind, sig, deleted_at) VALUES(?,?,?,?)
+		 ON CONFLICT(uid) DO UPDATE SET
+		   sig = CASE WHEN excluded.sig <> '' THEN excluded.sig ELSE work_tombstones.sig END,
+		   deleted_at = MAX(work_tombstones.deleted_at, excluded.deleted_at)`,
+		key, kind, sig, deletedAt,
+	)
+	return err
+}
+
+func pruneTombstonesTx(tx *sql.Tx, nowSec int64) {
+	var cnt int
+	if tx.QueryRow(`SELECT COUNT(*) FROM work_tombstones`).Scan(&cnt) != nil || cnt <= 2500 {
+		return
+	}
+	cutoff := nowSec - 180*86400
+	_, _ = tx.Exec(`DELETE FROM work_tombstones WHERE deleted_at < ?`, cutoff)
+	if tx.QueryRow(`SELECT COUNT(*) FROM work_tombstones`).Scan(&cnt) == nil && cnt > 2000 {
+		_, _ = tx.Exec(`DELETE FROM work_tombstones WHERE uid NOT IN (SELECT uid FROM work_tombstones ORDER BY deleted_at DESC LIMIT 2000)`)
+	}
+}
+
+func (s *Server) queryAllTombstones() []workTombstone {
+	rows, err := s.db.Query(`SELECT uid, kind, sig, deleted_at FROM work_tombstones ORDER BY deleted_at DESC LIMIT 2000`)
+	if err != nil {
+		return []workTombstone{}
+	}
+	defer rows.Close()
+	out := []workTombstone{}
+	for rows.Next() {
+		var tb workTombstone
+		if rows.Scan(&tb.UID, &tb.Kind, &tb.Sig, &tb.DeletedAt) == nil {
+			out = append(out, tb)
+		}
+	}
+	return out
 }
 
 func (s *Server) attachJobPayments(out []workJob) error {
@@ -238,7 +345,7 @@ func (s *Server) attachJobPayments(out []workJob) error {
 	for i, id := range jobIDs {
 		args[i] = id
 	}
-	q := `SELECT id, job_id, date, amount, note, ts FROM work_job_payments WHERE job_id IN (` + placeholders + `) ORDER BY date ASC, id ASC`
+	q := `SELECT id, COALESCE(uid, ''), job_id, date, amount, note, ts FROM work_job_payments WHERE job_id IN (` + placeholders + `) ORDER BY date ASC, id ASC`
 	rows, err := s.db.Query(q, args...)
 	if err != nil {
 		return err
@@ -248,7 +355,7 @@ func (s *Server) attachJobPayments(out []workJob) error {
 	hasPayments := make(map[int64]bool)
 	for rows.Next() {
 		var p workJobPayment
-		if err := rows.Scan(&p.ID, &p.JobID, &p.Date, &p.Amount, &p.Note, &p.Ts); err != nil {
+		if err := rows.Scan(&p.ID, &p.UID, &p.JobID, &p.Date, &p.Amount, &p.Note, &p.Ts); err != nil {
 			return err
 		}
 		if idx, ok := idxByID[p.JobID]; ok {
@@ -277,14 +384,14 @@ func (s *Server) attachJobPayments(out []workJob) error {
 }
 
 func (s *Server) queryWorkJobsByDate(date string) ([]workJob, error) {
-	rows, err := s.db.Query(`SELECT id, date, customer, channel, service, price, status, note, ts FROM work_jobs WHERE date=? ORDER BY id ASC`, date)
+	rows, err := s.db.Query(`SELECT id, COALESCE(uid, ''), date, customer, channel, service, price, status, note, ts, COALESCE(updated_at, 0) FROM work_jobs WHERE date=? ORDER BY id ASC`, date)
 	if err != nil {
 		return nil, err
 	}
 	out := []workJob{}
 	for rows.Next() {
 		var j workJob
-		if err := rows.Scan(&j.ID, &j.Date, &j.Customer, &j.Channel, &j.Service, &j.Price, &j.Status, &j.Note, &j.Ts); err != nil {
+		if err := rows.Scan(&j.ID, &j.UID, &j.Date, &j.Customer, &j.Channel, &j.Service, &j.Price, &j.Status, &j.Note, &j.Ts, &j.UpdatedAt); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -324,7 +431,7 @@ func (s *Server) attachLedgerRepayments(out []workLedger) error {
 	for i, id := range borrowIDs {
 		args[i] = id
 	}
-	q := `SELECT id, ledger_id, date, amount, note, ts FROM work_ledger_repayments WHERE ledger_id IN (` + placeholders + `) ORDER BY date ASC, id ASC`
+	q := `SELECT id, COALESCE(uid, ''), ledger_id, date, amount, note, ts FROM work_ledger_repayments WHERE ledger_id IN (` + placeholders + `) ORDER BY date ASC, id ASC`
 	rows, err := s.db.Query(q, args...)
 	if err != nil {
 		return err
@@ -333,7 +440,7 @@ func (s *Server) attachLedgerRepayments(out []workLedger) error {
 
 	for rows.Next() {
 		var rep workLedgerRepayment
-		if err := rows.Scan(&rep.ID, &rep.LedgerID, &rep.Date, &rep.Amount, &rep.Note, &rep.Ts); err != nil {
+		if err := rows.Scan(&rep.ID, &rep.UID, &rep.LedgerID, &rep.Date, &rep.Amount, &rep.Note, &rep.Ts); err != nil {
 			return err
 		}
 		if idx, ok := idxByID[rep.LedgerID]; ok {
@@ -355,14 +462,14 @@ func (s *Server) attachLedgerRepayments(out []workLedger) error {
 }
 
 func (s *Server) queryWorkLedgerByDate(date string) ([]workLedger, error) {
-	rows, err := s.db.Query(`SELECT id, date, category, amount, note, ts FROM work_ledger WHERE date=? ORDER BY id ASC`, date)
+	rows, err := s.db.Query(`SELECT id, COALESCE(uid, ''), date, category, amount, note, ts, COALESCE(updated_at, 0) FROM work_ledger WHERE date=? ORDER BY id ASC`, date)
 	if err != nil {
 		return nil, err
 	}
 	out := []workLedger{}
 	for rows.Next() {
 		var l workLedger
-		if err := rows.Scan(&l.ID, &l.Date, &l.Category, &l.Amount, &l.Note, &l.Ts); err != nil {
+		if err := rows.Scan(&l.ID, &l.UID, &l.Date, &l.Category, &l.Amount, &l.Note, &l.Ts, &l.UpdatedAt); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -508,7 +615,7 @@ func (s *Server) computeWorkSummary(datePrefix string, exactDate bool) workSumma
 
 func (s *Server) queryDebtGroups() ([]unpaidCustomerGroup, []unpaidCustomerGroup, int, int) {
 	rows, err := s.db.Query(`
-		SELECT id, date, customer, channel, service, price, status, note, ts
+		SELECT id, COALESCE(uid, ''), date, customer, channel, service, price, status, note, ts, COALESCE(updated_at, 0)
 		FROM work_jobs
 		WHERE status='CTT' OR EXISTS(SELECT 1 FROM work_job_payments p WHERE p.job_id = work_jobs.id)
 		ORDER BY date DESC, id DESC`)
@@ -518,7 +625,7 @@ func (s *Server) queryDebtGroups() ([]unpaidCustomerGroup, []unpaidCustomerGroup
 	allDebtJobs := []workJob{}
 	for rows.Next() {
 		var j workJob
-		if rows.Scan(&j.ID, &j.Date, &j.Customer, &j.Channel, &j.Service, &j.Price, &j.Status, &j.Note, &j.Ts) == nil {
+		if rows.Scan(&j.ID, &j.UID, &j.Date, &j.Customer, &j.Channel, &j.Service, &j.Price, &j.Status, &j.Note, &j.Ts, &j.UpdatedAt) == nil {
 			allDebtJobs = append(allDebtJobs, j)
 		}
 	}
@@ -775,10 +882,12 @@ func (s *Server) handleGetWork(w http.ResponseWriter, r *http.Request) {
 	customers, services := s.workSuggestions()
 	allJobs := s.queryAllWorkJobs()
 	allLedger := s.queryAllWorkLedger()
+	tombstones := s.queryAllTombstones()
 
 	writeJSON(w, 200, map[string]any{
 		"ok":                true,
 		"db_id":             s.dbInstanceID(),
+		"work_rev":          s.workRev.Load(),
 		"date":              date,
 		"month":             month,
 		"today":             s.today(),
@@ -794,6 +903,7 @@ func (s *Server) handleGetWork(w http.ResponseWriter, r *http.Request) {
 		"recent_days":       recentDays,
 		"vault_jobs":        allJobs,
 		"vault_ledger":      allLedger,
+		"tombstones":        tombstones,
 		"suggestions": map[string]any{
 			"customers": customers,
 			"services":  services,
@@ -804,6 +914,7 @@ func (s *Server) handleGetWork(w http.ResponseWriter, r *http.Request) {
 // POST /api/work/job
 func (s *Server) handlePostWorkJob(w http.ResponseWriter, r *http.Request) {
 	var in struct {
+		UID      string `json:"uid"`
 		Date     string `json:"date"`
 		Customer string `json:"customer"`
 		Channel  string `json:"channel"`
@@ -811,6 +922,7 @@ func (s *Server) handlePostWorkJob(w http.ResponseWriter, r *http.Request) {
 		Price    int    `json:"price"`
 		Status   string `json:"status"`
 		Note     string `json:"note"`
+		Ts       int64  `json:"ts"`
 	}
 	if !readJSON(w, r, &in) {
 		return
@@ -845,26 +957,45 @@ func (s *Server) handlePostWorkJob(w http.ResponseWriter, r *http.Request) {
 	ch := validChannel(in.Channel)
 	st := validJobStatus(in.Status)
 
+	uid := sanitizeSyncUID(in.UID)
+	if uid != "" {
+		var existingID int64
+		if s.db.QueryRow(`SELECT id FROM work_jobs WHERE uid=?`, uid).Scan(&existingID) == nil && existingID > 0 {
+			writeJSON(w, 200, map[string]any{"ok": true, "id": existingID, "uid": uid, "work_rev": s.workRev.Load()})
+			return
+		}
+	} else {
+		uid = s.nextUID("job")
+	}
+
+	nowSec := s.now().Unix()
+	ts := nowSec
+	if in.Ts > 0 && in.Ts <= nowSec+300 {
+		ts = in.Ts
+	}
+
 	res, err := s.db.Exec(
-		`INSERT INTO work_jobs(date, customer, channel, service, price, status, note, ts) VALUES(?,?,?,?,?,?,?,?)`,
-		in.Date, cust, ch, svc, price, st, note, s.now().Unix(),
+		`INSERT INTO work_jobs(uid, date, customer, channel, service, price, status, note, ts, updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)`,
+		uid, in.Date, cust, ch, svc, price, st, note, ts, nowSec,
 	)
 	if err != nil {
 		serverErr(w, err)
 		return
 	}
 	id, _ := res.LastInsertId()
-	writeJSON(w, 200, map[string]any{"ok": true, "id": id})
+	rev := s.bumpWorkRev()
+	writeJSON(w, 200, map[string]any{"ok": true, "id": id, "uid": uid, "work_rev": rev})
 }
 
 // PUT /api/work/job/{id}
 func (s *Server) handlePutWorkJob(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil || id <= 0 {
+	if err != nil || id < 0 {
 		httpErr(w, 400, "Mã đơn không hợp lệ")
 		return
 	}
 	var in struct {
+		UID      *string `json:"uid"`
 		Date     *string `json:"date"`
 		Customer *string `json:"customer"`
 		Channel  *string `json:"channel"`
@@ -877,12 +1008,36 @@ func (s *Server) handlePutWorkJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	lookupUID := sanitizeSyncUID(r.URL.Query().Get("uid"))
+	if lookupUID == "" && in.UID != nil {
+		lookupUID = sanitizeSyncUID(*in.UID)
+	}
+	if id == 0 && lookupUID == "" {
+		httpErr(w, 400, "Mã đơn không hợp lệ")
+		return
+	}
+
 	var cur workJob
-	err = s.db.QueryRow(`SELECT id, date, customer, channel, service, price, status, note, ts FROM work_jobs WHERE id=?`, id).
-		Scan(&cur.ID, &cur.Date, &cur.Customer, &cur.Channel, &cur.Service, &cur.Price, &cur.Status, &cur.Note, &cur.Ts)
+	err = sql.ErrNoRows
+	if id > 0 {
+		err = s.db.QueryRow(`SELECT id, COALESCE(uid, ''), date, customer, channel, service, price, status, note, ts, COALESCE(updated_at, 0) FROM work_jobs WHERE id=?`, id).
+			Scan(&cur.ID, &cur.UID, &cur.Date, &cur.Customer, &cur.Channel, &cur.Service, &cur.Price, &cur.Status, &cur.Note, &cur.Ts, &cur.UpdatedAt)
+	}
+	if err == sql.ErrNoRows && lookupUID != "" {
+		err = s.db.QueryRow(`SELECT id, COALESCE(uid, ''), date, customer, channel, service, price, status, note, ts, COALESCE(updated_at, 0) FROM work_jobs WHERE uid=?`, lookupUID).
+			Scan(&cur.ID, &cur.UID, &cur.Date, &cur.Customer, &cur.Channel, &cur.Service, &cur.Price, &cur.Status, &cur.Note, &cur.Ts, &cur.UpdatedAt)
+	}
 	if err != nil {
 		httpErr(w, 404, "Không tìm thấy đơn dịch vụ này")
 		return
+	}
+
+	if cur.UID == "" {
+		if lookupUID != "" {
+			cur.UID = lookupUID
+		} else {
+			cur.UID = s.nextUID("job")
+		}
 	}
 
 	if in.Date != nil && *in.Date != "" {
@@ -931,27 +1086,97 @@ func (s *Server) handlePutWorkJob(w http.ResponseWriter, r *http.Request) {
 		cur.Note = n
 	}
 
+	cur.UpdatedAt = s.now().Unix()
 	if _, err := s.db.Exec(
-		`UPDATE work_jobs SET date=?, customer=?, channel=?, service=?, price=?, status=?, note=? WHERE id=?`,
-		cur.Date, cur.Customer, cur.Channel, cur.Service, cur.Price, cur.Status, cur.Note, id,
+		`UPDATE work_jobs SET uid=?, date=?, customer=?, channel=?, service=?, price=?, status=?, note=?, updated_at=? WHERE id=?`,
+		cur.UID, cur.Date, cur.Customer, cur.Channel, cur.Service, cur.Price, cur.Status, cur.Note, cur.UpdatedAt, cur.ID,
 	); err != nil {
 		serverErr(w, err)
 		return
 	}
-	writeJSON(w, 200, map[string]any{"ok": true, "job": cur})
+	rev := s.bumpWorkRev()
+	writeJSON(w, 200, map[string]any{"ok": true, "job": cur, "work_rev": rev})
 }
 
 // DELETE /api/work/job/{id}
 func (s *Server) handleDelWorkJob(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil || id <= 0 {
+	reqUID := sanitizeSyncUID(r.URL.Query().Get("uid"))
+	reqSig := strings.TrimSpace(r.URL.Query().Get("sig"))
+	if err != nil || id < 0 || (id == 0 && reqUID == "" && reqSig == "") {
 		httpErr(w, 400, "Mã đơn không hợp lệ")
 		return
 	}
-	if _, err := s.db.Exec(`DELETE FROM work_jobs WHERE id=?`, id); err != nil {
+
+	tx, err := s.db.Begin()
+	if err != nil {
 		serverErr(w, err)
 		return
 	}
+	defer tx.Rollback()
+
+	nowSec := s.now().Unix()
+	var j workJob
+	qErr := sql.ErrNoRows
+	if id > 0 {
+		qErr = tx.QueryRow(`SELECT id, COALESCE(uid, ''), date, customer, channel, service, price, ts FROM work_jobs WHERE id=?`, id).
+			Scan(&j.ID, &j.UID, &j.Date, &j.Customer, &j.Channel, &j.Service, &j.Price, &j.Ts)
+	}
+	if qErr == sql.ErrNoRows && reqUID != "" {
+		qErr = tx.QueryRow(`SELECT id, COALESCE(uid, ''), date, customer, channel, service, price, ts FROM work_jobs WHERE uid=?`, reqUID).
+			Scan(&j.ID, &j.UID, &j.Date, &j.Customer, &j.Channel, &j.Service, &j.Price, &j.Ts)
+	}
+
+	if qErr == nil {
+		prows, pErr := tx.Query(`SELECT COALESCE(uid, ''), date, amount, note, ts FROM work_job_payments WHERE job_id=?`, j.ID)
+		if pErr == nil {
+			type payInfo struct {
+				uid, date, note string
+				amt             int
+				ts              int64
+			}
+			var pList []payInfo
+			for prows.Next() {
+				var p payInfo
+				if prows.Scan(&p.uid, &p.date, &p.amt, &p.note, &p.ts) == nil {
+					pList = append(pList, p)
+				}
+			}
+			prows.Close()
+			for _, p := range pList {
+				if err := recordTombstoneTx(tx, "job_payment", p.uid, installmentSig(p.date, p.amt, p.note, p.ts), nowSec); err != nil {
+					serverErr(w, err)
+					return
+				}
+			}
+		}
+		sig := workJobSig(j.Date, j.Customer, j.Channel, j.Service, j.Price, j.Ts)
+		if err := recordTombstoneTx(tx, "job", j.UID, sig, nowSec); err != nil {
+			serverErr(w, err)
+			return
+		}
+		if _, err := tx.Exec(`DELETE FROM work_jobs WHERE id=?`, j.ID); err != nil {
+			serverErr(w, err)
+			return
+		}
+	} else if qErr == sql.ErrNoRows {
+		if reqUID != "" || reqSig != "" {
+			if err := recordTombstoneTx(tx, "job", reqUID, reqSig, nowSec); err != nil {
+				serverErr(w, err)
+				return
+			}
+		}
+	} else {
+		serverErr(w, qErr)
+		return
+	}
+
+	pruneTombstonesTx(tx, nowSec)
+	if err := tx.Commit(); err != nil {
+		serverErr(w, err)
+		return
+	}
+	s.bumpWorkRev()
 	writeJSON(w, 200, map[string]any{"ok": true})
 }
 
@@ -1010,8 +1235,8 @@ func (s *Server) handlePayCustomerJobs(w http.ResponseWriter, r *http.Request) {
 		rem := p.price - paid
 		if rem > 0 {
 			if _, err := tx.Exec(
-				`INSERT INTO work_job_payments(job_id, date, amount, note, ts) VALUES(?,?,?,?,?)`,
-				p.id, today, rem, "Trả hết nợ", ts,
+				`INSERT INTO work_job_payments(uid, job_id, date, amount, note, ts) VALUES(?,?,?,?,?,?)`,
+				s.nextUID("jpay"), p.id, today, rem, "Trả hết nợ", ts,
 			); err != nil {
 				serverErr(w, err)
 				return
@@ -1019,7 +1244,7 @@ func (s *Server) handlePayCustomerJobs(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	res, err := tx.Exec(`UPDATE work_jobs SET status='TT' WHERE status='CTT' AND LOWER(TRIM(customer)) = LOWER(TRIM(?))`, cust)
+	res, err := tx.Exec(`UPDATE work_jobs SET status='TT', updated_at=? WHERE status='CTT' AND LOWER(TRIM(customer)) = LOWER(TRIM(?))`, ts, cust)
 	if err != nil {
 		serverErr(w, err)
 		return
@@ -1029,22 +1254,34 @@ func (s *Server) handlePayCustomerJobs(w http.ResponseWriter, r *http.Request) {
 		serverErr(w, err)
 		return
 	}
+	s.bumpWorkRev()
 	writeJSON(w, 200, map[string]any{"ok": true, "updated": affected})
 }
 
 // POST /api/work/job/{id}/pay
 func (s *Server) handlePayWorkJob(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil || id <= 0 {
+	if err != nil || id < 0 {
 		httpErr(w, 400, "Mã đơn việc không hợp lệ")
 		return
 	}
 	var in struct {
+		UID    string `json:"uid"`
+		JobUID string `json:"job_uid"`
 		Date   string `json:"date"`
 		Amount int    `json:"amount"`
 		Note   string `json:"note"`
+		Ts     int64  `json:"ts"`
 	}
 	if !readJSON(w, r, &in) {
+		return
+	}
+	jobUID := sanitizeSyncUID(in.JobUID)
+	if jobUID == "" {
+		jobUID = sanitizeSyncUID(r.URL.Query().Get("job_uid"))
+	}
+	if id == 0 && jobUID == "" {
+		httpErr(w, 400, "Mã đơn việc không hợp lệ")
 		return
 	}
 	if in.Date == "" {
@@ -1067,9 +1304,16 @@ func (s *Server) handlePayWorkJob(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback()
 
+	var jobID int64
 	var jobPrice int
 	var jobStatus string
-	err = tx.QueryRow(`SELECT price, status FROM work_jobs WHERE id=?`, id).Scan(&jobPrice, &jobStatus)
+	err = sql.ErrNoRows
+	if id > 0 {
+		err = tx.QueryRow(`SELECT id, price, status FROM work_jobs WHERE id=?`, id).Scan(&jobID, &jobPrice, &jobStatus)
+	}
+	if err == sql.ErrNoRows && jobUID != "" {
+		err = tx.QueryRow(`SELECT id, price, status FROM work_jobs WHERE uid=?`, jobUID).Scan(&jobID, &jobPrice, &jobStatus)
+	}
 	if err == sql.ErrNoRows {
 		httpErr(w, 404, "Không tìm thấy đơn việc này")
 		return
@@ -1079,9 +1323,41 @@ func (s *Server) handlePayWorkJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	payUID := sanitizeSyncUID(in.UID)
+	if payUID != "" {
+		var exPay workJobPayment
+		if tx.QueryRow(`SELECT id, COALESCE(uid, ''), job_id, date, amount, note, ts FROM work_job_payments WHERE uid=?`, payUID).
+			Scan(&exPay.ID, &exPay.UID, &exPay.JobID, &exPay.Date, &exPay.Amount, &exPay.Note, &exPay.Ts) == nil {
+			var curPaid int
+			_ = tx.QueryRow(`SELECT COALESCE(SUM(amount), 0) FROM work_job_payments WHERE job_id=?`, jobID).Scan(&curPaid)
+			curRem := jobPrice - curPaid
+			if curRem < 0 {
+				curRem = 0
+			}
+			over := curPaid - jobPrice
+			if over < 0 {
+				over = 0
+			}
+			writeJSON(w, 200, map[string]any{
+				"ok":               true,
+				"payment_id":       exPay.ID,
+				"job_id":           jobID,
+				"status":           jobStatus,
+				"paid_amount":      curPaid,
+				"remaining_amount": curRem,
+				"overpaid_amount":  over,
+				"settled":          curRem == 0,
+				"payment":          exPay,
+			})
+			return
+		}
+	} else {
+		payUID = s.nextUID("jpay")
+	}
+
 	var paid int
 	var payCount int
-	if err := tx.QueryRow(`SELECT COALESCE(SUM(amount), 0), COUNT(*) FROM work_job_payments WHERE job_id=?`, id).Scan(&paid, &payCount); err != nil {
+	if err := tx.QueryRow(`SELECT COALESCE(SUM(amount), 0), COUNT(*) FROM work_job_payments WHERE job_id=?`, jobID).Scan(&paid, &payCount); err != nil {
 		serverErr(w, err)
 		return
 	}
@@ -1100,10 +1376,14 @@ func (s *Server) handlePayWorkJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ts := s.now().Unix()
+	nowSec := s.now().Unix()
+	ts := nowSec
+	if in.Ts > 0 && in.Ts <= nowSec+300 {
+		ts = in.Ts
+	}
 	res, err := tx.Exec(
-		`INSERT INTO work_job_payments(job_id, date, amount, note, ts) VALUES(?,?,?,?,?)`,
-		id, in.Date, payAmt, note, ts,
+		`INSERT INTO work_job_payments(uid, job_id, date, amount, note, ts) VALUES(?,?,?,?,?,?)`,
+		payUID, jobID, in.Date, payAmt, note, ts,
 	)
 	if err != nil {
 		serverErr(w, err)
@@ -1124,7 +1404,7 @@ func (s *Server) handlePayWorkJob(w http.ResponseWriter, r *http.Request) {
 	if newRemaining == 0 {
 		newStatus = "TT"
 	}
-	if _, err := tx.Exec(`UPDATE work_jobs SET status=? WHERE id=?`, newStatus, id); err != nil {
+	if _, err := tx.Exec(`UPDATE work_jobs SET status=?, updated_at=? WHERE id=?`, newStatus, nowSec, jobID); err != nil {
 		serverErr(w, err)
 		return
 	}
@@ -1133,11 +1413,13 @@ func (s *Server) handlePayWorkJob(w http.ResponseWriter, r *http.Request) {
 		serverErr(w, err)
 		return
 	}
+	rev := s.bumpWorkRev()
 
 	writeJSON(w, 200, map[string]any{
 		"ok":               true,
+		"work_rev":         rev,
 		"payment_id":       payID,
-		"job_id":           id,
+		"job_id":           jobID,
 		"status":           newStatus,
 		"paid_amount":      newPaid,
 		"remaining_amount": newRemaining,
@@ -1145,7 +1427,8 @@ func (s *Server) handlePayWorkJob(w http.ResponseWriter, r *http.Request) {
 		"settled":          newRemaining == 0,
 		"payment": workJobPayment{
 			ID:     payID,
-			JobID:  id,
+			UID:    payUID,
+			JobID:  jobID,
 			Date:   in.Date,
 			Amount: payAmt,
 			Note:   note,
@@ -1157,7 +1440,9 @@ func (s *Server) handlePayWorkJob(w http.ResponseWriter, r *http.Request) {
 // DELETE /api/work/job-payment/{id}
 func (s *Server) handleDelWorkJobPayment(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil || id <= 0 {
+	reqUID := sanitizeSyncUID(r.URL.Query().Get("uid"))
+	reqSig := strings.TrimSpace(r.URL.Query().Get("sig"))
+	if err != nil || id < 0 || (id == 0 && reqUID == "" && reqSig == "") {
 		httpErr(w, 400, "Mã lần trả tiền không hợp lệ")
 		return
 	}
@@ -1168,47 +1453,78 @@ func (s *Server) handleDelWorkJobPayment(w http.ResponseWriter, r *http.Request)
 	}
 	defer tx.Rollback()
 
-	var jobID int64
-	err = tx.QueryRow(`SELECT job_id FROM work_job_payments WHERE id=?`, id).Scan(&jobID)
-	if err == sql.ErrNoRows {
+	nowSec := s.now().Unix()
+	var pay workJobPayment
+	qErr := sql.ErrNoRows
+	if id > 0 {
+		qErr = tx.QueryRow(`SELECT id, COALESCE(uid, ''), job_id, date, amount, note, ts FROM work_job_payments WHERE id=?`, id).
+			Scan(&pay.ID, &pay.UID, &pay.JobID, &pay.Date, &pay.Amount, &pay.Note, &pay.Ts)
+	}
+	if qErr == sql.ErrNoRows && reqUID != "" {
+		qErr = tx.QueryRow(`SELECT id, COALESCE(uid, ''), job_id, date, amount, note, ts FROM work_job_payments WHERE uid=?`, reqUID).
+			Scan(&pay.ID, &pay.UID, &pay.JobID, &pay.Date, &pay.Amount, &pay.Note, &pay.Ts)
+	}
+
+	if qErr == sql.ErrNoRows {
+		if reqUID != "" || reqSig != "" {
+			if err := recordTombstoneTx(tx, "job_payment", reqUID, reqSig, nowSec); err != nil {
+				serverErr(w, err)
+				return
+			}
+			pruneTombstonesTx(tx, nowSec)
+			if err := tx.Commit(); err != nil {
+				serverErr(w, err)
+				return
+			}
+			s.bumpWorkRev()
+		}
 		writeJSON(w, 200, map[string]any{"ok": true})
 		return
 	}
-	if err != nil {
+	if qErr != nil {
+		serverErr(w, qErr)
+		return
+	}
+
+	if err := recordTombstoneTx(tx, "job_payment", pay.UID, installmentSig(pay.Date, pay.Amount, pay.Note, pay.Ts), nowSec); err != nil {
 		serverErr(w, err)
 		return
 	}
-	if _, err := tx.Exec(`DELETE FROM work_job_payments WHERE id=?`, id); err != nil {
+	if _, err := tx.Exec(`DELETE FROM work_job_payments WHERE id=?`, pay.ID); err != nil {
 		serverErr(w, err)
 		return
 	}
 	var jobPrice int
 	var paid int
-	if err := tx.QueryRow(`SELECT price FROM work_jobs WHERE id=?`, jobID).Scan(&jobPrice); err == nil {
-		_ = tx.QueryRow(`SELECT COALESCE(SUM(amount), 0) FROM work_job_payments WHERE job_id=?`, jobID).Scan(&paid)
+	if err := tx.QueryRow(`SELECT price FROM work_jobs WHERE id=?`, pay.JobID).Scan(&jobPrice); err == nil {
+		_ = tx.QueryRow(`SELECT COALESCE(SUM(amount), 0) FROM work_job_payments WHERE job_id=?`, pay.JobID).Scan(&paid)
 		newStatus := "CTT"
 		if paid >= jobPrice {
 			newStatus = "TT"
 		}
-		if _, err := tx.Exec(`UPDATE work_jobs SET status=? WHERE id=?`, newStatus, jobID); err != nil {
+		if _, err := tx.Exec(`UPDATE work_jobs SET status=?, updated_at=? WHERE id=?`, newStatus, nowSec, pay.JobID); err != nil {
 			serverErr(w, err)
 			return
 		}
 	}
+	pruneTombstonesTx(tx, nowSec)
 	if err := tx.Commit(); err != nil {
 		serverErr(w, err)
 		return
 	}
+	s.bumpWorkRev()
 	writeJSON(w, 200, map[string]any{"ok": true})
 }
 
 // POST /api/work/ledger
 func (s *Server) handlePostWorkLedger(w http.ResponseWriter, r *http.Request) {
 	var in struct {
+		UID      string `json:"uid"`
 		Date     string `json:"date"`
 		Category string `json:"category"`
 		Amount   int    `json:"amount"`
 		Note     string `json:"note"`
+		Ts       int64  `json:"ts"`
 	}
 	if !readJSON(w, r, &in) {
 		return
@@ -1234,45 +1550,142 @@ func (s *Server) handlePostWorkLedger(w http.ResponseWriter, r *http.Request) {
 		httpErr(w, 400, "Nội dung ghi chú tối đa 300 ký tự")
 		return
 	}
+
+	uid := sanitizeSyncUID(in.UID)
+	if uid != "" {
+		var existingID int64
+		if s.db.QueryRow(`SELECT id FROM work_ledger WHERE uid=?`, uid).Scan(&existingID) == nil && existingID > 0 {
+			writeJSON(w, 200, map[string]any{"ok": true, "id": existingID, "uid": uid, "work_rev": s.workRev.Load()})
+			return
+		}
+	} else {
+		uid = s.nextUID("ldg")
+	}
+
+	nowSec := s.now().Unix()
+	ts := nowSec
+	if in.Ts > 0 && in.Ts <= nowSec+300 {
+		ts = in.Ts
+	}
+
 	res, err := s.db.Exec(
-		`INSERT INTO work_ledger(date, category, amount, note, ts) VALUES(?,?,?,?,?)`,
-		in.Date, in.Category, amt, note, s.now().Unix(),
+		`INSERT INTO work_ledger(uid, date, category, amount, note, ts, updated_at) VALUES(?,?,?,?,?,?,?)`,
+		uid, in.Date, in.Category, amt, note, ts, nowSec,
 	)
 	if err != nil {
 		serverErr(w, err)
 		return
 	}
 	id, _ := res.LastInsertId()
-	writeJSON(w, 200, map[string]any{"ok": true, "id": id})
+	rev := s.bumpWorkRev()
+	writeJSON(w, 200, map[string]any{"ok": true, "id": id, "uid": uid, "work_rev": rev})
 }
 
 // DELETE /api/work/ledger/{id}
 func (s *Server) handleDelWorkLedger(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil || id <= 0 {
+	reqUID := sanitizeSyncUID(r.URL.Query().Get("uid"))
+	reqSig := strings.TrimSpace(r.URL.Query().Get("sig"))
+	if err != nil || id < 0 || (id == 0 && reqUID == "" && reqSig == "") {
 		httpErr(w, 400, "Mã khoản thu chi không hợp lệ")
 		return
 	}
-	if _, err := s.db.Exec(`DELETE FROM work_ledger WHERE id=?`, id); err != nil {
+	tx, err := s.db.Begin()
+	if err != nil {
 		serverErr(w, err)
 		return
 	}
+	defer tx.Rollback()
+
+	nowSec := s.now().Unix()
+	var l workLedger
+	qErr := sql.ErrNoRows
+	if id > 0 {
+		qErr = tx.QueryRow(`SELECT id, COALESCE(uid, ''), date, category, amount, note, ts FROM work_ledger WHERE id=?`, id).
+			Scan(&l.ID, &l.UID, &l.Date, &l.Category, &l.Amount, &l.Note, &l.Ts)
+	}
+	if qErr == sql.ErrNoRows && reqUID != "" {
+		qErr = tx.QueryRow(`SELECT id, COALESCE(uid, ''), date, category, amount, note, ts FROM work_ledger WHERE uid=?`, reqUID).
+			Scan(&l.ID, &l.UID, &l.Date, &l.Category, &l.Amount, &l.Note, &l.Ts)
+	}
+
+	if qErr == nil {
+		rrows, rErr := tx.Query(`SELECT COALESCE(uid, ''), date, amount, note, ts FROM work_ledger_repayments WHERE ledger_id=?`, l.ID)
+		if rErr == nil {
+			type repInfo struct {
+				uid, date, note string
+				amt             int
+				ts              int64
+			}
+			var rList []repInfo
+			for rrows.Next() {
+				var rep repInfo
+				if rrows.Scan(&rep.uid, &rep.date, &rep.amt, &rep.note, &rep.ts) == nil {
+					rList = append(rList, rep)
+				}
+			}
+			rrows.Close()
+			for _, rep := range rList {
+				if err := recordTombstoneTx(tx, "repayment", rep.uid, installmentSig(rep.date, rep.amt, rep.note, rep.ts), nowSec); err != nil {
+					serverErr(w, err)
+					return
+				}
+			}
+		}
+		sig := workLedgerSig(l.Date, l.Category, l.Amount, l.Note, l.Ts)
+		if err := recordTombstoneTx(tx, "ledger", l.UID, sig, nowSec); err != nil {
+			serverErr(w, err)
+			return
+		}
+		if _, err := tx.Exec(`DELETE FROM work_ledger WHERE id=?`, l.ID); err != nil {
+			serverErr(w, err)
+			return
+		}
+	} else if qErr == sql.ErrNoRows {
+		if reqUID != "" || reqSig != "" {
+			if err := recordTombstoneTx(tx, "ledger", reqUID, reqSig, nowSec); err != nil {
+				serverErr(w, err)
+				return
+			}
+		}
+	} else {
+		serverErr(w, qErr)
+		return
+	}
+
+	pruneTombstonesTx(tx, nowSec)
+	if err := tx.Commit(); err != nil {
+		serverErr(w, err)
+		return
+	}
+	s.bumpWorkRev()
 	writeJSON(w, 200, map[string]any{"ok": true})
 }
 
 // POST /api/work/ledger/{id}/repay
 func (s *Server) handleRepayWorkLedger(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil || id <= 0 {
+	if err != nil || id < 0 {
 		httpErr(w, 400, "Mã khoản mượn không hợp lệ")
 		return
 	}
 	var in struct {
-		Date   string `json:"date"`
-		Amount int    `json:"amount"`
-		Note   string `json:"note"`
+		UID       string `json:"uid"`
+		LedgerUID string `json:"ledger_uid"`
+		Date      string `json:"date"`
+		Amount    int    `json:"amount"`
+		Note      string `json:"note"`
+		Ts        int64  `json:"ts"`
 	}
 	if !readJSON(w, r, &in) {
+		return
+	}
+	ledgerUID := sanitizeSyncUID(in.LedgerUID)
+	if ledgerUID == "" {
+		ledgerUID = sanitizeSyncUID(r.URL.Query().Get("ledger_uid"))
+	}
+	if id == 0 && ledgerUID == "" {
+		httpErr(w, 400, "Mã khoản mượn không hợp lệ")
 		return
 	}
 	if in.Date == "" {
@@ -1295,9 +1708,16 @@ func (s *Server) handleRepayWorkLedger(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback()
 
+	var ledgerID int64
 	var cat string
 	var borrowAmt int
-	err = tx.QueryRow(`SELECT category, amount FROM work_ledger WHERE id=?`, id).Scan(&cat, &borrowAmt)
+	err = sql.ErrNoRows
+	if id > 0 {
+		err = tx.QueryRow(`SELECT id, category, amount FROM work_ledger WHERE id=?`, id).Scan(&ledgerID, &cat, &borrowAmt)
+	}
+	if err == sql.ErrNoRows && ledgerUID != "" {
+		err = tx.QueryRow(`SELECT id, category, amount FROM work_ledger WHERE uid=?`, ledgerUID).Scan(&ledgerID, &cat, &borrowAmt)
+	}
 	if err == sql.ErrNoRows {
 		httpErr(w, 404, "Không tìm thấy khoản mượn này")
 		return
@@ -1311,8 +1731,39 @@ func (s *Server) handleRepayWorkLedger(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	repUID := sanitizeSyncUID(in.UID)
+	if repUID != "" {
+		var exRep workLedgerRepayment
+		if tx.QueryRow(`SELECT id, COALESCE(uid, ''), ledger_id, date, amount, note, ts FROM work_ledger_repayments WHERE uid=?`, repUID).
+			Scan(&exRep.ID, &exRep.UID, &exRep.LedgerID, &exRep.Date, &exRep.Amount, &exRep.Note, &exRep.Ts) == nil {
+			var curPaid int
+			_ = tx.QueryRow(`SELECT COALESCE(SUM(amount), 0) FROM work_ledger_repayments WHERE ledger_id=?`, ledgerID).Scan(&curPaid)
+			curRem := borrowAmt - curPaid
+			if curRem < 0 {
+				curRem = 0
+			}
+			over := curPaid - borrowAmt
+			if over < 0 {
+				over = 0
+			}
+			writeJSON(w, 200, map[string]any{
+				"ok":               true,
+				"repayment_id":     exRep.ID,
+				"ledger_id":        ledgerID,
+				"paid_amount":      curPaid,
+				"remaining_amount": curRem,
+				"overpaid_amount":  over,
+				"settled":          curRem == 0,
+				"repayment":        exRep,
+			})
+			return
+		}
+	} else {
+		repUID = s.nextUID("lrep")
+	}
+
 	var paid int
-	if err := tx.QueryRow(`SELECT COALESCE(SUM(amount), 0) FROM work_ledger_repayments WHERE ledger_id=?`, id).Scan(&paid); err != nil {
+	if err := tx.QueryRow(`SELECT COALESCE(SUM(amount), 0) FROM work_ledger_repayments WHERE ledger_id=?`, ledgerID).Scan(&paid); err != nil {
 		serverErr(w, err)
 		return
 	}
@@ -1327,20 +1778,26 @@ func (s *Server) handleRepayWorkLedger(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ts := s.now().Unix()
+	nowSec := s.now().Unix()
+	ts := nowSec
+	if in.Ts > 0 && in.Ts <= nowSec+300 {
+		ts = in.Ts
+	}
 	res, err := tx.Exec(
-		`INSERT INTO work_ledger_repayments(ledger_id, date, amount, note, ts) VALUES(?,?,?,?,?)`,
-		id, in.Date, payAmt, note, ts,
+		`INSERT INTO work_ledger_repayments(uid, ledger_id, date, amount, note, ts) VALUES(?,?,?,?,?,?)`,
+		repUID, ledgerID, in.Date, payAmt, note, ts,
 	)
 	if err != nil {
 		serverErr(w, err)
 		return
 	}
 	repayID, _ := res.LastInsertId()
+	_, _ = tx.Exec(`UPDATE work_ledger SET updated_at=? WHERE id=?`, nowSec, ledgerID)
 	if err := tx.Commit(); err != nil {
 		serverErr(w, err)
 		return
 	}
+	rev := s.bumpWorkRev()
 
 	newPaid := paid + payAmt
 	newRemaining := borrowAmt - newPaid
@@ -1353,15 +1810,17 @@ func (s *Server) handleRepayWorkLedger(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, 200, map[string]any{
 		"ok":               true,
+		"work_rev":         rev,
 		"repayment_id":     repayID,
-		"ledger_id":        id,
+		"ledger_id":        ledgerID,
 		"paid_amount":      newPaid,
 		"remaining_amount": newRemaining,
 		"overpaid_amount":  overpaid,
 		"settled":          newRemaining == 0,
 		"repayment": workLedgerRepayment{
 			ID:       repayID,
-			LedgerID: id,
+			UID:      repUID,
+			LedgerID: ledgerID,
 			Date:     in.Date,
 			Amount:   payAmt,
 			Note:     note,
@@ -1373,14 +1832,59 @@ func (s *Server) handleRepayWorkLedger(w http.ResponseWriter, r *http.Request) {
 // DELETE /api/work/repayment/{id}
 func (s *Server) handleDelWorkLedgerRepayment(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil || id <= 0 {
+	reqUID := sanitizeSyncUID(r.URL.Query().Get("uid"))
+	reqSig := strings.TrimSpace(r.URL.Query().Get("sig"))
+	if err != nil || id < 0 || (id == 0 && reqUID == "" && reqSig == "") {
 		httpErr(w, 400, "Mã lần trả tiền không hợp lệ")
 		return
 	}
-	if _, err := s.db.Exec(`DELETE FROM work_ledger_repayments WHERE id=?`, id); err != nil {
+	tx, err := s.db.Begin()
+	if err != nil {
 		serverErr(w, err)
 		return
 	}
+	defer tx.Rollback()
+
+	nowSec := s.now().Unix()
+	var rep workLedgerRepayment
+	qErr := sql.ErrNoRows
+	if id > 0 {
+		qErr = tx.QueryRow(`SELECT id, COALESCE(uid, ''), ledger_id, date, amount, note, ts FROM work_ledger_repayments WHERE id=?`, id).
+			Scan(&rep.ID, &rep.UID, &rep.LedgerID, &rep.Date, &rep.Amount, &rep.Note, &rep.Ts)
+	}
+	if qErr == sql.ErrNoRows && reqUID != "" {
+		qErr = tx.QueryRow(`SELECT id, COALESCE(uid, ''), ledger_id, date, amount, note, ts FROM work_ledger_repayments WHERE uid=?`, reqUID).
+			Scan(&rep.ID, &rep.UID, &rep.LedgerID, &rep.Date, &rep.Amount, &rep.Note, &rep.Ts)
+	}
+
+	if qErr == nil {
+		if err := recordTombstoneTx(tx, "repayment", rep.UID, installmentSig(rep.Date, rep.Amount, rep.Note, rep.Ts), nowSec); err != nil {
+			serverErr(w, err)
+			return
+		}
+		if _, err := tx.Exec(`DELETE FROM work_ledger_repayments WHERE id=?`, rep.ID); err != nil {
+			serverErr(w, err)
+			return
+		}
+		_, _ = tx.Exec(`UPDATE work_ledger SET updated_at=? WHERE id=?`, nowSec, rep.LedgerID)
+	} else if qErr == sql.ErrNoRows {
+		if reqUID != "" || reqSig != "" {
+			if err := recordTombstoneTx(tx, "repayment", reqUID, reqSig, nowSec); err != nil {
+				serverErr(w, err)
+				return
+			}
+		}
+	} else {
+		serverErr(w, qErr)
+		return
+	}
+
+	pruneTombstonesTx(tx, nowSec)
+	if err := tx.Commit(); err != nil {
+		serverErr(w, err)
+		return
+	}
+	s.bumpWorkRev()
 	writeJSON(w, 200, map[string]any{"ok": true})
 }
 
@@ -1606,14 +2110,14 @@ func (s *Server) dbInstanceID() string {
 }
 
 func (s *Server) queryAllWorkJobs() []workJob {
-	rows, err := s.db.Query(`SELECT id, date, customer, channel, service, price, status, note, ts FROM work_jobs ORDER BY date ASC, id ASC`)
+	rows, err := s.db.Query(`SELECT id, COALESCE(uid, ''), date, customer, channel, service, price, status, note, ts, COALESCE(updated_at, 0) FROM work_jobs ORDER BY date ASC, id ASC`)
 	if err != nil {
 		return []workJob{}
 	}
 	out := []workJob{}
 	for rows.Next() {
 		var j workJob
-		if rows.Scan(&j.ID, &j.Date, &j.Customer, &j.Channel, &j.Service, &j.Price, &j.Status, &j.Note, &j.Ts) == nil {
+		if rows.Scan(&j.ID, &j.UID, &j.Date, &j.Customer, &j.Channel, &j.Service, &j.Price, &j.Status, &j.Note, &j.Ts, &j.UpdatedAt) == nil {
 			out = append(out, j)
 		}
 	}
@@ -1623,14 +2127,14 @@ func (s *Server) queryAllWorkJobs() []workJob {
 }
 
 func (s *Server) queryAllWorkLedger() []workLedger {
-	rows, err := s.db.Query(`SELECT id, date, category, amount, note, ts FROM work_ledger ORDER BY date ASC, id ASC`)
+	rows, err := s.db.Query(`SELECT id, COALESCE(uid, ''), date, category, amount, note, ts, COALESCE(updated_at, 0) FROM work_ledger ORDER BY date ASC, id ASC`)
 	if err != nil {
 		return []workLedger{}
 	}
 	out := []workLedger{}
 	for rows.Next() {
 		var l workLedger
-		if rows.Scan(&l.ID, &l.Date, &l.Category, &l.Amount, &l.Note, &l.Ts) == nil {
+		if rows.Scan(&l.ID, &l.UID, &l.Date, &l.Category, &l.Amount, &l.Note, &l.Ts, &l.UpdatedAt) == nil {
 			out = append(out, l)
 		}
 	}
@@ -1639,7 +2143,33 @@ func (s *Server) queryAllWorkLedger() []workLedger {
 	return out
 }
 
+func tombstoneBlocksItem(deadUID map[string]int64, deadSig map[string]int64, uid, sig string, itemTime int64) bool {
+	if uid != "" && deadUID != nil && deadUID[uid] > 0 {
+		return true
+	}
+	if sig != "" && deadSig != nil {
+		if delAt := deadSig[sig]; delAt > 0 && (itemTime <= 0 || delAt >= itemTime) {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Server) insertVaultJobPayments(tx *sql.Tx, jobID int64, price int, fallbackTs int64, pays []workJobPayment, existing map[string]bool) error {
+	return s.insertVaultJobPaymentsFiltered(tx, jobID, price, fallbackTs, pays, nil, existing, nil, nil)
+}
+
+func (s *Server) insertVaultJobPaymentsFiltered(
+	tx *sql.Tx,
+	jobID int64,
+	price int,
+	fallbackTs int64,
+	pays []workJobPayment,
+	existingUID map[string]bool,
+	existingSig map[string]bool,
+	deadUID map[string]int64,
+	deadSig map[string]int64,
+) error {
 	if len(pays) == 0 {
 		return nil
 	}
@@ -1650,37 +2180,68 @@ func (s *Server) insertVaultJobPayments(tx *sql.Tx, jobID int64, price int, fall
 		if !validDate(pay.Date) {
 			continue
 		}
-		payAmt := normalizeInstallmentAmount(pay.Amount, price-currentPaid)
-		if payAmt <= 0 {
-			continue
-		}
 		payTs := pay.Ts
 		if payTs <= 0 {
 			payTs = fallbackTs
 		}
 		payNote := strings.TrimSpace(pay.Note)
-		sig := installmentSig(pay.Date, payAmt, payNote, payTs)
-		if existing != nil && existing[sig] {
+		payUID := sanitizeSyncUID(pay.UID)
+		rawSig := installmentSig(pay.Date, normalizeVND(pay.Amount), payNote, payTs)
+		if tombstoneBlocksItem(deadUID, deadSig, payUID, rawSig, payTs) {
 			continue
 		}
+		if payUID != "" && existingUID != nil && existingUID[payUID] {
+			continue
+		}
+		payAmt := normalizeInstallmentAmount(pay.Amount, price-currentPaid)
+		if payAmt <= 0 {
+			continue
+		}
+		sig := installmentSig(pay.Date, payAmt, payNote, payTs)
+		if tombstoneBlocksItem(deadUID, deadSig, payUID, sig, payTs) {
+			continue
+		}
+		if existingSig != nil && existingSig[sig] {
+			continue
+		}
+		if payUID == "" {
+			payUID = s.nextUID("jpay")
+		}
 		if _, err := tx.Exec(
-			`INSERT INTO work_job_payments(job_id, date, amount, note, ts) VALUES(?,?,?,?,?)`,
-			jobID, pay.Date, payAmt, payNote, payTs,
+			`INSERT INTO work_job_payments(uid, job_id, date, amount, note, ts) VALUES(?,?,?,?,?,?)`,
+			payUID, jobID, pay.Date, payAmt, payNote, payTs,
 		); err != nil {
 			return err
 		}
 		currentPaid += payAmt
-		if existing != nil {
-			existing[sig] = true
+		if existingUID != nil {
+			existingUID[payUID] = true
+		}
+		if existingSig != nil {
+			existingSig[sig] = true
 		}
 	}
 	if currentPaid >= price {
-		_, _ = tx.Exec(`UPDATE work_jobs SET status='TT' WHERE id=? AND status='CTT'`, jobID)
+		_, _ = tx.Exec(`UPDATE work_jobs SET status='TT', updated_at=MAX(COALESCE(updated_at,0), ?) WHERE id=? AND status='CTT'`, s.now().Unix(), jobID)
 	}
 	return nil
 }
 
 func (s *Server) insertVaultRepayments(tx *sql.Tx, ledgerID int64, borrowAmt int, fallbackTs int64, reps []workLedgerRepayment, existing map[string]bool) error {
+	return s.insertVaultRepaymentsFiltered(tx, ledgerID, borrowAmt, fallbackTs, reps, nil, existing, nil, nil)
+}
+
+func (s *Server) insertVaultRepaymentsFiltered(
+	tx *sql.Tx,
+	ledgerID int64,
+	borrowAmt int,
+	fallbackTs int64,
+	reps []workLedgerRepayment,
+	existingUID map[string]bool,
+	existingSig map[string]bool,
+	deadUID map[string]int64,
+	deadSig map[string]int64,
+) error {
 	if len(reps) == 0 {
 		return nil
 	}
@@ -1691,28 +2252,45 @@ func (s *Server) insertVaultRepayments(tx *sql.Tx, ledgerID int64, borrowAmt int
 		if !validDate(rep.Date) {
 			continue
 		}
-		repAmt := normalizeInstallmentAmount(rep.Amount, borrowAmt-currentPaid)
-		if repAmt <= 0 {
-			continue
-		}
 		repTs := rep.Ts
 		if repTs <= 0 {
 			repTs = fallbackTs
 		}
 		repNote := strings.TrimSpace(rep.Note)
-		sig := installmentSig(rep.Date, repAmt, repNote, repTs)
-		if existing != nil && existing[sig] {
+		repUID := sanitizeSyncUID(rep.UID)
+		rawSig := installmentSig(rep.Date, normalizeVND(rep.Amount), repNote, repTs)
+		if tombstoneBlocksItem(deadUID, deadSig, repUID, rawSig, repTs) {
 			continue
 		}
+		if repUID != "" && existingUID != nil && existingUID[repUID] {
+			continue
+		}
+		repAmt := normalizeInstallmentAmount(rep.Amount, borrowAmt-currentPaid)
+		if repAmt <= 0 {
+			continue
+		}
+		sig := installmentSig(rep.Date, repAmt, repNote, repTs)
+		if tombstoneBlocksItem(deadUID, deadSig, repUID, sig, repTs) {
+			continue
+		}
+		if existingSig != nil && existingSig[sig] {
+			continue
+		}
+		if repUID == "" {
+			repUID = s.nextUID("lrep")
+		}
 		if _, err := tx.Exec(
-			`INSERT INTO work_ledger_repayments(ledger_id, date, amount, note, ts) VALUES(?,?,?,?,?)`,
-			ledgerID, rep.Date, repAmt, repNote, repTs,
+			`INSERT INTO work_ledger_repayments(uid, ledger_id, date, amount, note, ts) VALUES(?,?,?,?,?,?)`,
+			repUID, ledgerID, rep.Date, repAmt, repNote, repTs,
 		); err != nil {
 			return err
 		}
 		currentPaid += repAmt
-		if existing != nil {
-			existing[sig] = true
+		if existingUID != nil {
+			existingUID[repUID] = true
+		}
+		if existingSig != nil {
+			existingSig[sig] = true
 		}
 	}
 	return nil
@@ -1721,19 +2299,22 @@ func (s *Server) insertVaultRepayments(tx *sql.Tx, ledgerID int64, borrowAmt int
 // GET /api/work/vault
 func (s *Server) handleGetWorkVault(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{
-		"ok":     true,
-		"db_id":  s.dbInstanceID(),
-		"jobs":   s.queryAllWorkJobs(),
-		"ledger": s.queryAllWorkLedger(),
+		"ok":         true,
+		"db_id":      s.dbInstanceID(),
+		"work_rev":   s.workRev.Load(),
+		"jobs":       s.queryAllWorkJobs(),
+		"ledger":     s.queryAllWorkLedger(),
+		"tombstones": s.queryAllTombstones(),
 	})
 }
 
 // POST /api/work/vault
 func (s *Server) handleSyncWorkVault(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		Mode   string       `json:"mode"` // "replace" hoặc "merge"
-		Jobs   []workJob    `json:"jobs"`
-		Ledger []workLedger `json:"ledger"`
+		Mode       string          `json:"mode"` // "replace" hoặc "merge"
+		Jobs       []workJob       `json:"jobs"`
+		Ledger     []workLedger    `json:"ledger"`
+		Tombstones []workTombstone `json:"tombstones"`
 	}
 	if !readJSON(w, r, &in) {
 		return
@@ -1746,6 +2327,7 @@ func (s *Server) handleSyncWorkVault(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback()
 
+	nowSec := s.now().Unix()
 	mode := strings.ToLower(strings.TrimSpace(in.Mode))
 	if mode == "replace" {
 		if _, err := tx.Exec(`DELETE FROM work_job_payments`); err != nil {
@@ -1764,6 +2346,10 @@ func (s *Server) handleSyncWorkVault(w http.ResponseWriter, r *http.Request) {
 			serverErr(w, err)
 			return
 		}
+		if _, err := tx.Exec(`DELETE FROM work_tombstones`); err != nil {
+			serverErr(w, err)
+			return
+		}
 		for _, j := range in.Jobs {
 			cust := strings.TrimSpace(j.Customer)
 			svc := strings.TrimSpace(j.Service)
@@ -1773,11 +2359,19 @@ func (s *Server) handleSyncWorkVault(w http.ResponseWriter, r *http.Request) {
 			}
 			ts := j.Ts
 			if ts <= 0 {
-				ts = s.now().Unix()
+				ts = nowSec
+			}
+			upd := j.UpdatedAt
+			if upd < ts {
+				upd = ts
+			}
+			uid := sanitizeSyncUID(j.UID)
+			if uid == "" {
+				uid = s.nextUID("job")
 			}
 			res, err := tx.Exec(
-				`INSERT INTO work_jobs(date, customer, channel, service, price, status, note, ts) VALUES(?,?,?,?,?,?,?,?)`,
-				j.Date, cust, validChannel(j.Channel), svc, price, validJobStatus(j.Status), strings.TrimSpace(j.Note), ts,
+				`INSERT INTO work_jobs(uid, date, customer, channel, service, price, status, note, ts, updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)`,
+				uid, j.Date, cust, validChannel(j.Channel), svc, price, validJobStatus(j.Status), strings.TrimSpace(j.Note), ts, upd,
 			)
 			if err != nil {
 				serverErr(w, err)
@@ -1798,11 +2392,19 @@ func (s *Server) handleSyncWorkVault(w http.ResponseWriter, r *http.Request) {
 			}
 			ts := l.Ts
 			if ts <= 0 {
-				ts = s.now().Unix()
+				ts = nowSec
+			}
+			upd := l.UpdatedAt
+			if upd < ts {
+				upd = ts
+			}
+			uid := sanitizeSyncUID(l.UID)
+			if uid == "" {
+				uid = s.nextUID("ldg")
 			}
 			res, err := tx.Exec(
-				`INSERT INTO work_ledger(date, category, amount, note, ts) VALUES(?,?,?,?,?)`,
-				l.Date, l.Category, amt, strings.TrimSpace(l.Note), ts,
+				`INSERT INTO work_ledger(uid, date, category, amount, note, ts, updated_at) VALUES(?,?,?,?,?,?,?)`,
+				uid, l.Date, l.Category, amt, strings.TrimSpace(l.Note), ts, upd,
 			)
 			if err != nil {
 				serverErr(w, err)
@@ -1816,41 +2418,215 @@ func (s *Server) handleSyncWorkVault(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
+		for _, tb := range in.Tombstones {
+			tbUID := tb.UID
+			if strings.HasPrefix(tbUID, "sig:") {
+				tbUID = ""
+			}
+			if err := recordTombstoneTx(tx, tb.Kind, tbUID, tb.Sig, tb.DeletedAt); err != nil {
+				serverErr(w, err)
+				return
+			}
+		}
 	} else {
-		// Chế độ "merge" thông minh: khôi phục toàn bộ bản ghi từ máy cá nhân lên server sau khi redeploy mà không tạo bản trùng
-		existingJobs := map[string]struct {
-			id     int64
-			status string
-		}{}
-		jrows, err := tx.Query(`SELECT id, date, customer, channel, service, price, status, ts FROM work_jobs`)
+		// Chế độ "merge" đa thiết bị: hợp nhất tombstone xóa trước khi gộp dữ liệu theo uid/updated_at để tránh hồi sinh bản ghi đã xóa
+		for _, tb := range in.Tombstones {
+			tbUID := tb.UID
+			if strings.HasPrefix(tbUID, "sig:") {
+				tbUID = ""
+			}
+			if err := recordTombstoneTx(tx, tb.Kind, tbUID, tb.Sig, tb.DeletedAt); err != nil {
+				serverErr(w, err)
+				return
+			}
+		}
+
+		deadUID := map[string]map[string]int64{}
+		deadSig := map[string]map[string]int64{}
+		trows, err := tx.Query(`SELECT uid, kind, sig, deleted_at FROM work_tombstones`)
+		if err == nil {
+			for trows.Next() {
+				var tb workTombstone
+				if trows.Scan(&tb.UID, &tb.Kind, &tb.Sig, &tb.DeletedAt) == nil {
+					if tb.UID != "" && !strings.HasPrefix(tb.UID, "sig:") {
+						if deadUID[tb.Kind] == nil {
+							deadUID[tb.Kind] = map[string]int64{}
+						}
+						if tb.DeletedAt > deadUID[tb.Kind][tb.UID] {
+							deadUID[tb.Kind][tb.UID] = tb.DeletedAt
+						}
+					}
+					if tb.Sig != "" {
+						if deadSig[tb.Kind] == nil {
+							deadSig[tb.Kind] = map[string]int64{}
+						}
+						if tb.DeletedAt > deadSig[tb.Kind][tb.Sig] {
+							deadSig[tb.Kind][tb.Sig] = tb.DeletedAt
+						}
+					}
+				}
+			}
+			trows.Close()
+		}
+
+		// Áp dụng tombstone xóa lên các bản ghi đang có trên DB trước khi merge (đóng Rows trước mọi Exec trên tx)
+		if len(deadUID["job_payment"]) > 0 || len(deadSig["job_payment"]) > 0 {
+			type dbPayRow struct {
+				id, jobID, ts int64
+				uid, date     string
+				amt           int
+				note          string
+			}
+			var delPays []dbPayRow
+			prows, err := tx.Query(`SELECT id, COALESCE(uid,''), job_id, date, amount, note, ts FROM work_job_payments`)
+			if err == nil {
+				for prows.Next() {
+					var p dbPayRow
+					if prows.Scan(&p.id, &p.uid, &p.jobID, &p.date, &p.amt, &p.note, &p.ts) == nil {
+						if tombstoneBlocksItem(deadUID["job_payment"], deadSig["job_payment"], p.uid, installmentSig(p.date, p.amt, p.note, p.ts), p.ts) {
+							delPays = append(delPays, p)
+						}
+					}
+				}
+				prows.Close()
+			}
+			affectedJobs := map[int64]bool{}
+			for _, p := range delPays {
+				if _, err := tx.Exec(`DELETE FROM work_job_payments WHERE id=?`, p.id); err != nil {
+					serverErr(w, err)
+					return
+				}
+				affectedJobs[p.jobID] = true
+			}
+			for jid := range affectedJobs {
+				var price, paid int
+				if tx.QueryRow(`SELECT price FROM work_jobs WHERE id=?`, jid).Scan(&price) == nil {
+					_ = tx.QueryRow(`SELECT COALESCE(SUM(amount),0) FROM work_job_payments WHERE job_id=?`, jid).Scan(&paid)
+					if paid < price {
+						_, _ = tx.Exec(`UPDATE work_jobs SET status='CTT', updated_at=? WHERE id=? AND status='TT'`, nowSec, jid)
+					}
+				}
+			}
+		}
+
+		if len(deadUID["job"]) > 0 || len(deadSig["job"]) > 0 {
+			var delJobIDs []int64
+			jdelRows, err := tx.Query(`SELECT id, COALESCE(uid,''), date, customer, channel, service, price, ts, COALESCE(updated_at,0) FROM work_jobs`)
+			if err == nil {
+				for jdelRows.Next() {
+					var id, ts, upd int64
+					var uid, d, cust, ch, svc string
+					var pr int
+					if jdelRows.Scan(&id, &uid, &d, &cust, &ch, &svc, &pr, &ts, &upd) == nil {
+						itemTime := upd
+						if itemTime < ts {
+							itemTime = ts
+						}
+						if tombstoneBlocksItem(deadUID["job"], deadSig["job"], uid, workJobSig(d, cust, ch, svc, pr, ts), itemTime) {
+							delJobIDs = append(delJobIDs, id)
+						}
+					}
+				}
+				jdelRows.Close()
+			}
+			for _, id := range delJobIDs {
+				_, _ = tx.Exec(`DELETE FROM work_job_payments WHERE job_id=?`, id)
+				_, _ = tx.Exec(`DELETE FROM work_jobs WHERE id=?`, id)
+			}
+		}
+
+		if len(deadUID["repayment"]) > 0 || len(deadSig["repayment"]) > 0 {
+			var delRepIDs []int64
+			rdelRows, err := tx.Query(`SELECT id, COALESCE(uid,''), date, amount, note, ts FROM work_ledger_repayments`)
+			if err == nil {
+				for rdelRows.Next() {
+					var id, ts int64
+					var uid, d, note string
+					var amt int
+					if rdelRows.Scan(&id, &uid, &d, &amt, &note, &ts) == nil {
+						if tombstoneBlocksItem(deadUID["repayment"], deadSig["repayment"], uid, installmentSig(d, amt, note, ts), ts) {
+							delRepIDs = append(delRepIDs, id)
+						}
+					}
+				}
+				rdelRows.Close()
+			}
+			for _, id := range delRepIDs {
+				_, _ = tx.Exec(`DELETE FROM work_ledger_repayments WHERE id=?`, id)
+			}
+		}
+
+		if len(deadUID["ledger"]) > 0 || len(deadSig["ledger"]) > 0 {
+			var delLedgerIDs []int64
+			ldelRows, err := tx.Query(`SELECT id, COALESCE(uid,''), date, category, amount, note, ts, COALESCE(updated_at,0) FROM work_ledger`)
+			if err == nil {
+				for ldelRows.Next() {
+					var id, ts, upd int64
+					var uid, d, cat, note string
+					var amt int
+					if ldelRows.Scan(&id, &uid, &d, &cat, &amt, &note, &ts, &upd) == nil {
+						itemTime := upd
+						if itemTime < ts {
+							itemTime = ts
+						}
+						if tombstoneBlocksItem(deadUID["ledger"], deadSig["ledger"], uid, workLedgerSig(d, cat, amt, note, ts), itemTime) {
+							delLedgerIDs = append(delLedgerIDs, id)
+						}
+					}
+				}
+				ldelRows.Close()
+			}
+			for _, id := range delLedgerIDs {
+				_, _ = tx.Exec(`DELETE FROM work_ledger_repayments WHERE ledger_id=?`, id)
+				_, _ = tx.Exec(`DELETE FROM work_ledger WHERE id=?`, id)
+			}
+		}
+
+		type existingJobInfo struct {
+			id        int64
+			uid       string
+			status    string
+			updatedAt int64
+		}
+		existingJobsByUID := map[string]*existingJobInfo{}
+		existingJobsBySig := map[string]*existingJobInfo{}
+		jrows, err := tx.Query(`SELECT id, COALESCE(uid,''), date, customer, channel, service, price, status, ts, COALESCE(updated_at,0) FROM work_jobs`)
 		if err == nil {
 			for jrows.Next() {
-				var id, ts int64
-				var d, cust, ch, svc, st string
+				var id, ts, upd int64
+				var uid, d, cust, ch, svc, st string
 				var pr int
-				if jrows.Scan(&id, &d, &cust, &ch, &svc, &pr, &st, &ts) == nil {
-					sig := fmt.Sprintf("%s|%s|%s|%s|%d|%d", d, strings.ToLower(strings.TrimSpace(cust)), validChannel(ch), strings.ToLower(strings.TrimSpace(svc)), normalizeVND(pr), ts)
-					existingJobs[sig] = struct {
-						id     int64
-						status string
-					}{id: id, status: st}
+				if jrows.Scan(&id, &uid, &d, &cust, &ch, &svc, &pr, &st, &ts, &upd) == nil {
+					info := &existingJobInfo{id: id, uid: uid, status: st, updatedAt: upd}
+					sig := workJobSig(d, cust, ch, svc, pr, ts)
+					if uid != "" {
+						existingJobsByUID[uid] = info
+					}
+					existingJobsBySig[sig] = info
 				}
 			}
 			jrows.Close()
 		}
 
-		existingJobPays := map[int64]map[string]bool{}
-		jprows, err := tx.Query(`SELECT job_id, date, amount, note, ts FROM work_job_payments`)
+		existingPayUID := map[int64]map[string]bool{}
+		existingPaySig := map[int64]map[string]bool{}
+		jprows, err := tx.Query(`SELECT COALESCE(uid,''), job_id, date, amount, note, ts FROM work_job_payments`)
 		if err == nil {
 			for jprows.Next() {
 				var jid, pts int64
-				var pd, pnote string
+				var puid, pd, pnote string
 				var pamt int
-				if jprows.Scan(&jid, &pd, &pamt, &pnote, &pts) == nil {
-					if existingJobPays[jid] == nil {
-						existingJobPays[jid] = map[string]bool{}
+				if jprows.Scan(&puid, &jid, &pd, &pamt, &pnote, &pts) == nil {
+					if existingPayUID[jid] == nil {
+						existingPayUID[jid] = map[string]bool{}
 					}
-					existingJobPays[jid][installmentSig(pd, pamt, pnote, pts)] = true
+					if existingPaySig[jid] == nil {
+						existingPaySig[jid] = map[string]bool{}
+					}
+					if puid != "" {
+						existingPayUID[jid][puid] = true
+					}
+					existingPaySig[jid][installmentSig(pd, pamt, pnote, pts)] = true
 				}
 			}
 			jprows.Close()
@@ -1865,71 +2641,128 @@ func (s *Server) handleSyncWorkVault(w http.ResponseWriter, r *http.Request) {
 			}
 			ts := j.Ts
 			if ts <= 0 {
-				ts = s.now().Unix()
+				ts = nowSec
+			}
+			upd := j.UpdatedAt
+			if upd < ts {
+				upd = ts
 			}
 			ch := validChannel(j.Channel)
 			st := validJobStatus(j.Status)
-			sig := fmt.Sprintf("%s|%s|%s|%s|%d|%d", j.Date, strings.ToLower(cust), ch, strings.ToLower(svc), price, ts)
+			note := strings.TrimSpace(j.Note)
+			uid := sanitizeSyncUID(j.UID)
+			sig := workJobSig(j.Date, cust, ch, svc, price, ts)
+			if tombstoneBlocksItem(deadUID["job"], deadSig["job"], uid, sig, upd) {
+				continue
+			}
+
+			var ex *existingJobInfo
+			if uid != "" {
+				ex = existingJobsByUID[uid]
+			}
+			if ex == nil {
+				ex = existingJobsBySig[sig]
+			}
+
 			var targetJobID int64
-			if ex, ok := existingJobs[sig]; ok {
+			if ex != nil {
 				targetJobID = ex.id
-				if ex.status == "CTT" && st == "TT" {
-					_, _ = tx.Exec(`UPDATE work_jobs SET status=? WHERE id=?`, st, ex.id)
+				if ex.uid == "" && uid != "" {
+					_, _ = tx.Exec(`UPDATE work_jobs SET uid=? WHERE id=?`, uid, ex.id)
+					ex.uid = uid
+					existingJobsByUID[uid] = ex
+				}
+				if j.UpdatedAt > ex.updatedAt && j.UpdatedAt > 0 {
+					_, _ = tx.Exec(
+						`UPDATE work_jobs SET customer=?, channel=?, service=?, price=?, status=?, note=?, updated_at=? WHERE id=?`,
+						cust, ch, svc, price, st, note, j.UpdatedAt, ex.id,
+					)
+					ex.status = st
+					ex.updatedAt = j.UpdatedAt
+				} else if ex.status == "CTT" && st == "TT" && j.UpdatedAt == 0 && ex.updatedAt == 0 {
+					_, _ = tx.Exec(`UPDATE work_jobs SET status='TT', updated_at=? WHERE id=?`, nowSec, ex.id)
+					ex.status = "TT"
+					ex.updatedAt = nowSec
 				}
 			} else {
+				if uid == "" {
+					uid = s.nextUID("job")
+				}
 				res, err := tx.Exec(
-					`INSERT INTO work_jobs(date, customer, channel, service, price, status, note, ts) VALUES(?,?,?,?,?,?,?,?)`,
-					j.Date, cust, ch, svc, price, st, strings.TrimSpace(j.Note), ts,
+					`INSERT INTO work_jobs(uid, date, customer, channel, service, price, status, note, ts, updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)`,
+					uid, j.Date, cust, ch, svc, price, st, note, ts, upd,
 				)
 				if err != nil {
 					serverErr(w, err)
 					return
 				}
 				targetJobID, _ = res.LastInsertId()
-				existingJobs[sig] = struct {
-					id     int64
-					status string
-				}{id: targetJobID, status: st}
+				info := &existingJobInfo{id: targetJobID, uid: uid, status: st, updatedAt: upd}
+				existingJobsByUID[uid] = info
+				existingJobsBySig[sig] = info
 			}
 			if len(j.Payments) > 0 {
-				if existingJobPays[targetJobID] == nil {
-					existingJobPays[targetJobID] = map[string]bool{}
+				if existingPayUID[targetJobID] == nil {
+					existingPayUID[targetJobID] = map[string]bool{}
 				}
-				if err := s.insertVaultJobPayments(tx, targetJobID, price, ts, j.Payments, existingJobPays[targetJobID]); err != nil {
+				if existingPaySig[targetJobID] == nil {
+					existingPaySig[targetJobID] = map[string]bool{}
+				}
+				if err := s.insertVaultJobPaymentsFiltered(
+					tx, targetJobID, price, ts, j.Payments,
+					existingPayUID[targetJobID], existingPaySig[targetJobID],
+					deadUID["job_payment"], deadSig["job_payment"],
+				); err != nil {
 					serverErr(w, err)
 					return
 				}
 			}
 		}
 
-		existingLedger := map[string]int64{}
-		lrows, err := tx.Query(`SELECT id, date, category, amount, note, ts FROM work_ledger`)
+		type existingLedgerInfo struct {
+			id        int64
+			uid       string
+			updatedAt int64
+		}
+		existingLedgerByUID := map[string]*existingLedgerInfo{}
+		existingLedgerBySig := map[string]*existingLedgerInfo{}
+		lrows, err := tx.Query(`SELECT id, COALESCE(uid,''), date, category, amount, note, ts, COALESCE(updated_at,0) FROM work_ledger`)
 		if err == nil {
 			for lrows.Next() {
-				var id, ts int64
-				var d, cat, note string
+				var id, ts, upd int64
+				var uid, d, cat, note string
 				var amt int
-				if lrows.Scan(&id, &d, &cat, &amt, &note, &ts) == nil {
-					sig := fmt.Sprintf("%s|%s|%d|%s|%d", d, cat, normalizeVND(amt), strings.ToLower(strings.TrimSpace(note)), ts)
-					existingLedger[sig] = id
+				if lrows.Scan(&id, &uid, &d, &cat, &amt, &note, &ts, &upd) == nil {
+					info := &existingLedgerInfo{id: id, uid: uid, updatedAt: upd}
+					sig := workLedgerSig(d, cat, amt, note, ts)
+					if uid != "" {
+						existingLedgerByUID[uid] = info
+					}
+					existingLedgerBySig[sig] = info
 				}
 			}
 			lrows.Close()
 		}
 
-		existingRepays := map[int64]map[string]bool{}
-		rrows, err := tx.Query(`SELECT ledger_id, date, amount, note, ts FROM work_ledger_repayments`)
+		existingRepUID := map[int64]map[string]bool{}
+		existingRepSig := map[int64]map[string]bool{}
+		rrows, err := tx.Query(`SELECT COALESCE(uid,''), ledger_id, date, amount, note, ts FROM work_ledger_repayments`)
 		if err == nil {
 			for rrows.Next() {
 				var lid, rts int64
-				var rd, rnote string
+				var ruid, rd, rnote string
 				var ramt int
-				if rrows.Scan(&lid, &rd, &ramt, &rnote, &rts) == nil {
-					if existingRepays[lid] == nil {
-						existingRepays[lid] = map[string]bool{}
+				if rrows.Scan(&ruid, &lid, &rd, &ramt, &rnote, &rts) == nil {
+					if existingRepUID[lid] == nil {
+						existingRepUID[lid] = map[string]bool{}
 					}
-					rsig := fmt.Sprintf("%s|%d|%s|%d", rd, normalizeVND(ramt), strings.ToLower(strings.TrimSpace(rnote)), rts)
-					existingRepays[lid][rsig] = true
+					if existingRepSig[lid] == nil {
+						existingRepSig[lid] = map[string]bool{}
+					}
+					if ruid != "" {
+						existingRepUID[lid][ruid] = true
+					}
+					existingRepSig[lid][installmentSig(rd, ramt, rnote, rts)] = true
 				}
 			}
 			rrows.Close()
@@ -1942,33 +2775,78 @@ func (s *Server) handleSyncWorkVault(w http.ResponseWriter, r *http.Request) {
 			}
 			ts := l.Ts
 			if ts <= 0 {
-				ts = s.now().Unix()
+				ts = nowSec
+			}
+			upd := l.UpdatedAt
+			if upd < ts {
+				upd = ts
 			}
 			note := strings.TrimSpace(l.Note)
-			sig := fmt.Sprintf("%s|%s|%d|%s|%d", l.Date, l.Category, amt, strings.ToLower(note), ts)
-			targetID, ok := existingLedger[sig]
-			if !ok {
+			uid := sanitizeSyncUID(l.UID)
+			sig := workLedgerSig(l.Date, l.Category, amt, note, ts)
+			if tombstoneBlocksItem(deadUID["ledger"], deadSig["ledger"], uid, sig, upd) {
+				continue
+			}
+
+			var ex *existingLedgerInfo
+			if uid != "" {
+				ex = existingLedgerByUID[uid]
+			}
+			if ex == nil {
+				ex = existingLedgerBySig[sig]
+			}
+
+			var targetID int64
+			if ex != nil {
+				targetID = ex.id
+				if ex.uid == "" && uid != "" {
+					_, _ = tx.Exec(`UPDATE work_ledger SET uid=? WHERE id=?`, uid, ex.id)
+					ex.uid = uid
+					existingLedgerByUID[uid] = ex
+				}
+				if l.UpdatedAt > ex.updatedAt && l.UpdatedAt > 0 {
+					_, _ = tx.Exec(
+						`UPDATE work_ledger SET amount=?, note=?, updated_at=? WHERE id=?`,
+						amt, note, l.UpdatedAt, ex.id,
+					)
+					ex.updatedAt = l.UpdatedAt
+				}
+			} else {
+				if uid == "" {
+					uid = s.nextUID("ldg")
+				}
 				res, err := tx.Exec(
-					`INSERT INTO work_ledger(date, category, amount, note, ts) VALUES(?,?,?,?,?)`,
-					l.Date, l.Category, amt, note, ts,
+					`INSERT INTO work_ledger(uid, date, category, amount, note, ts, updated_at) VALUES(?,?,?,?,?,?,?)`,
+					uid, l.Date, l.Category, amt, note, ts, upd,
 				)
 				if err != nil {
 					serverErr(w, err)
 					return
 				}
 				targetID, _ = res.LastInsertId()
-				existingLedger[sig] = targetID
+				info := &existingLedgerInfo{id: targetID, uid: uid, updatedAt: upd}
+				existingLedgerByUID[uid] = info
+				existingLedgerBySig[sig] = info
 			}
 			if l.Category == "borrow" && len(l.Repayments) > 0 {
-				if existingRepays[targetID] == nil {
-					existingRepays[targetID] = map[string]bool{}
+				if existingRepUID[targetID] == nil {
+					existingRepUID[targetID] = map[string]bool{}
 				}
-				if err := s.insertVaultRepayments(tx, targetID, amt, ts, l.Repayments, existingRepays[targetID]); err != nil {
+				if existingRepSig[targetID] == nil {
+					existingRepSig[targetID] = map[string]bool{}
+				}
+				if err := s.insertVaultRepaymentsFiltered(
+					tx, targetID, amt, ts, l.Repayments,
+					existingRepUID[targetID], existingRepSig[targetID],
+					deadUID["repayment"], deadSig["repayment"],
+				); err != nil {
 					serverErr(w, err)
 					return
 				}
 			}
 		}
+
+		pruneTombstonesTx(tx, nowSec)
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -1976,11 +2854,14 @@ func (s *Server) handleSyncWorkVault(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	rev := s.bumpWorkRev()
 	writeJSON(w, 200, map[string]any{
-		"ok":     true,
-		"db_id":  s.dbInstanceID(),
-		"jobs":   s.queryAllWorkJobs(),
-		"ledger": s.queryAllWorkLedger(),
+		"ok":         true,
+		"db_id":      s.dbInstanceID(),
+		"work_rev":   rev,
+		"jobs":       s.queryAllWorkJobs(),
+		"ledger":     s.queryAllWorkLedger(),
+		"tombstones": s.queryAllTombstones(),
 	})
 }
 

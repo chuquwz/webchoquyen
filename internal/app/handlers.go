@@ -91,6 +91,7 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 		"med_times":   s.medScheduleTimes(set),
 		"med_target":  s.medTargetCount(set),
 		"user":        s.currentUser(r),
+		"health_rev":  s.healthRev.Load(),
 	})
 }
 
@@ -169,6 +170,7 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 		serverErr(w, err)
 		return
 	}
+	s.bumpHealthRev()
 	s.handleGetSettings(w, r)
 }
 
@@ -242,8 +244,9 @@ func (s *Server) handleAddWater(w http.ResponseWriter, r *http.Request) {
 		serverErr(w, err)
 		return
 	}
+	rev := s.bumpHealthRev()
 	entries, total := s.waterEntries(today)
-	writeJSON(w, 200, map[string]any{"total": total, "entries": entries})
+	writeJSON(w, 200, map[string]any{"total": total, "entries": entries, "health_rev": rev})
 }
 
 func (s *Server) handleDelWater(w http.ResponseWriter, r *http.Request) {
@@ -258,8 +261,9 @@ func (s *Server) handleDelWater(w http.ResponseWriter, r *http.Request) {
 		serverErr(w, err)
 		return
 	}
+	rev := s.bumpHealthRev()
 	entries, total := s.waterEntries(today)
-	writeJSON(w, 200, map[string]any{"total": total, "entries": entries})
+	writeJSON(w, 200, map[string]any{"total": total, "entries": entries, "health_rev": rev})
 }
 
 // ---------- cân nặng ----------
@@ -317,7 +321,8 @@ func (s *Server) handlePostWeight(w http.ResponseWriter, r *http.Request) {
 		serverErr(w, err)
 		return
 	}
-	writeJSON(w, 200, map[string]any{"rows": s.weights(3650), "target_kcal": s.targetKcal(s.settings())})
+	rev := s.bumpHealthRev()
+	writeJSON(w, 200, map[string]any{"rows": s.weights(3650), "target_kcal": s.targetKcal(s.settings()), "health_rev": rev})
 }
 
 func (s *Server) handleDelWeight(w http.ResponseWriter, r *http.Request) {
@@ -330,7 +335,8 @@ func (s *Server) handleDelWeight(w http.ResponseWriter, r *http.Request) {
 		serverErr(w, err)
 		return
 	}
-	writeJSON(w, 200, map[string]any{"rows": s.weights(3650)})
+	rev := s.bumpHealthRev()
+	writeJSON(w, 200, map[string]any{"rows": s.weights(3650), "health_rev": rev})
 }
 
 // ---------- thuốc ----------
@@ -349,6 +355,59 @@ func (s *Server) medTargetCount(set map[string]string) int {
 		return len(times)
 	}
 	return 1
+}
+
+func normalizeMedDoses(raw []bool, count, target int) ([]bool, int) {
+	if target < 1 {
+		target = 1
+	}
+	if raw != nil {
+		doses := make([]bool, target)
+		takenCount := 0
+		for i := 0; i < target && i < len(raw); i++ {
+			if raw[i] {
+				doses[i] = true
+				takenCount++
+			}
+		}
+		return doses, takenCount
+	}
+	if count < 0 {
+		count = 0
+	}
+	if count > target {
+		count = target
+	}
+	doses := make([]bool, target)
+	for i := 0; i < count; i++ {
+		doses[i] = true
+	}
+	return doses, count
+}
+
+func (s *Server) medDoseState(date string, target int) (int, []bool) {
+	if target < 1 {
+		target = 1
+	}
+	var t int
+	var rawJSON string
+	err := s.db.QueryRow(`SELECT taken, COALESCE(doses_json, '') FROM med_log WHERE date=?`, date).Scan(&t, &rawJSON)
+	if err != nil {
+		doses, _ := normalizeMedDoses(nil, 0, target)
+		return 0, doses
+	}
+	if rawJSON != "" {
+		var parsed []bool
+		if json.Unmarshal([]byte(rawJSON), &parsed) == nil {
+			doses, cnt := normalizeMedDoses(parsed, t, target)
+			return cnt, doses
+		}
+	}
+	if t < 0 {
+		t = 0
+	}
+	doses, _ := normalizeMedDoses(nil, t, target)
+	return t, doses
 }
 
 func (s *Server) medTakenCount(date string) int {
@@ -370,6 +429,7 @@ func (s *Server) handlePutMed(w http.ResponseWriter, r *http.Request) {
 		Date       string `json:"date"`
 		Taken      *bool  `json:"taken"`
 		TakenCount *int   `json:"taken_count"`
+		Doses      []bool `json:"doses"`
 	}
 	if !readJSON(w, r, &in) {
 		return
@@ -381,28 +441,38 @@ func (s *Server) handlePutMed(w http.ResponseWriter, r *http.Request) {
 	target := s.medTargetCount(set)
 
 	t := 0
-	if in.TakenCount != nil {
-		t = *in.TakenCount
-		if t < 0 {
-			t = 0
+	var doses []bool
+	if in.Doses != nil {
+		doses, t = normalizeMedDoses(in.Doses, 0, target)
+	} else {
+		if in.TakenCount != nil {
+			t = *in.TakenCount
+			if t < 0 {
+				t = 0
+			}
+			if t > 20 {
+				t = 20
+			}
+		} else if in.Taken != nil && *in.Taken {
+			t = target
 		}
-		if t > 20 {
-			t = 20
-		}
-	} else if in.Taken != nil && *in.Taken {
-		t = target
+		doses, _ = normalizeMedDoses(nil, t, target)
 	}
-	if _, err := s.db.Exec(`INSERT INTO med_log(date,taken,ts) VALUES(?,?,?) ON CONFLICT(date) DO UPDATE SET taken=excluded.taken, ts=excluded.ts`,
-		today, t, s.now().Unix()); err != nil {
+	dosesBytes, _ := json.Marshal(doses)
+	if _, err := s.db.Exec(`INSERT INTO med_log(date,taken,doses_json,ts) VALUES(?,?,?,?) ON CONFLICT(date) DO UPDATE SET taken=excluded.taken, doses_json=excluded.doses_json, ts=excluded.ts`,
+		today, t, string(dosesBytes), s.now().Unix()); err != nil {
 		serverErr(w, err)
 		return
 	}
+	rev := s.bumpHealthRev()
 	writeJSON(w, 200, map[string]any{
 		"date":         today,
 		"taken_count":  t,
 		"target_count": target,
 		"taken":        t >= target,
+		"doses":        doses,
 		"times":        times,
+		"health_rev":   rev,
 	})
 }
 
@@ -411,7 +481,7 @@ func (s *Server) handleGetMed(w http.ResponseWriter, r *http.Request) {
 	s.pruneOldHealthData(today)
 	set := s.settings()
 	target := s.medTargetCount(set)
-	cnt := s.medTakenCount(today)
+	cnt, doses := s.medDoseState(today, target)
 	out := []string{}
 	counts := map[string]int{}
 	if cnt > 0 {
@@ -424,8 +494,10 @@ func (s *Server) handleGetMed(w http.ResponseWriter, r *http.Request) {
 		"taken":        out,
 		"counts":       counts,
 		"target_count": target,
+		"doses":        doses,
 		"times":        s.medScheduleTimes(set),
 		"today":        today,
+		"health_rev":   s.healthRev.Load(),
 	})
 }
 
@@ -487,6 +559,7 @@ func (s *Server) handlePostGlucose(w http.ResponseWriter, r *http.Request) {
 		serverErr(w, err)
 		return
 	}
+	s.bumpHealthRev()
 	writeJSON(w, 200, map[string]any{"rows": s.glucose(90)})
 }
 
@@ -500,6 +573,7 @@ func (s *Server) handleDelGlucose(w http.ResponseWriter, r *http.Request) {
 		serverErr(w, err)
 		return
 	}
+	s.bumpHealthRev()
 	writeJSON(w, 200, map[string]any{"rows": s.glucose(90)})
 }
 
@@ -677,6 +751,7 @@ func (s *Server) handleGenerateMeals(w http.ResponseWriter, r *http.Request) {
 		serverErr(w, err)
 		return
 	}
+	s.bumpHealthRev()
 	s.handleGetMeals(w, r)
 }
 
@@ -741,6 +816,7 @@ func (s *Server) handleSwapMeal(w http.ResponseWriter, r *http.Request) {
 		serverErr(w, err)
 		return
 	}
+	s.bumpHealthRev()
 	writeJSON(w, 200, mealRow{Date: in.Date, Slot: meals.Slot(in.Slot), Items: nm.Items, Kcal: nm.Kcal, Status: "pending"})
 }
 
@@ -786,7 +862,8 @@ func (s *Server) handleCheckMeal(w http.ResponseWriter, r *http.Request) {
 		serverErr(w, err)
 		return
 	}
-	writeJSON(w, 200, map[string]any{"date": today, "slot": in.Slot, "status": in.Status, "note": note, "items": items})
+	rev := s.bumpHealthRev()
+	writeJSON(w, 200, map[string]any{"date": today, "slot": in.Slot, "status": in.Status, "note": note, "items": items, "health_rev": rev})
 }
 
 func (s *Server) handleShopping(w http.ResponseWriter, r *http.Request) {
@@ -847,12 +924,13 @@ func (s *Server) handleToday(w http.ResponseWriter, r *http.Request) {
 	}
 	medTimes := s.medScheduleTimes(set)
 	medTarget := s.medTargetCount(set)
-	medCount := s.medTakenCount(date)
+	medCount, medDoses := s.medDoseState(date, medTarget)
 	writeJSON(w, 200, map[string]any{
 		"ok":          true,
 		"user":        s.currentUser(r),
 		"date":        date,
 		"now":         s.now().Unix(),
+		"health_rev":  s.healthRev.Load(),
 		"settings":    set,
 		"target_kcal": s.targetKcal(set),
 		"water":       map[string]any{"total": total, "entries": entries},
@@ -861,6 +939,7 @@ func (s *Server) handleToday(w http.ResponseWriter, r *http.Request) {
 			"taken":        medCount >= medTarget,
 			"taken_count":  medCount,
 			"target_count": medTarget,
+			"doses":        medDoses,
 			"times":        medTimes,
 		},
 		"meals":        todayMeals,

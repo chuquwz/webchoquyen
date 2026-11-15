@@ -2659,6 +2659,23 @@ body:not(.is-logged-in) #app-bottom-nav {
   white-space: nowrap;
 }
 
+.work-vault-badge.is-pending {
+  background-color: #FEF3C7;
+  color: #78350F;
+  border-color: #F59E0B;
+}
+
+.btn-data-action:focus-visible {
+  outline: 2px solid #215211;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-data-action {
+    transition: none;
+  }
+}
+
 .work-vault-sub {
   font-size: 12px;
   font-weight: 500;

@@ -9,12 +9,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -39,6 +41,10 @@ type Server struct {
 
 	failMu   sync.Mutex
 	failures []time.Time
+
+	healthRev atomic.Int64
+	workRev   atomic.Int64
+	uidSeq    atomic.Int64
 }
 
 // Việt Nam không có giờ mùa hè nên dùng múi giờ cố định UTC+7.
@@ -55,12 +61,32 @@ func New(cfg Config, db *sql.DB, static fs.FS) (*Server, error) {
 	}
 	sum := sha256.Sum256([]byte(key))
 	s := &Server{cfg: cfg, db: db, loc: vnLoc, static: static, secret: sum[:], now: time.Now}
+	bootRev := time.Now().UnixMilli()
+	s.healthRev.Store(bootRev)
+	s.workRev.Store(bootRev)
 	var err error
 	if s.assets, err = newAssetStore(static); err != nil {
 		return nil, err
 	}
 	s.routes()
 	return s, nil
+}
+
+func (s *Server) bumpHealthRev() int64 { return s.healthRev.Add(1) }
+func (s *Server) bumpWorkRev() int64   { return s.workRev.Add(1) }
+func (s *Server) nextUID(prefix string) string {
+	return fmt.Sprintf("%s_%d_%d", prefix, s.now().UnixMilli(), s.uidSeq.Add(1))
+}
+
+func (s *Server) handleSyncState(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, 200, map[string]any{
+		"ok":         true,
+		"db_id":      s.dbInstanceID(),
+		"health_rev": s.healthRev.Load(),
+		"work_rev":   s.workRev.Load(),
+		"today":      s.today(),
+		"now":        s.now().Unix(),
+	})
 }
 
 // Handler trả về http.Handler gốc.
@@ -251,6 +277,7 @@ func (s *Server) routes() {
 	m.HandleFunc("GET /api/me", a(func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 200, map[string]any{"ok": true, "user": s.currentUser(r)})
 	}))
+	m.HandleFunc("GET /api/sync/state", a(s.handleSyncState))
 	m.HandleFunc("GET /api/today", a(s.handleToday))
 	m.HandleFunc("GET /api/settings", a(s.handleGetSettings))
 	m.HandleFunc("PUT /api/settings", a(s.handlePutSettings))

@@ -778,6 +778,288 @@ func TestDebtJobPartialPaymentAndVaultSync(t *testing.T) {
 	}
 }
 
+func TestSyncStateAndMedDoses(t *testing.T) {
+	srv := newTestServer(t)
+	h := srv.Handler()
+	today := dateStr(srv.now())
+
+	var s0 struct {
+		OK        bool   `json:"ok"`
+		HealthRev int64  `json:"health_rev"`
+		WorkRev   int64  `json:"work_rev"`
+		DBID      string `json:"db_id"`
+		Today     string `json:"today"`
+	}
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "GET", "/api/sync/state", nil))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 GET /api/sync/state, got %d: %s", w.Code, w.Body.String())
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &s0)
+	if !s0.OK || s0.HealthRev <= 0 || s0.WorkRev <= 0 || s0.DBID == "" || s0.Today != today {
+		t.Fatalf("unexpected initial sync state: %+v", s0)
+	}
+
+	// Cập nhật slot liều thuốc từ máy 1 -> máy 2 đọc qua /api/med & /api/today thấy đúng slot đã uống
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "PUT", "/api/med", map[string]any{
+		"date":  today,
+		"count": 3,
+		"doses": []bool{false, true, false},
+	}))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 PUT /api/med, got %d: %s", w.Code, w.Body.String())
+	}
+
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "GET", "/api/sync/state", nil))
+	var s1 struct {
+		HealthRev int64 `json:"health_rev"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &s1)
+	if s1.HealthRev <= s0.HealthRev {
+		t.Fatalf("expected health_rev to increment after PUT /api/med (%d -> %d)", s0.HealthRev, s1.HealthRev)
+	}
+
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "GET", "/api/today", nil))
+	var todayResp struct {
+		HealthRev int64 `json:"health_rev"`
+		Med       struct {
+			Count int    `json:"count"`
+			Doses []bool `json:"doses"`
+		} `json:"med"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &todayResp)
+	if todayResp.Med.Count != 1 || len(todayResp.Med.Doses) != 3 || todayResp.Med.Doses[0] || !todayResp.Med.Doses[1] || todayResp.Med.Doses[2] {
+		t.Fatalf("expected med count=1 doses=[false true false], got %+v", todayResp.Med)
+	}
+
+	// Replay /api/water với cùng cid chỉ ghi nhận 1 lần (chống nhân đôi khi đồng bộ lại hàng đợi)
+	for i := 0; i < 2; i++ {
+		w = httptest.NewRecorder()
+		h.ServeHTTP(w, authedReq(srv, "POST", "/api/water", map[string]any{
+			"date": today,
+			"ml":   300,
+			"cid":  "water_retry_cid_1",
+		}))
+		if w.Code != 200 {
+			t.Fatalf("expected 200 POST /api/water attempt %d, got %d: %s", i+1, w.Code, w.Body.String())
+		}
+	}
+	var waterResp struct {
+		Water struct {
+			Total int `json:"total"`
+		} `json:"water"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &waterResp)
+	if waterResp.Water.Total != 300 {
+		t.Fatalf("expected idempotent water total=300, got %d", waterResp.Water.Total)
+	}
+}
+
+func TestWorkDeleteTombstonesPreventResurrection(t *testing.T) {
+	srv := newTestServer(t)
+	h := srv.Handler()
+	today := dateStr(srv.now())
+
+	// 1. Máy 1 tạo 1 công việc và 1 khoản mượn với client uid ổn định
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "POST", "/api/work/job", map[string]any{
+		"uid":      "phone1_job_1",
+		"date":     today,
+		"customer": "Khach A",
+		"channel":  "FB",
+		"service":  "Makeup",
+		"price":    500000,
+		"status":   "CTT",
+	}))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 POST /api/work/job, got %d: %s", w.Code, w.Body.String())
+	}
+	var jobCreateResp struct {
+		Item workJob `json:"item"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &jobCreateResp)
+
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "POST", "/api/work/ledger", map[string]any{
+		"uid":      "phone1_ldg_1",
+		"date":     today,
+		"category": "borrow",
+		"amount":   300000,
+		"note":     "Chi Lan",
+	}))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 POST /api/work/ledger, got %d: %s", w.Code, w.Body.String())
+	}
+	var ldgCreateResp struct {
+		Item workLedger `json:"item"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &ldgCreateResp)
+
+	// 2. Máy 2 từng tải snapshot vault trước khi bị xoá
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "GET", "/api/work/vault", nil))
+	var staleVault struct {
+		WorkRev int64        `json:"work_rev"`
+		Jobs    []workJob    `json:"jobs"`
+		Ledger  []workLedger `json:"ledger"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &staleVault)
+	if len(staleVault.Jobs) != 1 || len(staleVault.Ledger) != 1 {
+		t.Fatalf("expected 1 job and 1 ledger in initial vault, got jobs=%d ledger=%d", len(staleVault.Jobs), len(staleVault.Ledger))
+	}
+
+	// 3. Máy 1 xoá cả 2 bản ghi -> server lưu tombstone & tăng work_rev
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "DELETE", "/api/work/job/"+strconvItoa64(jobCreateResp.Item.ID), nil))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 delete job, got %d: %s", w.Code, w.Body.String())
+	}
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "DELETE", "/api/work/ledger/"+strconvItoa64(ldgCreateResp.Item.ID), nil))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 delete ledger, got %d: %s", w.Code, w.Body.String())
+	}
+
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "GET", "/api/sync/state", nil))
+	var stAfterDel struct {
+		WorkRev int64 `json:"work_rev"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &stAfterDel)
+	if stAfterDel.WorkRev <= staleVault.WorkRev {
+		t.Fatalf("expected work_rev bump after deletes (%d -> %d)", staleVault.WorkRev, stAfterDel.WorkRev)
+	}
+
+	// 4. Máy 2 online lại và gửi merge vault CŨ -> tombstone ngăn hồi sinh bản ghi đã xoá
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "POST", "/api/work/vault", map[string]any{
+		"mode":   "merge",
+		"jobs":   staleVault.Jobs,
+		"ledger": staleVault.Ledger,
+	}))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 POST /api/work/vault merge, got %d: %s", w.Code, w.Body.String())
+	}
+	var mergedVault struct {
+		Jobs       []workJob       `json:"jobs"`
+		Ledger     []workLedger    `json:"ledger"`
+		Tombstones []workTombstone `json:"tombstones"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &mergedVault)
+	if len(mergedVault.Jobs) != 0 || len(mergedVault.Ledger) != 0 {
+		t.Fatalf("expected tombstones to prevent resurrection, got jobs=%+v ledger=%+v", mergedVault.Jobs, mergedVault.Ledger)
+	}
+	if len(mergedVault.Tombstones) < 2 {
+		t.Fatalf("expected at least 2 tombstones returned, got %+v", mergedVault.Tombstones)
+	}
+
+	// 5. Tạo việc mới trên server rồi xoá từ phía client thông qua tombstone merge
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "POST", "/api/work/job", map[string]any{
+		"uid":      "phone1_job_2",
+		"date":     today,
+		"customer": "Khach B",
+		"channel":  "ZL",
+		"service":  "Toc",
+		"price":    200000,
+		"status":   "TT",
+	}))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 POST /api/work/job #2, got %d: %s", w.Code, w.Body.String())
+	}
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "POST", "/api/work/vault", map[string]any{
+		"mode": "merge",
+		"tombstones": []workTombstone{
+			{UID: "phone1_job_2", Kind: "job", DeletedAt: srv.now().Unix() + 10},
+		},
+	}))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 tombstone delete via vault merge, got %d: %s", w.Code, w.Body.String())
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &mergedVault)
+	if len(mergedVault.Jobs) != 0 {
+		t.Fatalf("expected client tombstone to delete phone1_job_2, got %+v", mergedVault.Jobs)
+	}
+}
+
+func TestWorkIdempotentUIDAndLastWriteWins(t *testing.T) {
+	srv := newTestServer(t)
+	h := srv.Handler()
+	today := dateStr(srv.now())
+
+	// 1. Gửi lại cùng uid 2 lần không tạo bản ghi trùng
+	var id1, id2 int64
+	for i := 0; i < 2; i++ {
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, authedReq(srv, "POST", "/api/work/job", map[string]any{
+			"uid":      "retry_job_1",
+			"date":     today,
+			"customer": "Khach Idem",
+			"channel":  "FB",
+			"service":  "Nail",
+			"price":    400000,
+			"status":   "CTT",
+		}))
+		if w.Code != 200 {
+			t.Fatalf("expected 200 POST /api/work/job try %d, got %d: %s", i+1, w.Code, w.Body.String())
+		}
+		var resp struct {
+			Item workJob `json:"item"`
+		}
+		_ = json.Unmarshal(w.Body.Bytes(), &resp)
+		if i == 0 {
+			id1 = resp.Item.ID
+		} else {
+			id2 = resp.Item.ID
+		}
+	}
+	if id1 == 0 || id1 != id2 {
+		t.Fatalf("expected idempotent uid job ID (%d == %d)", id1, id2)
+	}
+
+	// 2. Cập nhật bằng ?uid= (hữu ích cho hàng đợi offline tạo mới rồi sửa trước khi sync xong)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "PUT", "/api/work/job/0?uid=retry_job_1", map[string]any{
+		"service":    "Nail Gel",
+		"price":      550000,
+		"updated_at": srv.now().Unix() + 100,
+	}))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 PUT /api/work/job/0?uid=retry_job_1, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// 3. Vault cũ (updated_at nhỏ hơn) merge lên không ghi đè bản mới hơn
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, authedReq(srv, "POST", "/api/work/vault", map[string]any{
+		"mode": "merge",
+		"jobs": []workJob{{
+			UID:       "retry_job_1",
+			Date:      today,
+			Customer:  "Khach Idem",
+			Channel:   "FB",
+			Service:   "Nail Cu",
+			Price:     300000,
+			Status:    "CTT",
+			Ts:        1000,
+			UpdatedAt: 1000,
+		}},
+	}))
+	if w.Code != 200 {
+		t.Fatalf("expected 200 POST /api/work/vault stale merge, got %d: %s", w.Code, w.Body.String())
+	}
+	var merged struct {
+		Jobs []workJob `json:"jobs"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &merged)
+	if len(merged.Jobs) != 1 || merged.Jobs[0].Service != "Nail Gel" || merged.Jobs[0].Price != 550000 {
+		t.Fatalf("expected newer edit Nail Gel/550000 preserved, got %+v", merged.Jobs)
+	}
+}
+
 func strconvItoa64(v int64) string {
 	return strings.TrimSpace(jsonNumber(v))
 }

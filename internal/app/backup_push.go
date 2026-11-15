@@ -19,19 +19,21 @@ import (
 // ---------- Sao lưu & Khôi phục JSON ----------
 
 type backupData struct {
-	Version    int                `json:"version"`
-	ExportAt   int64              `json:"export_at"`
-	Settings   map[string]string  `json:"settings"`
-	Water      []backupWater      `json:"water"`
-	Weight     []backupWeight     `json:"weight"`
-	Med        []backupMed        `json:"med"`
-	Meals      []backupMeal       `json:"meals"`
-	Glucose    []backupGlucose    `json:"glucose"`
-	WorkJobs   []backupWorkJob    `json:"work_jobs,omitempty"`
-	WorkLedger []backupWorkLedger `json:"work_ledger,omitempty"`
+	Version        int                `json:"version"`
+	ExportAt       int64              `json:"export_at"`
+	Settings       map[string]string  `json:"settings"`
+	Water          []backupWater      `json:"water"`
+	Weight         []backupWeight     `json:"weight"`
+	Med            []backupMed        `json:"med"`
+	Meals          []backupMeal       `json:"meals"`
+	Glucose        []backupGlucose    `json:"glucose"`
+	WorkJobs       []backupWorkJob    `json:"work_jobs,omitempty"`
+	WorkLedger     []backupWorkLedger `json:"work_ledger,omitempty"`
+	WorkTombstones []workTombstone    `json:"work_tombstones,omitempty"`
 }
 
 type backupWorkJobPayment struct {
+	UID    string `json:"uid,omitempty"`
 	Date   string `json:"date"`
 	Amount int    `json:"amount"`
 	Note   string `json:"note"`
@@ -39,18 +41,21 @@ type backupWorkJobPayment struct {
 }
 
 type backupWorkJob struct {
-	Date     string                 `json:"date"`
-	Customer string                 `json:"customer"`
-	Channel  string                 `json:"channel"`
-	Service  string                 `json:"service"`
-	Price    int                    `json:"price"`
-	Status   string                 `json:"status"`
-	Note     string                 `json:"note"`
-	Ts       int64                  `json:"ts"`
-	Payments []backupWorkJobPayment `json:"payments,omitempty"`
+	UID       string                 `json:"uid,omitempty"`
+	Date      string                 `json:"date"`
+	Customer  string                 `json:"customer"`
+	Channel   string                 `json:"channel"`
+	Service   string                 `json:"service"`
+	Price     int                    `json:"price"`
+	Status    string                 `json:"status"`
+	Note      string                 `json:"note"`
+	Ts        int64                  `json:"ts"`
+	UpdatedAt int64                  `json:"updated_at,omitempty"`
+	Payments  []backupWorkJobPayment `json:"payments,omitempty"`
 }
 
 type backupWorkLedgerRepayment struct {
+	UID    string `json:"uid,omitempty"`
 	Date   string `json:"date"`
 	Amount int    `json:"amount"`
 	Note   string `json:"note"`
@@ -58,11 +63,13 @@ type backupWorkLedgerRepayment struct {
 }
 
 type backupWorkLedger struct {
+	UID        string                      `json:"uid,omitempty"`
 	Date       string                      `json:"date"`
 	Category   string                      `json:"category"`
 	Amount     int                         `json:"amount"`
 	Note       string                      `json:"note"`
 	Ts         int64                       `json:"ts"`
+	UpdatedAt  int64                       `json:"updated_at,omitempty"`
 	Repayments []backupWorkLedgerRepayment `json:"repayments,omitempty"`
 }
 
@@ -80,9 +87,10 @@ type backupWeight struct {
 }
 
 type backupMed struct {
-	Date  string `json:"date"`
-	Taken int    `json:"taken"`
-	Ts    int64  `json:"ts"`
+	Date      string `json:"date"`
+	Taken     int    `json:"taken"`
+	DosesJSON string `json:"doses_json,omitempty"`
+	Ts        int64  `json:"ts"`
 }
 
 type backupMeal struct {
@@ -140,10 +148,10 @@ func (s *Server) handleBackup(w http.ResponseWriter, r *http.Request) {
 		rows.Close()
 	}
 
-	if rows, err := s.db.Query(`SELECT date, taken, ts FROM med_log ORDER BY date`); err == nil {
+	if rows, err := s.db.Query(`SELECT date, taken, COALESCE(doses_json, ''), ts FROM med_log ORDER BY date`); err == nil {
 		for rows.Next() {
 			var x backupMed
-			if rows.Scan(&x.Date, &x.Taken, &x.Ts) == nil {
+			if rows.Scan(&x.Date, &x.Taken, &x.DosesJSON, &x.Ts) == nil {
 				b.Med = append(b.Med, x)
 			}
 		}
@@ -171,11 +179,11 @@ func (s *Server) handleBackup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var jobIDs []int64
-	if rows, err := s.db.Query(`SELECT id, date, customer, channel, service, price, status, note, ts FROM work_jobs ORDER BY date, id`); err == nil {
+	if rows, err := s.db.Query(`SELECT id, COALESCE(uid, ''), date, customer, channel, service, price, status, note, ts, COALESCE(updated_at, 0) FROM work_jobs ORDER BY date, id`); err == nil {
 		for rows.Next() {
 			var jid int64
 			var x backupWorkJob
-			if rows.Scan(&jid, &x.Date, &x.Customer, &x.Channel, &x.Service, &x.Price, &x.Status, &x.Note, &x.Ts) == nil {
+			if rows.Scan(&jid, &x.UID, &x.Date, &x.Customer, &x.Channel, &x.Service, &x.Price, &x.Status, &x.Note, &x.Ts, &x.UpdatedAt) == nil {
 				b.WorkJobs = append(b.WorkJobs, x)
 				jobIDs = append(jobIDs, jid)
 			}
@@ -187,11 +195,11 @@ func (s *Server) handleBackup(w http.ResponseWriter, r *http.Request) {
 		for i, jid := range jobIDs {
 			jobIdxByID[jid] = i
 		}
-		if prows, err := s.db.Query(`SELECT job_id, date, amount, note, ts FROM work_job_payments ORDER BY date ASC, id ASC`); err == nil {
+		if prows, err := s.db.Query(`SELECT job_id, COALESCE(uid, ''), date, amount, note, ts FROM work_job_payments ORDER BY date ASC, id ASC`); err == nil {
 			for prows.Next() {
 				var jid int64
 				var p backupWorkJobPayment
-				if prows.Scan(&jid, &p.Date, &p.Amount, &p.Note, &p.Ts) == nil {
+				if prows.Scan(&jid, &p.UID, &p.Date, &p.Amount, &p.Note, &p.Ts) == nil {
 					if idx, ok := jobIdxByID[jid]; ok {
 						b.WorkJobs[idx].Payments = append(b.WorkJobs[idx].Payments, p)
 					}
@@ -202,11 +210,11 @@ func (s *Server) handleBackup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var ledgerIDs []int64
-	if rows, err := s.db.Query(`SELECT id, date, category, amount, note, ts FROM work_ledger ORDER BY date, id`); err == nil {
+	if rows, err := s.db.Query(`SELECT id, COALESCE(uid, ''), date, category, amount, note, ts, COALESCE(updated_at, 0) FROM work_ledger ORDER BY date, id`); err == nil {
 		for rows.Next() {
 			var id int64
 			var x backupWorkLedger
-			if rows.Scan(&id, &x.Date, &x.Category, &x.Amount, &x.Note, &x.Ts) == nil {
+			if rows.Scan(&id, &x.UID, &x.Date, &x.Category, &x.Amount, &x.Note, &x.Ts, &x.UpdatedAt) == nil {
 				b.WorkLedger = append(b.WorkLedger, x)
 				ledgerIDs = append(ledgerIDs, id)
 			}
@@ -218,11 +226,11 @@ func (s *Server) handleBackup(w http.ResponseWriter, r *http.Request) {
 		for i, id := range ledgerIDs {
 			idxByID[id] = i
 		}
-		if rrows, err := s.db.Query(`SELECT ledger_id, date, amount, note, ts FROM work_ledger_repayments ORDER BY date ASC, id ASC`); err == nil {
+		if rrows, err := s.db.Query(`SELECT ledger_id, COALESCE(uid, ''), date, amount, note, ts FROM work_ledger_repayments ORDER BY date ASC, id ASC`); err == nil {
 			for rrows.Next() {
 				var lid int64
 				var rep backupWorkLedgerRepayment
-				if rrows.Scan(&lid, &rep.Date, &rep.Amount, &rep.Note, &rep.Ts) == nil {
+				if rrows.Scan(&lid, &rep.UID, &rep.Date, &rep.Amount, &rep.Note, &rep.Ts) == nil {
 					if idx, ok := idxByID[lid]; ok {
 						b.WorkLedger[idx].Repayments = append(b.WorkLedger[idx].Repayments, rep)
 					}
@@ -230,6 +238,9 @@ func (s *Server) handleBackup(w http.ResponseWriter, r *http.Request) {
 			}
 			rrows.Close()
 		}
+	}
+	if ts := s.queryAllTombstones(); len(ts) > 0 {
+		b.WorkTombstones = ts
 	}
 
 	fname := fmt.Sprintf("quyenhealth-backup-%s.json", s.today())
@@ -304,7 +315,7 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
 		if t > 20 {
 			t = 20
 		}
-		if _, err := tx.Exec(`INSERT INTO med_log(date,taken,ts) VALUES(?,?,?) ON CONFLICT(date) DO UPDATE SET taken=excluded.taken, ts=excluded.ts`, x.Date, t, x.Ts); err != nil {
+		if _, err := tx.Exec(`INSERT INTO med_log(date,taken,doses_json,ts) VALUES(?,?,?,?) ON CONFLICT(date) DO UPDATE SET taken=excluded.taken, doses_json=excluded.doses_json, ts=excluded.ts`, x.Date, t, x.DosesJSON, x.Ts); err != nil {
 			serverErr(w, err)
 			return
 		}
@@ -349,8 +360,16 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			price := normalizeVND(x.Price)
-			res, err := tx.Exec(`INSERT INTO work_jobs(date,customer,channel,service,price,status,note,ts) VALUES(?,?,?,?,?,?,?,?)`,
-				x.Date, strings.TrimSpace(x.Customer), validChannel(x.Channel), strings.TrimSpace(x.Service), price, validJobStatus(x.Status), x.Note, x.Ts)
+			uid := sanitizeSyncUID(x.UID)
+			if uid == "" {
+				uid = s.nextUID("job")
+			}
+			updatedAt := x.UpdatedAt
+			if updatedAt <= 0 {
+				updatedAt = x.Ts
+			}
+			res, err := tx.Exec(`INSERT INTO work_jobs(uid,date,customer,channel,service,price,status,note,ts,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)`,
+				uid, x.Date, strings.TrimSpace(x.Customer), validChannel(x.Channel), strings.TrimSpace(x.Service), price, validJobStatus(x.Status), x.Note, x.Ts, updatedAt)
 			if err != nil {
 				serverErr(w, err)
 				return
@@ -360,6 +379,7 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
 				pays := make([]workJobPayment, 0, len(x.Payments))
 				for _, p := range x.Payments {
 					pays = append(pays, workJobPayment{
+						UID:    p.UID,
 						Date:   p.Date,
 						Amount: p.Amount,
 						Note:   p.Note,
@@ -388,8 +408,16 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			amt := normalizeVND(x.Amount)
-			res, err := tx.Exec(`INSERT INTO work_ledger(date,category,amount,note,ts) VALUES(?,?,?,?,?)`,
-				x.Date, x.Category, amt, x.Note, x.Ts)
+			uid := sanitizeSyncUID(x.UID)
+			if uid == "" {
+				uid = s.nextUID("ldg")
+			}
+			updatedAt := x.UpdatedAt
+			if updatedAt <= 0 {
+				updatedAt = x.Ts
+			}
+			res, err := tx.Exec(`INSERT INTO work_ledger(uid,date,category,amount,note,ts,updated_at) VALUES(?,?,?,?,?,?,?)`,
+				uid, x.Date, x.Category, amt, x.Note, x.Ts, updatedAt)
 			if err != nil {
 				serverErr(w, err)
 				return
@@ -399,6 +427,7 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
 				reps := make([]workLedgerRepayment, 0, len(x.Repayments))
 				for _, r := range x.Repayments {
 					reps = append(reps, workLedgerRepayment{
+						UID:    r.UID,
 						Date:   r.Date,
 						Amount: r.Amount,
 						Note:   r.Note,
@@ -413,10 +442,25 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if b.WorkTombstones != nil {
+		if _, err := tx.Exec(`DELETE FROM work_tombstones`); err != nil {
+			serverErr(w, err)
+			return
+		}
+		for _, tb := range b.WorkTombstones {
+			if err := recordTombstoneTx(tx, tb.Kind, tb.UID, tb.Sig, tb.DeletedAt); err != nil {
+				serverErr(w, err)
+				return
+			}
+		}
+	}
+
 	if err := tx.Commit(); err != nil {
 		serverErr(w, err)
 		return
 	}
+	s.bumpHealthRev()
+	s.bumpWorkRev()
 	writeJSON(w, 200, map[string]bool{"ok": true})
 }
 
