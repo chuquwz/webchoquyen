@@ -3952,14 +3952,8 @@
 
     function renderWorkScreen() {
       // 1. Nút quay về hôm nay trên bảng lịch
-      const todayBtn = document.getElementById('btn-work-today');
-      if (todayBtn) {
-        const calMonth = workState.calendarMonth || workState.month || '';
-        const todayMonth = (workState.today || '').slice(0, 7);
-        const isAtToday = Boolean(workState.today && workState.date === workState.today && calMonth === todayMonth);
-        todayBtn.classList.toggle('is-at-today', isAtToday);
-        todayBtn.setAttribute('aria-label', isAtToday ? 'Hôm nay — đang xem ngày hiện tại' : 'Hôm nay — chuyển về ngày hiện tại');
-      }
+      const calMonth = workState.calendarMonth || workState.month || '';
+      updateTodayChipButton('btn-work-today', calMonth);
 
       // 2. Summary Hero Card (Hỗ trợ chuyển nhanh Theo ngày / Cả tháng)
       const ds = workState.daySummary || {};
@@ -4018,30 +4012,19 @@
       renderLedgerScreen();
     };
 
-    window.stepWorkDate = function (delta) {
-      const base = workState.date || state.today;
-      const nextDate = shiftDateStr(base, delta);
-      workState.calendarMonth = nextDate.slice(0, 7);
-      loadWorkData(nextDate, { month: workState.calendarMonth });
-    };
-
-    window.onWorkDateChange = function (val) {
-      if (!val) return;
-      workState.calendarMonth = val.slice(0, 7);
-      loadWorkData(val, { month: workState.calendarMonth });
-    };
-
     window.jumpWorkToday = function () {
       const today = workState.today || state.today;
       if (!today) return;
       const todayMonth = today.slice(0, 7);
+      const scope = state.activeTab === 'ledger' ? 'ledger' : 'work';
       workState.heroScope = 'day';
+      workState.ledgerScope = 'day';
       workState.calendarMonth = todayMonth;
-      if (state.activeTab === 'work' && workState.subTab !== 'jobs') {
+      if (scope === 'work' && workState.subTab !== 'jobs') {
         switchWorkSubTab('jobs');
       }
       syncAndRenderWorkTarget(today, todayMonth);
-      announceWorkCalendarDay(today);
+      announceCalendarDay(today, scope);
     };
 
     window.switchWorkSubTab = function (sub) {
@@ -4443,6 +4426,22 @@
       return names[dt.getUTCDay()] || '';
     }
 
+    function getResolvedCalendarMonth() {
+      const fallbackDate = workState.date || workState.today || state.today || new Date().toISOString().slice(0, 10);
+      return /^\d{4}-\d{2}$/.test(workState.calendarMonth || '')
+        ? workState.calendarMonth
+        : (/^\d{4}-\d{2}$/.test(workState.month || '') ? workState.month : fallbackDate.slice(0, 7));
+    }
+
+    function updateTodayChipButton(btnId, calMonth) {
+      const todayBtn = document.getElementById(btnId);
+      if (!todayBtn) return;
+      const todayMonth = (workState.today || '').slice(0, 7);
+      const isAtToday = Boolean(workState.today && workState.date === workState.today && calMonth === todayMonth);
+      todayBtn.classList.toggle('is-at-today', isAtToday);
+      todayBtn.setAttribute('aria-label', isAtToday ? 'Hôm nay — đang xem ngày hiện tại' : 'Hôm nay — chuyển về ngày hiện tại');
+    }
+
     function buildWorkOrderDaysMap(monthStr) {
       const map = {};
       (workState.recentDays || []).forEach(d => {
@@ -4454,17 +4453,64 @@
       return map;
     }
 
-    function announceWorkCalendarDay(dateStr) {
-      const liveEl = document.getElementById('work-cal-live');
+    function buildLedgerActivityDaysMap(monthStr, ledgerItems) {
+      const map = {};
+      (ledgerItems || []).forEach(item => {
+        if (!item || !item.date || item.category === 'borrow') return;
+        if (!item.date.startsWith(monthStr + '-')) return;
+        if (!map[item.date]) {
+          map[item.date] = { date: item.date, count: 0, expense: 0, fund_in: 0, repay: 0 };
+        }
+        const row = map[item.date];
+        const amt = Number(item.amount) || 0;
+        row.count++;
+        if (item.category === 'expense') row.expense += amt;
+        if (item.category === 'fund_in') row.fund_in += amt;
+        if (item.category === 'repay') row.repay += amt;
+      });
+      return map;
+    }
+
+    function formatWorkActivityAria(brief) {
+      return `có ${brief.job_count} đơn, doanh thu ${formatVND(brief.total_revenue || 0)}`;
+    }
+
+    function formatLedgerActivityAria(brief) {
+      const parts = [`có ${brief.count} khoản thu chi`];
+      if (brief.expense > 0) parts.push(`chi ${formatVND(brief.expense)}`);
+      if (brief.fund_in > 0) parts.push(`nộp quỹ ${formatVND(brief.fund_in)}`);
+      if (brief.repay > 0) parts.push(`trả nợ ${formatVND(brief.repay)}`);
+      return parts.join(', ');
+    }
+
+    function getTimedMonthLedgerForMonth(monthStr) {
+      const vault = readFinanceVaultSync();
+      const allLedger = Array.isArray(vault.ledger) && vault.ledger.length > 0
+        ? vault.ledger
+        : (workState.ledger || []);
+      return monthStr
+        ? allLedger.filter(l => l && l.category !== 'borrow' && (l.date || '').startsWith(monthStr + '-'))
+        : [];
+    }
+
+    function announceCalendarDay(dateStr, scope) {
+      const isLedger = scope === 'ledger';
+      const liveEl = document.getElementById(isLedger ? 'ledger-cal-live' : 'work-cal-live');
       if (!liveEl || !dateStr) return;
       const monthStr = dateStr.slice(0, 7);
-      const orderMap = buildWorkOrderDaysMap(monthStr);
-      const brief = orderMap[dateStr];
       const vnDate = formatVNDate(dateStr);
-      if (brief && Number(brief.job_count) > 0) {
-        liveEl.textContent = `Đang xem ngày ${vnDate}, ${brief.job_count} đơn, doanh thu ${formatVND(brief.total_revenue || 0)}.`;
+      if (isLedger) {
+        const map = buildLedgerActivityDaysMap(monthStr, getTimedMonthLedgerForMonth(monthStr));
+        const brief = map[dateStr];
+        liveEl.textContent = brief
+          ? `Đang xem ngày ${vnDate}, ${formatLedgerActivityAria(brief)}.`
+          : `Đang xem ngày ${vnDate}, chưa có thu chi.`;
       } else {
-        liveEl.textContent = `Đang xem ngày ${vnDate}, chưa có đơn.`;
+        const orderMap = buildWorkOrderDaysMap(monthStr);
+        const brief = orderMap[dateStr];
+        liveEl.textContent = (brief && Number(brief.job_count) > 0)
+          ? `Đang xem ngày ${vnDate}, ${brief.job_count} đơn, doanh thu ${formatVND(brief.total_revenue || 0)}.`
+          : `Đang xem ngày ${vnDate}, chưa có đơn.`;
       }
     }
 
@@ -4477,33 +4523,42 @@
         workState.date = targetDate;
         workState.month = targetMonth;
         renderWorkCalendar();
+        renderLedgerCalendar(getTimedMonthLedgerForMonth(targetMonth), targetMonth);
         loadWorkData(targetDate, { month: targetMonth });
       }
     }
 
     window.stepWorkCalendarMonth = function (deltaMonths) {
-      const curMonth = workState.calendarMonth || workState.month || (workState.date || workState.today || state.today || '').slice(0, 7);
+      const curMonth = getResolvedCalendarMonth();
       const nextMonth = shiftMonthStr(curMonth, deltaMonths);
       workState.calendarMonth = nextMonth;
       const targetDate = workState.date || workState.today || state.today || '';
       syncAndRenderWorkTarget(targetDate, nextMonth);
     };
 
-    window.selectWorkCalendarDay = function (dateStr) {
+    window.selectWorkCalendarDay = function (dateStr, scope) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr || '')) return;
+      const resolvedScope = scope === 'ledger' || (scope !== 'work' && state.activeTab === 'ledger')
+        ? 'ledger'
+        : 'work';
       const targetMonth = dateStr.slice(0, 7);
-      workState.heroScope = 'day';
       workState.calendarMonth = targetMonth;
-      if (workState.subTab !== 'jobs') {
-        switchWorkSubTab('jobs');
+      if (resolvedScope === 'ledger') {
+        workState.ledgerScope = 'day';
+      } else {
+        workState.heroScope = 'day';
+        if (workState.subTab !== 'jobs') {
+          switchWorkSubTab('jobs');
+        }
       }
       syncAndRenderWorkTarget(dateStr, targetMonth);
-      announceWorkCalendarDay(dateStr);
+      announceCalendarDay(dateStr, resolvedScope);
     };
 
     window.onWorkCalGridKeydown = function (e) {
-      const grid = document.getElementById('work-cal-grid');
+      const grid = (e && e.currentTarget) || document.getElementById('work-cal-grid');
       if (!grid) return;
+      const gridId = grid.id || 'work-cal-grid';
       const buttons = Array.from(grid.querySelectorAll('.work-cal-day-btn'));
       if (buttons.length === 0) return;
       const idx = buttons.indexOf(document.activeElement);
@@ -4534,25 +4589,22 @@
       if (!targetDate) return;
       workState.calendarMonth = targetDate.slice(0, 7);
       syncAndRenderWorkTarget(workState.date || workState.today || state.today || '', workState.calendarMonth);
-      const targetBtn = grid.querySelector(`[data-date="${targetDate}"]`);
+      const liveGrid = document.getElementById(gridId);
+      const targetBtn = liveGrid && liveGrid.querySelector(`[data-date="${targetDate}"]`);
       if (targetBtn) targetBtn.focus();
     };
 
-    function renderWorkCalendar() {
-      const grid = document.getElementById('work-cal-grid');
-      const titleEl = document.getElementById('work-cal-month-title');
-      const statsEl = document.getElementById('work-cal-month-stats');
+    function renderMonthCalendarGrid(cfg) {
+      const grid = document.getElementById(cfg.gridId);
+      const titleEl = document.getElementById(cfg.titleId);
+      const statsEl = document.getElementById(cfg.statsId);
       if (!grid) return;
 
       const activeFocusDate = (document.activeElement && grid.contains(document.activeElement))
         ? document.activeElement.getAttribute('data-date')
         : null;
 
-      const fallbackDate = workState.date || workState.today || state.today || new Date().toISOString().slice(0, 10);
-      const calMonth = /^\d{4}-\d{2}$/.test(workState.calendarMonth || '')
-        ? workState.calendarMonth
-        : (/^\d{4}-\d{2}$/.test(workState.month || '') ? workState.month : fallbackDate.slice(0, 7));
-
+      const calMonth = cfg.calMonth || getResolvedCalendarMonth();
       if (titleEl) {
         titleEl.textContent = formatMonthHumanLabel(calMonth);
       }
@@ -4564,10 +4616,10 @@
       const leadingDays = (firstOfMonth.getUTCDay() + 6) % 7;
       const totalCells = Math.ceil((leadingDays + daysInMonth) / 7) * 7;
 
-      const orderDaysMap = buildWorkOrderDaysMap(calMonth);
-      const activeOrderDaysCount = Object.keys(orderDaysMap).length;
+      const activityMap = cfg.activityMap || {};
+      const activeDaysCount = Object.keys(activityMap).length;
       if (statsEl) {
-        statsEl.textContent = `${activeOrderDaysCount} ngày có đơn`;
+        statsEl.textContent = `${activeDaysCount} ${cfg.statUnitLabel}`;
       }
 
       const todayStr = workState.today || state.today || '';
@@ -4582,16 +4634,16 @@
         const isCurrentMonth = cellMonth === calMonth;
         const isSelected = cellDate === selectedStr;
         const isToday = isCurrentMonth && cellDate === todayStr;
-        const brief = isCurrentMonth ? orderDaysMap[cellDate] : null;
-        const hasOrders = Boolean(brief && Number(brief.job_count) > 0);
+        const brief = isCurrentMonth ? activityMap[cellDate] : null;
+        const hasActivity = Boolean(brief);
 
         const weekdayName = getWorkCalendarWeekdayName(cellDate);
         const ariaParts = [`${dayNum}, ${weekdayName} ${formatVNDate(cellDate)}`];
         if (isToday) ariaParts.push('hôm nay');
-        if (hasOrders) {
-          ariaParts.push(`có ${brief.job_count} đơn, doanh thu ${formatVND(brief.total_revenue || 0)}`);
+        if (hasActivity) {
+          ariaParts.push(cfg.formatAriaActivity(brief));
         } else if (isCurrentMonth) {
-          ariaParts.push('chưa có đơn');
+          ariaParts.push(cfg.emptyAriaLabel);
         }
         if (isSelected) ariaParts.push('đang xem');
 
@@ -4599,10 +4651,10 @@
         if (!isCurrentMonth) classes.push('is-outside');
         if (isSelected) classes.push('is-selected');
         if (isToday) classes.push('is-today');
-        if (hasOrders) classes.push('has-orders');
+        if (hasActivity) classes.push('has-activity');
 
         cells.push(
-          `<button type="button" class="${classes.join(' ')}" data-date="${cellDate}" aria-label="${escapeHTML(ariaParts.join(', '))}" aria-pressed="${isSelected ? 'true' : 'false'}"${isToday ? ' aria-current="date"' : ''} onclick="selectWorkCalendarDay('${cellDate}')"><span class="work-cal-day-circle">${dayNum}</span></button>`
+          `<button type="button" class="${classes.join(' ')}" data-date="${cellDate}" aria-label="${escapeHTML(ariaParts.join(', '))}" aria-pressed="${isSelected ? 'true' : 'false'}"${isToday ? ' aria-current="date"' : ''} onclick="selectWorkCalendarDay('${cellDate}', '${cfg.scope}')"><span class="work-cal-day-circle">${dayNum}</span></button>`
         );
       }
 
@@ -4613,6 +4665,36 @@
           || grid.querySelector(`[data-date="${selectedStr}"]`);
         if (restoreBtn) restoreBtn.focus({ preventScroll: true });
       }
+    }
+
+    function renderWorkCalendar() {
+      const calMonth = getResolvedCalendarMonth();
+      renderMonthCalendarGrid({
+        scope: 'work',
+        gridId: 'work-cal-grid',
+        titleId: 'work-cal-month-title',
+        statsId: 'work-cal-month-stats',
+        calMonth,
+        activityMap: buildWorkOrderDaysMap(calMonth),
+        statUnitLabel: 'ngày có đơn',
+        formatAriaActivity: formatWorkActivityAria,
+        emptyAriaLabel: 'chưa có đơn'
+      });
+    }
+
+    function renderLedgerCalendar(timedMonthLedger, calMonthOpt) {
+      const calMonth = calMonthOpt || getResolvedCalendarMonth();
+      renderMonthCalendarGrid({
+        scope: 'ledger',
+        gridId: 'ledger-cal-grid',
+        titleId: 'ledger-cal-month-title',
+        statsId: 'ledger-cal-month-stats',
+        calMonth,
+        activityMap: buildLedgerActivityDaysMap(calMonth, timedMonthLedger),
+        statUnitLabel: 'ngày có thu chi',
+        formatAriaActivity: formatLedgerActivityAria,
+        emptyAriaLabel: 'chưa có thu chi'
+      });
     }
 
     window.setDebtListFilter = function (filter) {
@@ -5206,7 +5288,8 @@
         document.getElementById('work-ledger-note').value = '';
         closeModal('modal-add-work-ledger');
         showToast('Đã lưu khoản mục vào sổ');
-        await loadWorkData(workState.date);
+        workState.calendarMonth = ledgerDate.slice(0, 7);
+        await loadWorkData(ledgerDate, { month: workState.calendarMonth });
       } catch (err) {
         if (!isQueueableSyncError(err)) return;
         const v = readFinanceVaultSync();
@@ -5230,7 +5313,8 @@
         document.getElementById('work-ledger-note').value = '';
         closeModal('modal-add-work-ledger');
         showToast('Đã lưu khoản mục trên máy này (chờ đồng bộ)');
-        computeWorkFromLocalVault(ledgerDate);
+        workState.calendarMonth = ledgerDate.slice(0, 7);
+        computeWorkFromLocalVault(ledgerDate, workState.calendarMonth);
       }
     };
 
@@ -5248,22 +5332,13 @@
     function renderLedgerScreen() {
       const curDate = workState.date || state.today || '';
       const todayDate = workState.today || state.today || curDate;
-      const curMonth = workState.month || (curDate ? curDate.slice(0, 7) : '');
+      const curMonth = getResolvedCalendarMonth();
 
-      const dateInput = document.getElementById('ledger-date-input');
-      if (dateInput) dateInput.value = curDate;
+      updateTodayChipButton('btn-ledger-today', curMonth);
 
-      const todayBtn = document.getElementById('btn-ledger-today');
-      if (todayBtn) {
-        todayBtn.style.opacity = curDate === todayDate ? '0.55' : '1';
-      }
-
-      const vault = readFinanceVaultSync();
-      const allLedger = Array.isArray(vault.ledger) ? vault.ledger : [];
-      const monthLedger = curMonth
-        ? allLedger.filter(l => (l.date || '').startsWith(curMonth + '-'))
-        : [];
       const dayLedger = workState.ledger || [];
+      const timedDayLedger = dayLedger.filter(l => l && l.category !== 'borrow');
+      const timedMonthLedger = getTimedMonthLedgerForMonth(curMonth);
 
       const ds = workState.daySummary || {};
       const ms = workState.monthSummary || {};
@@ -5286,8 +5361,6 @@
         if (el) el.textContent = val;
       };
 
-      const timedDayLedger = dayLedger.filter(l => l && l.category !== 'borrow');
-      const timedMonthLedger = monthLedger.filter(l => l && l.category !== 'borrow');
       const globalBorrow = getGlobalBorrowSummary();
 
       setTxt(
@@ -5321,7 +5394,7 @@
 
       renderBorrowSummaryButton(globalBorrow);
       renderWorkLedgerList();
-      renderLedgerMonthDays(timedMonthLedger, monthHuman);
+      renderLedgerCalendar(timedMonthLedger, curMonth);
 
       const borrowModalEl = document.getElementById('modal-borrow-list');
       if (borrowModalEl && borrowModalEl.classList.contains('open')) {
@@ -5623,58 +5696,6 @@
           </div>
         </div>
       `).join('');
-    }
-
-    function renderLedgerMonthDays(monthLedger, monthHuman) {
-      const container = document.getElementById('ledger-month-days-list');
-      const titleEl = document.getElementById('ledger-month-days-title');
-      const subEl = document.getElementById('ledger-month-days-sub');
-      if (titleEl) {
-        titleEl.textContent = monthHuman ? `Các ngày có thu chi (${monthHuman})` : 'Các ngày có thu chi trong tháng';
-      }
-
-      const byDate = {};
-      (monthLedger || []).forEach(item => {
-        if (!item || !item.date || item.category === 'borrow') return;
-        if (!byDate[item.date]) {
-          byDate[item.date] = { date: item.date, count: 0, expense: 0, fund_in: 0, repay: 0 };
-        }
-        const row = byDate[item.date];
-        const amt = Number(item.amount) || 0;
-        row.count++;
-        if (item.category === 'expense') row.expense += amt;
-        if (item.category === 'fund_in') row.fund_in += amt;
-        if (item.category === 'repay') row.repay += amt;
-      });
-
-      const days = Object.values(byDate).sort((a, b) => (a.date < b.date ? 1 : -1));
-      if (subEl) subEl.textContent = `${days.length} ngày`;
-      if (!container) return;
-
-      if (days.length === 0) {
-        container.innerHTML = `<div class="empty-state-box">Chưa có khoản chi tiêu hay nộp quỹ nào trong ${escapeHTML(monthHuman || 'tháng này')}.</div>`;
-        return;
-      }
-
-      container.innerHTML = days.map(d => {
-        const isSelected = d.date === workState.date;
-        const details = [`${d.count} khoản`];
-        if (d.expense > 0) details.push(`Chi ${formatShortK(d.expense)}`);
-        if (d.fund_in > 0) details.push(`Quỹ ${formatShortK(d.fund_in)}`);
-        if (d.repay > 0) details.push(`Trả ${formatShortK(d.repay)}`);
-
-        return `
-        <button type="button" class="work-day-brief-row font-tabular" style="${isSelected ? 'border-color: #6CA844; background-color: #F2F9EE;' : ''}" onclick="loadWorkData('${d.date}')">
-          <div>
-            <strong style="font-size: 13.5px; color: var(--text-main);">Ngày ${formatDayMonth(d.date)}</strong>
-            <div style="font-size: 11.5px; color: var(--text-sub); margin-top: 2px;">${details.join(' &bull; ')}</div>
-          </div>
-          <div style="text-align: right;">
-            <span style="font-size: 14.5px; font-weight: 800; color: #1E3B13;">${formatShortK(d.expense)}</span>
-            <div style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); margin-top: 1px;">${d.fund_in > 0 ? 'Quỹ ' + formatShortK(d.fund_in) : d.count + ' mục'}</div>
-          </div>
-        </button>`;
-      }).join('');
     }
 
     let activeRepayLedgerId = null;

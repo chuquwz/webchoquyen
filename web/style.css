@@ -2289,61 +2289,6 @@ body:not(.is-logged-in) #app-bottom-nav {
   transform: scale(0.96);
 }
 
-/* Date Navigation Bar */
-.work-date-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 14px;
-  background-color: #F7FAF5;
-  border: 1px solid #E2ECE0;
-  border-radius: 18px;
-  padding: 6px 8px;
-}
-
-.btn-work-date-step {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background-color: #FFFFFF;
-  border: 1px solid #DCE7D8;
-  color: var(--text-main);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  cursor: pointer;
-  transition: transform 0.15s ease-out, background-color 0.15s ease-out;
-}
-
-.btn-work-date-step:not(:disabled):active {
-  transform: scale(0.96);
-}
-
-.work-date-picker-wrap {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.work-date-input {
-  border: none;
-  background: transparent;
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 800;
-  color: var(--text-main);
-  text-align: center;
-  cursor: pointer;
-  padding: 0;
-  min-height: 36px;
-  line-height: 1.3;
-  max-width: 100%;
-}
-
 .btn-work-today-chip {
   min-height: 36px;
   padding: 6px 11px;
@@ -2371,7 +2316,7 @@ body:not(.is-logged-in) #app-bottom-nav {
   }
 }
 
-/* Merged Monthly Calendar Card (Sổ công việc) */
+/* Merged Monthly Calendar Card (Sổ công việc & Thu chi cá nhân) */
 .work-calendar-card {
   background-color: #FFFFFF;
   border: 1.5px solid #DFEAE0;
@@ -2502,16 +2447,16 @@ body:not(.is-logged-in) #app-bottom-nav {
   font-weight: 800;
 }
 
-/* Ngày phát sinh đơn: vòng xanh */
-.work-cal-day-btn.has-orders:not(.is-today) .work-cal-day-circle {
+/* Ngày có phát sinh (đơn / thu chi): vòng xanh */
+.work-cal-day-btn.has-activity:not(.is-today) .work-cal-day-circle {
   border-color: #3F8028;
   background-color: #EBF7E3;
   color: #1A3A0E;
   font-weight: 800;
 }
 
-/* Hôm nay (không có đơn): khoanh đỏ mận */
-.work-cal-day-btn.is-today:not(.has-orders) .work-cal-day-circle {
+/* Hôm nay (không có phát sinh): khoanh đỏ mận */
+.work-cal-day-btn.is-today:not(.has-activity) .work-cal-day-circle {
   width: 30px;
   height: 30px;
   background-color: #8B263B;
@@ -2520,8 +2465,8 @@ body:not(.is-logged-in) #app-bottom-nav {
   font-weight: 800;
 }
 
-/* Hôm nay vừa có đơn: khoanh đỏ mận bên trong + vòng xanh bao ngoài */
-.work-cal-day-btn.is-today.has-orders .work-cal-day-circle {
+/* Hôm nay vừa có phát sinh: khoanh đỏ mận bên trong + vòng xanh bao ngoài */
+.work-cal-day-btn.is-today.has-activity .work-cal-day-circle {
   width: 25px;
   height: 25px;
   background-color: #8B263B;
@@ -2531,7 +2476,7 @@ body:not(.is-logged-in) #app-bottom-nav {
   font-weight: 800;
 }
 
-.work-cal-day-btn.is-today.has-orders .work-cal-day-circle::after {
+.work-cal-day-btn.is-today.has-activity .work-cal-day-circle::after {
   content: "";
   position: absolute;
   width: 33px;
@@ -3765,36 +3710,12 @@ body:not(.is-logged-in) #app-bottom-nav {
   color: var(--color-pill-text);
 }
 
-.work-day-brief-row {
-  background-color: #FFFFFF;
-  border: 1px solid #E2EAE0;
-  border-radius: 16px;
-  padding: 11px 14px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  width: 100%;
-  text-align: left;
-  font-family: inherit;
-  transition: transform 0.15s ease-out, background-color 0.15s ease-out;
-}
-
-.work-day-brief-row:not(:disabled):active {
-  transform: scale(0.98);
-}
-
 @media (hover: hover) {
 
   .btn-work-export-pill:hover,
   .work-suggest-chip:hover,
   .btn-price-chip:hover {
     background-color: #E2F0D6;
-  }
-
-  .work-day-brief-row:hover {
-    background-color: #F7FAF5;
   }
 }
 
@@ -5871,18 +5792,18 @@ body:not(.is-logged-in) #app-bottom-nav {
     font-size: 12.5px;
   }
 
-  .work-cal-day-btn.is-today:not(.has-orders) .work-cal-day-circle {
+  .work-cal-day-btn.is-today:not(.has-activity) .work-cal-day-circle {
     width: 28px;
     height: 28px;
   }
 
-  .work-cal-day-btn.is-today.has-orders .work-cal-day-circle {
+  .work-cal-day-btn.is-today.has-activity .work-cal-day-circle {
     width: 22px;
     height: 22px;
     font-size: 11px;
   }
 
-  .work-cal-day-btn.is-today.has-orders .work-cal-day-circle::after {
+  .work-cal-day-btn.is-today.has-activity .work-cal-day-circle::after {
     width: 30px;
     height: 30px;
   }
