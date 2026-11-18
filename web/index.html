@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=80">
+  <link rel="stylesheet" href="/style.css?v=82">
 </head>
 
 <body>
@@ -85,8 +85,34 @@
             </p>
           </div>
 
-          <!-- Thẻ Điểm Tuân Thủ Sức Khoẻ Hàng Ngày (Vòng Tròn Gauge SVG) -->
-          <div class="daily-score-card">
+          <!-- Thẻ Điểm Tuân Thủ Sức Khoẻ Hàng Ngày (Vòng Tròn Gauge SVG + Nền Sống Động) -->
+          <div id="daily-score-card" class="daily-score-card">
+            <span class="card-theme-bg score-theme-bg" aria-hidden="true">
+              <span class="score-aurora-orb orb-1"></span>
+              <span class="score-aurora-orb orb-2"></span>
+              <span id="summary-score-theme-level" class="theme-wave-level score-wave-level">
+                <span class="water-wave-layer score-wave-back"></span>
+                <span class="water-wave-layer score-wave-front"></span>
+              </span>
+              <svg class="score-ecg-svg" viewBox="0 0 260 64" fill="none" preserveAspectRatio="none">
+                <path class="score-ecg-base"
+                  d="M0,42 L74,42 L86,42 L94,30 L102,52 L111,16 L120,56 L128,36 L136,42 L260,42"
+                  stroke="#5E9447" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+                <path class="score-ecg-pulse"
+                  d="M0,42 L74,42 L86,42 L94,30 L102,52 L111,16 L120,56 L128,36 L136,42 L260,42"
+                  stroke="#76C04E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              <span class="score-float-dot dot-1"></span>
+              <span class="score-float-dot dot-2"></span>
+              <span class="score-float-dot dot-3"></span>
+              <svg class="score-sparkle sparkle-1" viewBox="0 0 16 16" width="14" height="14" fill="none">
+                <path d="M8 1 L9.6 6.4 L15 8 L9.6 9.6 L8 15 L6.4 9.6 L1 8 L6.4 6.4 Z" fill="#6CA844" />
+              </svg>
+              <svg class="score-sparkle sparkle-2" viewBox="0 0 16 16" width="11" height="11" fill="none">
+                <path d="M8 1 L9.6 6.4 L15 8 L9.6 9.6 L8 15 L6.4 9.6 L1 8 L6.4 6.4 Z" fill="#88C459" />
+              </svg>
+            </span>
+
             <div class="daily-score-info">
               <div class="score-title-row">
                 <span class="score-label">Tuân thủ hôm nay</span>
@@ -104,6 +130,7 @@
             <div class="daily-score-gauge-wrap" onclick="openScoreBreakdownModal()" style="cursor: pointer;"
               role="button" tabindex="0" aria-label="Xem chi tiết điểm tuân thủ hôm nay"
               onkeydown="if(event.key==='Enter'||event.key===' ') openScoreBreakdownModal()">
+              <span class="score-gauge-halo" aria-hidden="true"></span>
               <svg class="daily-score-svg" viewBox="0 0 100 100" width="92" height="92">
                 <circle class="score-track" cx="50" cy="50" r="40" stroke="#E2F0D6" stroke-width="8" fill="none" />
                 <circle id="score-ring-circle" class="score-fill" cx="50" cy="50" r="40" stroke="#5E9447"
@@ -1838,7 +1865,7 @@
     </div>
   </div>
 
-  <script src="/app.js?v=80"></script>
+  <script src="/app.js?v=82"></script></script></script>
 </body>
 
 </html>

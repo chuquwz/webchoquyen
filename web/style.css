@@ -446,18 +446,28 @@ a:focus-visible,
    Daily Health Score Card (Card with Circular Progress Gauge)
    -------------------------------------------------------------------------- */
 .daily-score-card {
-  background-color: var(--bg-app);
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: linear-gradient(135deg, #FAFDFA 0%, #F1F8EC 100%);
   border-radius: var(--radius-card);
   padding: 22px 24px;
-  border: 1px solid var(--border-card);
+  border: 1px solid #DCE9D6;
   box-shadow: var(--shadow-card);
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
+  transition: border-color 0.3s ease-out, box-shadow 0.3s ease-out;
+}
+
+.daily-score-card.is-score-complete {
+  border-color: #B9DCAA;
 }
 
 .daily-score-info {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
 }
@@ -472,7 +482,7 @@ a:focus-visible,
 .score-label {
   font-size: 13px;
   font-weight: 600;
-  color: var(--text-sub);
+  color: #4A5246;
 }
 
 .score-number-row {
@@ -510,17 +520,29 @@ a:focus-visible,
 
 .daily-score-gauge-wrap {
   position: relative;
+  z-index: 2;
   width: 92px;
   height: 92px;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 50%;
+}
+
+.score-gauge-halo {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(164, 219, 122, 0.38) 0%, rgba(164, 219, 122, 0.12) 55%, rgba(164, 219, 122, 0) 72%);
+  pointer-events: none;
+  z-index: 0;
 }
 
 .daily-score-svg {
   position: absolute;
   top: 0;
   left: 0;
+  z-index: 1;
 }
 
 .score-track {
@@ -3593,6 +3615,50 @@ body:not(.is-logged-in) #app-bottom-nav {
   gap: 6px;
 }
 
+.work-debt-items-list[hidden] {
+  display: none;
+}
+
+.btn-debt-items-toggle {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid #C97A2B;
+  background-color: #FFF9F3;
+  color: #9A3412;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.15s ease-out, border-color 0.15s ease-out, transform 0.15s ease-out;
+}
+
+.work-debt-group-card.is-debt-settled .btn-debt-items-toggle {
+  border-color: #5E9447;
+  background-color: #F1F8EC;
+  color: #1E4611;
+}
+
+.debt-toggle-chevron {
+  flex-shrink: 0;
+}
+
+.btn-debt-items-toggle.is-expanded .debt-toggle-chevron {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .debt-toggle-chevron {
+    transition: transform 0.15s ease-out;
+  }
+}
+
 .work-debt-group-card.is-debt-settled {
   background-color: #F8FCF6;
   border-color: #B9DCAA;
@@ -4716,21 +4782,170 @@ body:not(.is-logged-in) #app-bottom-nav {
   left: 26px;
 }
 
+/* Nền Tuân thủ hôm nay: ánh sáng sinh khí + sóng xanh sage + nhịp tim ECG + hạt ánh sáng */
+.score-wave-level {
+  height: calc(var(--score-level, 28%) + 14px);
+}
+
+.water-wave-layer.score-wave-back {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 140' preserveAspectRatio='none'%3E%3Cpath d='M0,10 Q30,1 60,10 T120,10 L120,140 L0,140 Z' fill='%23BCE7A0' fill-opacity='0.34'/%3E%3C/svg%3E");
+}
+
+.water-wave-layer.score-wave-front {
+  top: 3px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 140' preserveAspectRatio='none'%3E%3Cpath d='M0,12 Q30,3 60,12 T120,12 L120,140 L0,140 Z' fill='%2384CC5C' fill-opacity='0.20'/%3E%3C/svg%3E");
+}
+
+.score-aurora-orb {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.score-aurora-orb.orb-1 {
+  width: 150px;
+  height: 150px;
+  right: -28px;
+  top: -46px;
+  background: radial-gradient(circle, rgba(164, 219, 122, 0.36) 0%, rgba(164, 219, 122, 0) 70%);
+}
+
+.score-aurora-orb.orb-2 {
+  width: 120px;
+  height: 120px;
+  left: 34%;
+  bottom: -48px;
+  background: radial-gradient(circle, rgba(116, 198, 157, 0.24) 0%, rgba(116, 198, 157, 0) 72%);
+}
+
+.score-ecg-svg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 10px;
+  width: 100%;
+  height: 54px;
+  z-index: 2;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.score-ecg-base {
+  opacity: 0.28;
+}
+
+.score-ecg-pulse {
+  stroke-dasharray: 95 380;
+  stroke-dashoffset: 95;
+  opacity: 0.72;
+}
+
+.score-float-dot {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(94, 148, 71, 0.26);
+  border: 1px solid rgba(94, 148, 71, 0.32);
+  z-index: 2;
+}
+
+.score-float-dot.dot-1 {
+  width: 7px;
+  height: 7px;
+  right: 122px;
+  bottom: 24px;
+}
+
+.score-float-dot.dot-2 {
+  width: 5px;
+  height: 5px;
+  right: 146px;
+  bottom: 16px;
+}
+
+.score-float-dot.dot-3 {
+  width: 6px;
+  height: 6px;
+  right: 112px;
+  top: 24px;
+}
+
+.score-sparkle {
+  position: absolute;
+  z-index: 2;
+  opacity: 0.28;
+}
+
+.score-sparkle.sparkle-1 {
+  right: 114px;
+  top: 16px;
+}
+
+.score-sparkle.sparkle-2 {
+  right: 18px;
+  top: 14px;
+}
+
+.daily-score-card.is-score-complete .score-sparkle {
+  opacity: 0.45;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .theme-wave-level {
     animation: waterBobUpDown 3.6s ease-in-out infinite;
   }
 
+  .water-wave-layer.score-wave-back,
   .water-wave-layer.weight-wave-back,
   .water-wave-layer.med-wave-back,
   .water-wave-layer.meals-wave-back {
     animation: waterWaveFlow 6.2s linear infinite reverse;
   }
 
+  .water-wave-layer.score-wave-front,
   .water-wave-layer.weight-wave-front,
   .water-wave-layer.med-wave-front,
   .water-wave-layer.meals-wave-front {
     animation: waterWaveFlow 4.2s linear infinite;
+  }
+
+  .score-aurora-orb.orb-1 {
+    animation: scoreAuroraDrift 7.2s ease-in-out infinite;
+  }
+
+  .score-aurora-orb.orb-2 {
+    animation: scoreAuroraDrift 8.6s ease-in-out 1.8s infinite reverse;
+  }
+
+  .score-ecg-pulse {
+    animation: scoreEcgTrace 3.6s linear infinite;
+  }
+
+  .score-gauge-halo {
+    animation: scoreGaugeHaloPulse 3.2s ease-in-out infinite;
+  }
+
+  .score-gauge-center-icon {
+    animation: scoreHeartBeat 2.8s ease-in-out infinite;
+  }
+
+  .score-float-dot.dot-1 {
+    animation: medBubbleRise 4.2s ease-out infinite;
+  }
+
+  .score-float-dot.dot-2 {
+    animation: medBubbleRise 5.0s ease-out 1.4s infinite;
+  }
+
+  .score-float-dot.dot-3 {
+    animation: medBubbleRise 4.6s ease-out 2.5s infinite;
+  }
+
+  .score-sparkle.sparkle-1 {
+    animation: themeSparklePulse 2.8s ease-in-out infinite;
+  }
+
+  .score-sparkle.sparkle-2 {
+    animation: themeSparklePulse 2.8s ease-in-out 1.4s infinite;
   }
 
   .weight-scale-ruler {
@@ -4912,6 +5127,65 @@ body:not(.is-logged-in) #app-bottom-nav {
   100% {
     transform: translate3d(-1px, -18px, 0);
     opacity: 0;
+  }
+}
+
+@keyframes scoreAuroraDrift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.72;
+  }
+
+  50% {
+    transform: translate3d(-12px, 8px, 0) scale(1.1);
+    opacity: 1;
+  }
+}
+
+@keyframes scoreEcgTrace {
+  0% {
+    stroke-dashoffset: 95;
+  }
+
+  100% {
+    stroke-dashoffset: -380;
+  }
+}
+
+@keyframes scoreGaugeHaloPulse {
+  0%,
+  100% {
+    transform: scale(0.95);
+    opacity: 0.65;
+  }
+
+  50% {
+    transform: scale(1.06);
+    opacity: 1;
+  }
+}
+
+@keyframes scoreHeartBeat {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  18% {
+    transform: scale(1.09);
+  }
+
+  32% {
+    transform: scale(0.98);
+  }
+
+  46% {
+    transform: scale(1.05);
+  }
+
+  65% {
+    transform: scale(1);
   }
 }
 
@@ -5814,6 +6088,14 @@ body:not(.is-logged-in) #app-bottom-nav {
     background-color: #EDF7E7;
     border-color: #3F8028;
   }
+
+  .btn-debt-items-toggle:hover {
+    background-color: #FFF1E4;
+  }
+
+  .work-debt-group-card.is-debt-settled .btn-debt-items-toggle:hover {
+    background-color: #E4F2DA;
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -5822,7 +6104,8 @@ body:not(.is-logged-in) #app-bottom-nav {
   .btn-search-reset:not(:disabled):active,
   .btn-work-cal-nav:not(:disabled):active,
   .work-cal-day-btn:not(:disabled):active,
-  .btn-work-cal-toggle:not(:disabled):active {
+  .btn-work-cal-toggle:not(:disabled):active,
+  .btn-debt-items-toggle:not(:disabled):active {
     transform: scale(0.96);
   }
 }

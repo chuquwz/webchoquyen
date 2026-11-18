@@ -1314,8 +1314,8 @@
 
       if (badgeEl) {
         let badgeText = 'Mới bắt đầu';
-        let dotColor = '#8A9185';
-        let textColor = '#6E756B';
+        let dotColor = '#687363';
+        let textColor = '#545D50';
 
         if (score >= 90) {
           badgeText = 'Xuất sắc';
@@ -1327,8 +1327,8 @@
           textColor = '#3D6E26';
         } else if (score >= 40) {
           badgeText = 'Khá';
-          dotColor = '#65A30D';
-          textColor = '#4D7C0F';
+          dotColor = '#4D7C0F';
+          textColor = '#3F6B0B';
         } else if (score > 0) {
           badgeText = 'Đang cải thiện';
           dotColor = '#D97706';
@@ -1338,6 +1338,16 @@
         badgeEl.textContent = badgeText;
         if (statusRowEl) statusRowEl.style.color = textColor;
         if (statusDotEl) statusDotEl.style.backgroundColor = dotColor;
+      }
+
+      const scoreCardEl = document.getElementById('daily-score-card');
+      if (scoreCardEl) {
+        scoreCardEl.classList.toggle('is-score-complete', score >= 90);
+      }
+      const scoreWaveEl = document.getElementById('summary-score-theme-level');
+      if (scoreWaveEl) {
+        const scorePct = Math.round(28 + (score / 100) * 62);
+        scoreWaveEl.style.setProperty('--score-level', `${scorePct}%`);
       }
 
       // Vẽ vòng Gauge SVG (Chu vi r=40 là 251.2)
@@ -2761,6 +2771,7 @@
       unpaidGroups: [],
       debtGroups: [],
       debtFilter: 'all',
+      debtExpandedKeys: {},
       debtSearchQuery: '',
       debtTimeMode: 'all', // 'all' | 'day' | 'month' | 'range'
       debtTimeDate: '',
@@ -5098,9 +5109,10 @@
         return;
       }
 
-      listEl.innerHTML = filteredGroups.map(g => {
+      listEl.innerHTML = filteredGroups.map((g, groupIdx) => {
         const safeCust = escapeHTML(g.customer);
         const encCust = encodeURIComponent(g.customer || '');
+        const custKey = (g.customer || '').trim().toLowerCase();
         const groupUnpaidAmt = Math.max(0, Number(g.total_amount) || 0);
         const groupOrigAmt = Math.max(0, Number(g.original_amount) || groupUnpaidAmt);
         const groupPaidAmt = Math.max(0, Number(g.paid_amount) || 0);
@@ -5157,6 +5169,14 @@
       `;
         }).join('');
 
+        const visibleCount = g._visibleJobs.length;
+        const canToggle = visibleCount >= 2;
+        const isExpanded = !canToggle || Boolean(workState.debtExpandedKeys && workState.debtExpandedKeys[custKey]);
+        const itemsListId = `debt-group-items-${groupIdx}`;
+        const toggleBtnHtml = canToggle
+          ? `<button type="button" class="btn-debt-items-toggle${isExpanded ? ' is-expanded' : ''}" data-count="${visibleCount}" aria-expanded="${isExpanded ? 'true' : 'false'}" aria-controls="${itemsListId}" aria-label="${isExpanded ? `Ẩn chi tiết ${visibleCount} đơn của ${safeCust}` : `Hiện chi tiết ${visibleCount} đơn của ${safeCust}`}" onclick="toggleDebtGroupItems('${encCust}', '${itemsListId}', this)"><span class="debt-toggle-label">${isExpanded ? `Ẩn chi tiết (${visibleCount} đơn)` : `Hiện chi tiết (${visibleCount} đơn)`}</span><svg class="debt-toggle-chevron" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg></button>`
+          : '';
+
         return `
         <div class="work-debt-group-card${groupSettled ? ' is-debt-settled' : ''}">
           <div class="work-debt-group-header">
@@ -5171,7 +5191,8 @@
                 : (groupPaidAmt > 0 ? `<span class="work-borrow-orig-sub">Gốc ${formatShortK(groupOrigAmt)}</span>` : '')}
             </div>
           </div>
-          <div class="work-debt-items-list">${itemsHtml}</div>
+          ${toggleBtnHtml}
+          <div id="${itemsListId}" class="work-debt-items-list"${isExpanded ? '' : ' hidden'}>${itemsHtml}</div>
           <div class="work-debt-group-actions${groupSettled ? ' is-single' : ''}">
             <button type="button" class="btn-debt-copy" onclick="copyCustomerDebtText('${encCust}')">${workIconSVG('copy', 14)} <span>${groupSettled ? 'Copy lịch sử trả' : 'Copy báo nợ'}</span></button>
             ${groupSettled ? '' : `<button type="button" class="btn-debt-payall" onclick="payAllCustomerDebt('${encCust}')">${workIconSVG('check', 14)} <span>${isPartialView ? `Thu hết sổ (${formatShortK(groupUnpaidAmt)})` : `Đã thu hết (${formatShortK(groupUnpaidAmt)})`}</span></button>`}
@@ -5180,6 +5201,40 @@
       `;
       }).join('');
     }
+
+    window.toggleDebtGroupItems = function (encCust, itemsListId, btnEl) {
+      let decoded = String(encCust || '');
+      try { decoded = decodeURIComponent(decoded); } catch (_) { }
+      const custKey = decoded.trim().toLowerCase();
+      if (!workState.debtExpandedKeys || typeof workState.debtExpandedKeys !== 'object') {
+        workState.debtExpandedKeys = {};
+      }
+      const nextExpanded = !Boolean(workState.debtExpandedKeys[custKey]);
+      if (nextExpanded) {
+        workState.debtExpandedKeys[custKey] = true;
+      } else {
+        delete workState.debtExpandedKeys[custKey];
+      }
+
+      const listEl = itemsListId ? document.getElementById(itemsListId) : null;
+      if (listEl) listEl.hidden = !nextExpanded;
+      if (btnEl) {
+        const count = Number(btnEl.getAttribute('data-count')) || (listEl ? listEl.children.length : 0);
+        btnEl.classList.toggle('is-expanded', nextExpanded);
+        btnEl.setAttribute('aria-expanded', nextExpanded ? 'true' : 'false');
+        const custName = decoded.trim();
+        btnEl.setAttribute(
+          'aria-label',
+          nextExpanded
+            ? `Ẩn chi tiết ${count} đơn của ${custName}`
+            : `Hiện chi tiết ${count} đơn của ${custName}`
+        );
+        const lblEl = btnEl.querySelector('.debt-toggle-label');
+        if (lblEl) {
+          lblEl.textContent = nextExpanded ? `Ẩn chi tiết (${count} đơn)` : `Hiện chi tiết (${count} đơn)`;
+        }
+      }
+    };
 
     window.copyCustomerDebtText = async function (custEncOrIdx) {
       const g = findDebtGroupByKeyOrIdx(custEncOrIdx);
