@@ -2739,9 +2739,11 @@
     // =========================================================================
     // 6. SỔ CÔNG VIỆC CỦA QUYỀN (THAY THẾ BẢNG EXCEL TRÊN ĐIỆN THOẠI)
     // =========================================================================
+    let workLoadSeq = 0;
     let workState = {
       date: '',
       month: '',
+      calendarMonth: '',
       today: '',
       heroScope: 'day', // 'day' | 'month'
       ledgerScope: 'day', // 'day' | 'month'
@@ -3460,10 +3462,12 @@
       } catch (e) { }
     }
 
-    function computeWorkFromLocalVault(targetDate) {
+    function computeWorkFromLocalVault(targetDate, targetMonth) {
       const v = readFinanceVaultSync();
       const date = targetDate || workState.date || state.today || new Date().toISOString().slice(0, 10);
-      const month = date.slice(0, 7);
+      const month = (targetMonth && /^\d{4}-\d{2}$/.test(targetMonth))
+        ? targetMonth
+        : date.slice(0, 7);
       const allJobs = v.jobs || [];
       const allLedger = v.ledger || [];
 
@@ -3645,6 +3649,7 @@
 
       workState.date = date;
       workState.month = month;
+      workState.calendarMonth = month;
       workState.today = state.today || date;
       workState.jobs = dayJobs.map(j => {
         const dt = getDebtJobTotals(j);
@@ -3865,11 +3870,17 @@
     };
 
     async function loadWorkData(targetDate, opts = {}) {
+      const reqSeq = ++workLoadSeq;
       await hydrateSyncQueueFromIDB();
       await hydrateVaultFromIDB();
       await flushPendingSyncQueues({ silent: true });
+      if (reqSeq !== workLoadSeq) return;
       const dateParam = targetDate || workState.date || state.today || '';
-      const monthParam = dateParam ? dateParam.slice(0, 7) : '';
+      const explicitMonth = opts && typeof opts.month === 'string' && /^\d{4}-\d{2}$/.test(opts.month)
+        ? opts.month
+        : '';
+      const monthParam = explicitMonth
+        || (targetDate ? targetDate.slice(0, 7) : (workState.calendarMonth || (dateParam ? dateParam.slice(0, 7) : '')));
       const qs = dateParam ? `?date=${encodeURIComponent(dateParam)}&month=${encodeURIComponent(monthParam)}` : '';
       try {
         let data = await api('/api/work' + qs, { silent: Boolean(opts.silent) });
@@ -3912,8 +3923,11 @@
           tombstones: Array.isArray(data.tombstones) ? data.tombstones : (localVault.tombstones || [])
         });
 
+        if (reqSeq !== workLoadSeq) return;
+
         workState.date = data.date || state.today;
         workState.month = data.month || workState.date.slice(0, 7);
+        workState.calendarMonth = workState.month;
         workState.today = data.today || state.today;
         workState.jobs = data.jobs || [];
         workState.ledger = data.ledger || [];
@@ -3930,19 +3944,21 @@
 
         renderWorkScreen();
       } catch (e) {
+        if (reqSeq !== workLoadSeq) return;
         // Nếu server đang khởi động lại trong lúc Redeploy, hiển thị trực tiếp từ bộ nhớ máy cá nhân
-        computeWorkFromLocalVault(dateParam);
+        computeWorkFromLocalVault(dateParam, monthParam);
       }
     }
 
     function renderWorkScreen() {
-      // 1. Date bar
-      const dateInput = document.getElementById('work-date-input');
-      if (dateInput) dateInput.value = workState.date;
-
+      // 1. Nút quay về hôm nay trên bảng lịch
       const todayBtn = document.getElementById('btn-work-today');
       if (todayBtn) {
-        todayBtn.style.opacity = workState.date === workState.today ? '0.55' : '1';
+        const calMonth = workState.calendarMonth || workState.month || '';
+        const todayMonth = (workState.today || '').slice(0, 7);
+        const isAtToday = Boolean(workState.today && workState.date === workState.today && calMonth === todayMonth);
+        todayBtn.classList.toggle('is-at-today', isAtToday);
+        todayBtn.setAttribute('aria-label', isAtToday ? 'Hôm nay — đang xem ngày hiện tại' : 'Hôm nay — chuyển về ngày hiện tại');
       }
 
       // 2. Summary Hero Card (Hỗ trợ chuyển nhanh Theo ngày / Cả tháng)
@@ -3986,8 +4002,8 @@
       setTxt('work-badge-unpaid-all', String(workState.totalUnpaidJobs || 0));
 
       renderWorkSuggestions();
+      renderWorkCalendar();
       renderWorkJobsList();
-      renderWorkMonthDays();
       renderWorkUnpaidGroups();
       renderLedgerScreen();
     }
@@ -4005,15 +4021,27 @@
     window.stepWorkDate = function (delta) {
       const base = workState.date || state.today;
       const nextDate = shiftDateStr(base, delta);
-      loadWorkData(nextDate);
+      workState.calendarMonth = nextDate.slice(0, 7);
+      loadWorkData(nextDate, { month: workState.calendarMonth });
     };
 
     window.onWorkDateChange = function (val) {
-      if (val) loadWorkData(val);
+      if (!val) return;
+      workState.calendarMonth = val.slice(0, 7);
+      loadWorkData(val, { month: workState.calendarMonth });
     };
 
     window.jumpWorkToday = function () {
-      loadWorkData(workState.today || state.today);
+      const today = workState.today || state.today;
+      if (!today) return;
+      const todayMonth = today.slice(0, 7);
+      workState.heroScope = 'day';
+      workState.calendarMonth = todayMonth;
+      if (state.activeTab === 'work' && workState.subTab !== 'jobs') {
+        switchWorkSubTab('jobs');
+      }
+      syncAndRenderWorkTarget(today, todayMonth);
+      announceWorkCalendarDay(today);
     };
 
     window.switchWorkSubTab = function (sub) {
@@ -4178,7 +4206,8 @@
         document.querySelectorAll('#work-job-form .btn-price-chip').forEach(b => b.classList.remove('active'));
         closeModal('modal-add-work-job');
         showToast(`Đã lưu đơn ${customer} (${formatShortK(price)} - ${status})`);
-        await loadWorkData(workState.date);
+        workState.calendarMonth = jobDate.slice(0, 7);
+        await loadWorkData(jobDate, { month: workState.calendarMonth });
       } catch (err) {
         if (!isQueueableSyncError(err)) return;
         const v = readFinanceVaultSync();
@@ -4207,15 +4236,27 @@
         document.querySelectorAll('#work-job-form .btn-price-chip').forEach(b => b.classList.remove('active'));
         closeModal('modal-add-work-job');
         showToast(`Đã lưu đơn ${customer} vào máy này (sẽ tự đồng bộ lên Cloud)`);
-        computeWorkFromLocalVault(jobDate);
+        workState.calendarMonth = jobDate.slice(0, 7);
+        computeWorkFromLocalVault(jobDate, workState.calendarMonth);
       }
     };
 
     function renderWorkJobsList() {
       const container = document.getElementById('work-jobs-list');
-      if (!container) return;
-
+      const titleEl = document.getElementById('work-day-jobs-title');
+      const subEl = document.getElementById('work-day-jobs-sub');
       const jobs = workState.jobs || [];
+      const dm = formatDayMonth(workState.date);
+
+      if (titleEl) {
+        titleEl.textContent = workState.date === workState.today
+          ? 'Danh sách đơn hôm nay'
+          : (dm ? `Danh sách đơn ngày ${dm}` : 'Danh sách đơn trong ngày');
+      }
+      if (subEl) {
+        subEl.textContent = `${jobs.length} đơn`;
+      }
+      if (!container) return;
 
       if (jobs.length === 0) {
         container.innerHTML = `<div class="empty-state-box">Chưa có đơn dịch vụ nào trong ngày ${formatVNDate(workState.date)}.</div>`;
@@ -4385,35 +4426,193 @@
       }
     };
 
-    function renderWorkMonthDays() {
-      const container = document.getElementById('work-month-days-list');
-      if (!container) return;
-      const days = workState.recentDays || [];
-      if (days.length === 0) {
-        container.innerHTML = `<div class="empty-state-box">Chưa có dữ liệu ngày làm việc nào trong tháng này.</div>`;
+    function shiftMonthStr(monthStr, deltaMonths) {
+      const base = /^\d{4}-\d{2}$/.test(monthStr || '')
+        ? monthStr
+        : (workState.date || workState.today || state.today || new Date().toISOString().slice(0, 10)).slice(0, 7);
+      const parts = base.split('-').map(Number);
+      const dt = new Date(Date.UTC(parts[0], parts[1] - 1 + deltaMonths, 1));
+      return dt.toISOString().slice(0, 7);
+    }
+
+    function getWorkCalendarWeekdayName(dateStr) {
+      const parts = String(dateStr || '').split('-').map(Number);
+      if (parts.length !== 3) return '';
+      const dt = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+      const names = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+      return names[dt.getUTCDay()] || '';
+    }
+
+    function buildWorkOrderDaysMap(monthStr) {
+      const map = {};
+      (workState.recentDays || []).forEach(d => {
+        if (!d || !d.date || !d.date.startsWith(monthStr + '-')) return;
+        if (Number(d.job_count) > 0) {
+          map[d.date] = d;
+        }
+      });
+      return map;
+    }
+
+    function announceWorkCalendarDay(dateStr) {
+      const liveEl = document.getElementById('work-cal-live');
+      if (!liveEl || !dateStr) return;
+      const monthStr = dateStr.slice(0, 7);
+      const orderMap = buildWorkOrderDaysMap(monthStr);
+      const brief = orderMap[dateStr];
+      const vnDate = formatVNDate(dateStr);
+      if (brief && Number(brief.job_count) > 0) {
+        liveEl.textContent = `Đang xem ngày ${vnDate}, ${brief.job_count} đơn, doanh thu ${formatVND(brief.total_revenue || 0)}.`;
+      } else {
+        liveEl.textContent = `Đang xem ngày ${vnDate}, chưa có đơn.`;
+      }
+    }
+
+    function syncAndRenderWorkTarget(targetDate, targetMonth) {
+      const v = readFinanceVaultSync();
+      if ((v.jobs && v.jobs.length > 0) || (v.ledger && v.ledger.length > 0)) {
+        computeWorkFromLocalVault(targetDate, targetMonth);
+        loadWorkData(targetDate, { month: targetMonth, silent: true });
+      } else {
+        workState.date = targetDate;
+        workState.month = targetMonth;
+        renderWorkCalendar();
+        loadWorkData(targetDate, { month: targetMonth });
+      }
+    }
+
+    window.stepWorkCalendarMonth = function (deltaMonths) {
+      const curMonth = workState.calendarMonth || workState.month || (workState.date || workState.today || state.today || '').slice(0, 7);
+      const nextMonth = shiftMonthStr(curMonth, deltaMonths);
+      workState.calendarMonth = nextMonth;
+      const targetDate = workState.date || workState.today || state.today || '';
+      syncAndRenderWorkTarget(targetDate, nextMonth);
+    };
+
+    window.selectWorkCalendarDay = function (dateStr) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr || '')) return;
+      const targetMonth = dateStr.slice(0, 7);
+      workState.heroScope = 'day';
+      workState.calendarMonth = targetMonth;
+      if (workState.subTab !== 'jobs') {
+        switchWorkSubTab('jobs');
+      }
+      syncAndRenderWorkTarget(dateStr, targetMonth);
+      announceWorkCalendarDay(dateStr);
+    };
+
+    window.onWorkCalGridKeydown = function (e) {
+      const grid = document.getElementById('work-cal-grid');
+      if (!grid) return;
+      const buttons = Array.from(grid.querySelectorAll('.work-cal-day-btn'));
+      if (buttons.length === 0) return;
+      const idx = buttons.indexOf(document.activeElement);
+      if (idx === -1) return;
+
+      const deltaMap = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: 7, ArrowUp: -7 };
+      let nextIdx = -1;
+      let deltaDays = 0;
+      if (e.key in deltaMap) {
+        deltaDays = deltaMap[e.key];
+        nextIdx = idx + deltaDays;
+      } else if (e.key === 'Home') {
+        nextIdx = 0;
+      } else if (e.key === 'End') {
+        nextIdx = buttons.length - 1;
+      } else {
         return;
       }
 
-      container.innerHTML = days.map(d => {
-        const isSelected = d.date === workState.date;
-        const netDay = (d.paid_amount || 0) - (d.expense_amount || 0);
-        return `
-        <button type="button" class="work-day-brief-row font-tabular" style="${isSelected ? 'border-color: #6CA844; background-color: #F2F9EE;' : ''}" onclick="loadWorkData('${d.date}')">
-          <div>
-            <strong style="font-size: 13.5px; color: var(--text-main);">Ngày ${formatDayMonth(d.date)}</strong>
-            <div style="font-size: 11.5px; color: var(--text-sub); margin-top: 2px;">
-              ${d.job_count} đơn &bull; Đã thu ${formatShortK(d.paid_amount)}
-              ${d.unpaid_amount > 0 ? ` &bull; <span style="color:#B45309;font-weight:700;">Nợ ${formatShortK(d.unpaid_amount)}</span>` : ''}
-              ${d.expense_amount > 0 ? ` &bull; Chi ${formatShortK(d.expense_amount)}` : ''}
-            </div>
-          </div>
-          <div style="text-align: right;">
-            <span style="font-size: 14.5px; font-weight: 800; color: #1E3B13;">${formatShortK(d.total_revenue)}</span>
-            <div style="font-size: 10.5px; font-weight: 700; color: var(--text-muted); margin-top: 1px;">Còn ${formatShortK(netDay)}</div>
-          </div>
-        </button>
-      `;
-      }).join('');
+      e.preventDefault();
+      if (nextIdx >= 0 && nextIdx < buttons.length) {
+        buttons[nextIdx].focus();
+        return;
+      }
+
+      const curDate = buttons[idx].getAttribute('data-date');
+      const targetDate = curDate ? shiftDateStr(curDate, deltaDays) : '';
+      if (!targetDate) return;
+      workState.calendarMonth = targetDate.slice(0, 7);
+      syncAndRenderWorkTarget(workState.date || workState.today || state.today || '', workState.calendarMonth);
+      const targetBtn = grid.querySelector(`[data-date="${targetDate}"]`);
+      if (targetBtn) targetBtn.focus();
+    };
+
+    function renderWorkCalendar() {
+      const grid = document.getElementById('work-cal-grid');
+      const titleEl = document.getElementById('work-cal-month-title');
+      const statsEl = document.getElementById('work-cal-month-stats');
+      if (!grid) return;
+
+      const activeFocusDate = (document.activeElement && grid.contains(document.activeElement))
+        ? document.activeElement.getAttribute('data-date')
+        : null;
+
+      const fallbackDate = workState.date || workState.today || state.today || new Date().toISOString().slice(0, 10);
+      const calMonth = /^\d{4}-\d{2}$/.test(workState.calendarMonth || '')
+        ? workState.calendarMonth
+        : (/^\d{4}-\d{2}$/.test(workState.month || '') ? workState.month : fallbackDate.slice(0, 7));
+
+      if (titleEl) {
+        titleEl.textContent = formatMonthHumanLabel(calMonth);
+      }
+
+      const [year, monthNum] = calMonth.split('-').map(Number);
+      const firstOfMonth = new Date(Date.UTC(year, monthNum - 1, 1));
+      const daysInMonth = new Date(Date.UTC(year, monthNum, 0)).getUTCDate();
+      // Thứ Hai là cột đầu tiên (T2=0 .. CN=6)
+      const leadingDays = (firstOfMonth.getUTCDay() + 6) % 7;
+      const totalCells = Math.ceil((leadingDays + daysInMonth) / 7) * 7;
+
+      const orderDaysMap = buildWorkOrderDaysMap(calMonth);
+      const activeOrderDaysCount = Object.keys(orderDaysMap).length;
+      if (statsEl) {
+        statsEl.textContent = `${activeOrderDaysCount} ngày có đơn`;
+      }
+
+      const todayStr = workState.today || state.today || '';
+      const selectedStr = workState.date || '';
+
+      const cells = [];
+      for (let i = 0; i < totalCells; i++) {
+        const dt = new Date(Date.UTC(year, monthNum - 1, 1 - leadingDays + i));
+        const cellDate = dt.toISOString().slice(0, 10);
+        const cellMonth = cellDate.slice(0, 7);
+        const dayNum = dt.getUTCDate();
+        const isCurrentMonth = cellMonth === calMonth;
+        const isSelected = cellDate === selectedStr;
+        const isToday = isCurrentMonth && cellDate === todayStr;
+        const brief = isCurrentMonth ? orderDaysMap[cellDate] : null;
+        const hasOrders = Boolean(brief && Number(brief.job_count) > 0);
+
+        const weekdayName = getWorkCalendarWeekdayName(cellDate);
+        const ariaParts = [`${dayNum}, ${weekdayName} ${formatVNDate(cellDate)}`];
+        if (isToday) ariaParts.push('hôm nay');
+        if (hasOrders) {
+          ariaParts.push(`có ${brief.job_count} đơn, doanh thu ${formatVND(brief.total_revenue || 0)}`);
+        } else if (isCurrentMonth) {
+          ariaParts.push('chưa có đơn');
+        }
+        if (isSelected) ariaParts.push('đang xem');
+
+        const classes = ['work-cal-day-btn'];
+        if (!isCurrentMonth) classes.push('is-outside');
+        if (isSelected) classes.push('is-selected');
+        if (isToday) classes.push('is-today');
+        if (hasOrders) classes.push('has-orders');
+
+        cells.push(
+          `<button type="button" class="${classes.join(' ')}" data-date="${cellDate}" aria-label="${escapeHTML(ariaParts.join(', '))}" aria-pressed="${isSelected ? 'true' : 'false'}"${isToday ? ' aria-current="date"' : ''} onclick="selectWorkCalendarDay('${cellDate}')"><span class="work-cal-day-circle">${dayNum}</span></button>`
+        );
+      }
+
+      grid.innerHTML = cells.join('');
+
+      if (activeFocusDate) {
+        const restoreBtn = grid.querySelector(`[data-date="${activeFocusDate}"]`)
+          || grid.querySelector(`[data-date="${selectedStr}"]`);
+        if (restoreBtn) restoreBtn.focus({ preventScroll: true });
+      }
     }
 
     window.setDebtListFilter = function (filter) {

@@ -2350,17 +2350,252 @@ body:not(.is-logged-in) #app-bottom-nav {
   border-radius: 12px;
   background-color: var(--color-pill-green);
   color: var(--color-pill-text);
-  border: none;
+  border: 1px solid transparent;
   font-family: inherit;
   font-size: 12px;
   font-weight: 800;
   flex-shrink: 0;
   cursor: pointer;
-  transition: transform 0.15s ease-out, opacity 0.15s ease-out;
+  transition: transform 0.15s ease-out, background-color 0.15s ease-out, border-color 0.15s ease-out, color 0.15s ease-out;
 }
 
-.btn-work-today-chip:not(:disabled):active {
-  transform: scale(0.96);
+.btn-work-today-chip.is-at-today {
+  background-color: #EDF7E7;
+  border-color: #C5DFB9;
+  color: #254516;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .btn-work-today-chip:not(:disabled):active {
+    transform: scale(0.96);
+  }
+}
+
+/* Merged Monthly Calendar Card (Sổ công việc) */
+.work-calendar-card {
+  background-color: #FFFFFF;
+  border: 1.5px solid #DFEAE0;
+  border-radius: 26px;
+  padding: 14px 14px 12px;
+  box-shadow: var(--shadow-card);
+  margin-bottom: 14px;
+}
+
+.work-cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.work-cal-nav-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.btn-work-cal-nav {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background-color: #F7FAF5;
+  border: 1px solid #DCE7D8;
+  color: var(--text-main);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.15s ease-out, border-color 0.15s ease-out, transform 0.15s ease-out;
+}
+
+.work-cal-month-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  white-space: nowrap;
+  padding: 0 4px;
+  min-width: 0;
+}
+
+.work-calendar-card .btn-work-today-chip {
+  min-height: 44px;
+  padding: 8px 13px;
+}
+
+.work-cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+  margin-bottom: 4px;
+}
+
+.work-cal-weekdays span {
+  text-align: center;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #545D50;
+  line-height: 1.4;
+  padding: 2px 0;
+}
+
+.work-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.work-cal-day-btn {
+  width: 100%;
+  min-height: 44px;
+  padding: 2px;
+  border-radius: 12px;
+  border: 1.5px solid transparent;
+  background-color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  font-family: inherit;
+  color: var(--text-main);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.15s ease-out, border-color 0.15s ease-out, box-shadow 0.15s ease-out, transform 0.15s ease-out;
+}
+
+.work-cal-day-btn.is-outside {
+  color: #6E756B;
+}
+
+.work-cal-day-btn.is-selected {
+  background-color: #EEF7E8;
+  border-color: #1E3B13;
+  box-shadow: 0 1px 4px rgba(30, 59, 19, 0.10);
+}
+
+.work-cal-day-circle {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1;
+  border: 2px solid transparent;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+.work-cal-day-btn.is-outside .work-cal-day-circle {
+  font-weight: 500;
+}
+
+.work-cal-day-btn.is-selected .work-cal-day-circle {
+  font-weight: 800;
+}
+
+/* Ngày phát sinh đơn: vòng xanh */
+.work-cal-day-btn.has-orders:not(.is-today) .work-cal-day-circle {
+  border-color: #3F8028;
+  background-color: #EBF7E3;
+  color: #1A3A0E;
+  font-weight: 800;
+}
+
+/* Hôm nay (không có đơn): khoanh đỏ mận */
+.work-cal-day-btn.is-today:not(.has-orders) .work-cal-day-circle {
+  width: 30px;
+  height: 30px;
+  background-color: #8B263B;
+  border-color: #8B263B;
+  color: #FFFFFF;
+  font-weight: 800;
+}
+
+/* Hôm nay vừa có đơn: khoanh đỏ mận bên trong + vòng xanh bao ngoài */
+.work-cal-day-btn.is-today.has-orders .work-cal-day-circle {
+  width: 25px;
+  height: 25px;
+  background-color: #8B263B;
+  border: none;
+  color: #FFFFFF;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.work-cal-day-btn.is-today.has-orders .work-cal-day-circle::after {
+  content: "";
+  position: absolute;
+  width: 33px;
+  height: 33px;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border: 2px solid #3F8028;
+  border-radius: 9999px;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+.work-cal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid #EEF3EC;
+}
+
+.work-cal-legend {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.work-cal-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #4A5246;
+}
+
+.work-cal-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  display: inline-block;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.work-cal-swatch.is-order {
+  border: 2px solid #3F8028;
+  background-color: #EBF7E3;
+}
+
+.work-cal-swatch.is-today {
+  background-color: #8B263B;
+  border: 1px solid #8B263B;
+}
+
+.work-cal-month-stats {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #254516;
+  white-space: nowrap;
 }
 
 /* Summary Hero Card (Banking App Fixed Structure) */
@@ -5576,17 +5811,82 @@ body:not(.is-logged-in) #app-bottom-nav {
   .btn-search-reset:hover {
     background-color: #E2F0D6;
   }
+
+  .btn-work-cal-nav:hover {
+    background-color: #EEF5EA;
+    border-color: #B7D8A3;
+  }
+
+  .work-cal-day-btn:not(.is-selected):hover {
+    background-color: #F3F7F0;
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
   .work-search-clear:not(:disabled):active,
   .work-time-mode-pill:not(:disabled):active,
-  .btn-search-reset:not(:disabled):active {
+  .btn-search-reset:not(:disabled):active,
+  .btn-work-cal-nav:not(:disabled):active,
+  .work-cal-day-btn:not(:disabled):active {
     transform: scale(0.96);
   }
 }
 
 @media (max-width: 360px) {
+  .work-calendar-card {
+    padding: 12px 8px 10px;
+  }
+
+  .work-cal-header {
+    gap: 4px;
+  }
+
+  .work-cal-nav-group {
+    gap: 4px;
+  }
+
+  .btn-work-cal-nav {
+    width: 40px;
+    height: 44px;
+  }
+
+  .work-cal-month-title {
+    font-size: 13.5px;
+    padding: 0 2px;
+  }
+
+  .work-calendar-card .btn-work-today-chip {
+    padding: 8px 10px;
+    font-size: 11.5px;
+  }
+
+  .work-cal-weekdays,
+  .work-cal-grid {
+    gap: 1px;
+  }
+
+  .work-cal-day-circle {
+    width: 29px;
+    height: 29px;
+    font-size: 12.5px;
+  }
+
+  .work-cal-day-btn.is-today:not(.has-orders) .work-cal-day-circle {
+    width: 28px;
+    height: 28px;
+  }
+
+  .work-cal-day-btn.is-today.has-orders .work-cal-day-circle {
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
+  }
+
+  .work-cal-day-btn.is-today.has-orders .work-cal-day-circle::after {
+    width: 30px;
+    height: 30px;
+  }
+
   .user-greeting-group {
     gap: 9px;
   }

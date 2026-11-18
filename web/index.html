@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=76">
+  <link rel="stylesheet" href="/style.css?v=77">
 </head>
 
 <body>
@@ -606,27 +606,57 @@
             <div style="width: 40px;" aria-hidden="true"></div>
           </div>
 
-          <!-- Thanh điều hướng Ngày làm việc -->
-          <div class="work-date-bar">
-            <button type="button" class="btn-work-date-step" aria-label="Ngày trước đó" onclick="stepWorkDate(-1)">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4"
-                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M15 18l-6-6 6-6" />
-              </svg>
-            </button>
-            <div class="work-date-picker-wrap">
-              <label for="work-date-input" class="sr-only">Chọn ngày làm việc</label>
-              <input type="date" id="work-date-input" class="work-date-input font-tabular"
-                onchange="onWorkDateChange(this.value)">
+          <!-- Bảng Lịch Tháng (Gộp chọn ngày & các ngày phát sinh đơn trong tháng) -->
+          <div id="work-calendar-card" class="work-calendar-card" role="region"
+            aria-label="Lịch công việc và các ngày có đơn trong tháng">
+            <div class="work-cal-header">
+              <div class="work-cal-nav-group">
+                <button type="button" class="btn-work-cal-nav" onclick="stepWorkCalendarMonth(-1)"
+                  aria-label="Tháng trước">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4"
+                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M15 18l-6-6 6-6" />
+                  </svg>
+                </button>
+                <h2 id="work-cal-month-title" class="work-cal-month-title font-tabular">Tháng --/----</h2>
+                <button type="button" class="btn-work-cal-nav" onclick="stepWorkCalendarMonth(1)"
+                  aria-label="Tháng sau">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4"
+                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M9 18l6-6-6-6" />
+                  </svg>
+                </button>
+              </div>
+              <button type="button" id="btn-work-today" class="btn-work-today-chip" onclick="jumpWorkToday()">Hôm
+                nay</button>
             </div>
-            <button type="button" class="btn-work-date-step" aria-label="Ngày tiếp theo" onclick="stepWorkDate(1)">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4"
-                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M9 18l6-6-6-6" />
-              </svg>
-            </button>
-            <button type="button" id="btn-work-today" class="btn-work-today-chip" onclick="jumpWorkToday()">Hôm
-              nay</button>
+
+            <div class="work-cal-weekdays" aria-hidden="true">
+              <span>T2</span>
+              <span>T3</span>
+              <span>T4</span>
+              <span>T5</span>
+              <span>T6</span>
+              <span>T7</span>
+              <span>CN</span>
+            </div>
+
+            <div id="work-cal-grid" class="work-cal-grid font-tabular" onkeydown="onWorkCalGridKeydown(event)"></div>
+
+            <div class="work-cal-footer">
+              <div class="work-cal-legend" aria-hidden="true">
+                <span class="work-cal-legend-item">
+                  <span class="work-cal-swatch is-order"></span>
+                  <span>Có đơn</span>
+                </span>
+                <span class="work-cal-legend-item">
+                  <span class="work-cal-swatch is-today"></span>
+                  <span>Hôm nay</span>
+                </span>
+              </div>
+              <span id="work-cal-month-stats" class="work-cal-month-stats font-tabular">0 ngày có đơn</span>
+            </div>
+            <p id="work-cal-live" class="sr-only" role="status" aria-live="polite"></p>
           </div>
 
           <!-- Thẻ Tổng Kết Ngày & Tháng Tự Động (Bố cục chuẩn App Ngân Hàng - Cố định kết cấu) -->
@@ -713,19 +743,12 @@
                =============================================================== -->
           <div id="work-subpane-jobs" class="work-subpane active">
             <!-- Danh Sách Đơn Dịch Vụ Trong Ngày -->
-            <div class="section-container" style="margin-top: 14px;">
+            <div class="section-container" style="margin-top: 14px; margin-bottom: 24px;">
               <div class="section-title-header">
-                <h2 class="section-heading">Danh sách đơn trong ngày</h2>
+                <h2 id="work-day-jobs-title" class="section-heading">Danh sách đơn trong ngày</h2>
+                <span id="work-day-jobs-sub" class="work-list-sub font-tabular">0 đơn</span>
               </div>
               <div id="work-jobs-list" class="work-items-stack"></div>
-            </div>
-
-            <!-- Lịch Sử Các Ngày Có Làm Việc Trong Tháng -->
-            <div class="section-container" style="margin-top: 22px; margin-bottom: 24px;">
-              <div class="section-title-header">
-                <h2 class="section-heading">Các ngày làm việc trong tháng</h2>
-              </div>
-              <div id="work-month-days-list" class="work-items-stack"></div>
             </div>
           </div>
 
@@ -1764,7 +1787,7 @@
     </div>
   </div>
 
-  <script src="/app.js?v=76"></script>
+  <script src="/app.js?v=77"></script>
 </body>
 
 </html>
