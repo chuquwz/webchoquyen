@@ -1,4 +1,4 @@
-// QuyenHealth - Ultra-fast, minimal Vanilla JS App
+// Quyền Anh - Ultra-fast, minimal Vanilla JS App
 // Styled 100% like the Sage Green Clean Mockup Interface - Thuần Tiếng Việt
 (function () {
   'use strict';
@@ -2745,6 +2745,8 @@
       month: '',
       calendarMonth: '',
       today: '',
+      workCalendarExpanded: false,
+      ledgerCalendarExpanded: false,
       heroScope: 'day', // 'day' | 'month'
       ledgerScope: 'day', // 'day' | 'month'
       subTab: 'jobs', // 'jobs' | 'unpaid'
@@ -3746,7 +3748,7 @@
         const text = await file.text();
         const parsed = JSON.parse(text);
         if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-          throw new Error('File không đúng định dạng JSON của QuyenHealth');
+          throw new Error('File không đúng định dạng JSON của Quyền Anh');
         }
 
         const isFullBackup =
@@ -4667,6 +4669,36 @@
       }
     }
 
+    function syncCalendarCollapseUI(scope) {
+      const isLedger = scope === 'ledger';
+      const expanded = isLedger ? Boolean(workState.ledgerCalendarExpanded) : Boolean(workState.workCalendarExpanded);
+      const cardEl = document.getElementById(isLedger ? 'ledger-calendar-card' : 'work-calendar-card');
+      const bodyEl = document.getElementById(isLedger ? 'ledger-cal-body' : 'work-cal-body');
+      const btnEl = document.getElementById(isLedger ? 'btn-ledger-cal-toggle' : 'btn-work-cal-toggle');
+      if (cardEl) cardEl.classList.toggle('is-collapsed', !expanded);
+      if (bodyEl) bodyEl.hidden = !expanded;
+      if (btnEl) {
+        btnEl.classList.toggle('is-expanded', expanded);
+        btnEl.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        btnEl.setAttribute(
+          'aria-label',
+          expanded ? 'Thu nhỏ — thu gọn bảng lịch tháng' : 'Mở lịch — mở rộng bảng lịch tháng'
+        );
+        const lblEl = btnEl.querySelector('.work-cal-toggle-label');
+        if (lblEl) lblEl.textContent = expanded ? 'Thu nhỏ' : 'Mở lịch';
+      }
+    }
+
+    window.toggleWorkCalendar = function (scope) {
+      const resolved = scope === 'ledger' ? 'ledger' : 'work';
+      if (resolved === 'ledger') {
+        workState.ledgerCalendarExpanded = !workState.ledgerCalendarExpanded;
+      } else {
+        workState.workCalendarExpanded = !workState.workCalendarExpanded;
+      }
+      syncCalendarCollapseUI(resolved);
+    };
+
     function renderWorkCalendar() {
       const calMonth = getResolvedCalendarMonth();
       renderMonthCalendarGrid({
@@ -4680,6 +4712,7 @@
         formatAriaActivity: formatWorkActivityAria,
         emptyAriaLabel: 'chưa có đơn'
       });
+      syncCalendarCollapseUI('work');
     }
 
     function renderLedgerCalendar(timedMonthLedger, calMonthOpt) {
@@ -4695,6 +4728,7 @@
         formatAriaActivity: formatLedgerActivityAria,
         emptyAriaLabel: 'chưa có thu chi'
       });
+      syncCalendarCollapseUI('ledger');
     }
 
     window.setDebtListFilter = function (filter) {

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   QuyenHealth - Exact 100% UI Clone of Mockup Design
+   Quyền Anh - Exact 100% UI Clone of Mockup Design
    Aesthetic: Soft Clean Mint-Green & Leafy Sage Aesthetic
    Palette, Radii, Typography & Signature Navigation Pill
    ========================================================================== */
@@ -2318,12 +2318,80 @@ body:not(.is-logged-in) #app-bottom-nav {
 
 /* Merged Monthly Calendar Card (Sổ công việc & Thu chi cá nhân) */
 .work-calendar-card {
+  position: relative;
   background-color: #FFFFFF;
   border: 1.5px solid #DFEAE0;
   border-radius: 26px;
-  padding: 14px 14px 12px;
+  padding: 14px 14px 24px;
   box-shadow: var(--shadow-card);
-  margin-bottom: 14px;
+  margin-bottom: 28px;
+}
+
+.work-calendar-card.is-collapsed {
+  padding-top: 12px;
+}
+
+.work-calendar-card.is-collapsed .work-cal-header {
+  margin-bottom: 0;
+}
+
+.work-cal-body[hidden] {
+  display: none;
+}
+
+.work-cal-toggle-wrap {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translate(-50%, 50%);
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+}
+
+.btn-work-cal-toggle {
+  position: relative;
+  min-height: 28px;
+  padding: 3px 12px;
+  border-radius: 9999px;
+  background-color: #FFFFFF;
+  border: 1.5px solid #5E9447;
+  color: #1E3B13;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 800;
+  line-height: 1.2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(30, 59, 19, 0.08);
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.15s ease-out, border-color 0.15s ease-out, transform 0.15s ease-out;
+}
+
+.btn-work-cal-toggle::before {
+  content: "";
+  position: absolute;
+  inset: -8px -10px;
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.work-cal-toggle-chevron {
+  flex-shrink: 0;
+}
+
+.btn-work-cal-toggle.is-expanded .work-cal-toggle-chevron {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .work-cal-toggle-chevron {
+    transition: transform 0.15s ease-out;
+  }
 }
 
 .work-cal-header {
@@ -5741,6 +5809,11 @@ body:not(.is-logged-in) #app-bottom-nav {
   .work-cal-day-btn:not(.is-selected):hover {
     background-color: #F3F7F0;
   }
+
+  .btn-work-cal-toggle:hover {
+    background-color: #EDF7E7;
+    border-color: #3F8028;
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -5748,14 +5821,15 @@ body:not(.is-logged-in) #app-bottom-nav {
   .work-time-mode-pill:not(:disabled):active,
   .btn-search-reset:not(:disabled):active,
   .btn-work-cal-nav:not(:disabled):active,
-  .work-cal-day-btn:not(:disabled):active {
+  .work-cal-day-btn:not(:disabled):active,
+  .btn-work-cal-toggle:not(:disabled):active {
     transform: scale(0.96);
   }
 }
 
 @media (max-width: 360px) {
   .work-calendar-card {
-    padding: 12px 8px 10px;
+    padding: 12px 8px 24px;
   }
 
   .work-cal-header {

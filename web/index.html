@@ -4,11 +4,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>QuyenHealth - Theo Dõi Sức Khoẻ</title>
+  <title>Quyền Anh - Sức Khoẻ &amp; Công Việc</title>
   <meta name="theme-color" content="#F5F7F4">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="QuyenHealth">
+  <meta name="apple-mobile-web-app-title" content="Quyền Anh">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/png" href="/icons/icon-192.png?v=31">
   <link rel="apple-touch-icon" href="/icons/icon-192.png?v=31">
@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=78">
+  <link rel="stylesheet" href="/style.css?v=80">
 </head>
 
 <body>
@@ -34,7 +34,7 @@
             <img src="/icons/icon-192.png?v=31" alt="Logo Phùng Văn Quyền" class="app-face-logo">
           </div>
           <h1 class="login-heading">Chào mừng trở lại!</h1>
-          <p class="login-subtext">Ứng dụng theo dõi sức khoẻ cá nhân của Phùng Văn Quyền</p>
+          <p class="login-subtext">Ứng dụng theo dõi sức khoẻ &amp; sổ công việc Quyền Anh</p>
 
           <form id="login-form">
             <div class="login-form-group">
@@ -606,8 +606,8 @@
             <div style="width: 40px;" aria-hidden="true"></div>
           </div>
 
-          <!-- Bảng Lịch Tháng (Gộp chọn ngày & các ngày phát sinh đơn trong tháng) -->
-          <div id="work-calendar-card" class="work-calendar-card" role="region"
+          <!-- Bảng Lịch Tháng (Mặc định thu nhỏ chỉ hiện thanh tháng, bấm nút ở dưới để mở rộng) -->
+          <div id="work-calendar-card" class="work-calendar-card is-collapsed" role="region"
             aria-label="Lịch công việc và các ngày có đơn trong tháng">
             <div class="work-cal-header">
               <div class="work-cal-nav-group">
@@ -631,30 +631,45 @@
                 nay</button>
             </div>
 
-            <div class="work-cal-weekdays" aria-hidden="true">
-              <span>T2</span>
-              <span>T3</span>
-              <span>T4</span>
-              <span>T5</span>
-              <span>T6</span>
-              <span>T7</span>
-              <span>CN</span>
+            <div id="work-cal-body" class="work-cal-body" hidden>
+              <div class="work-cal-weekdays" aria-hidden="true">
+                <span>T2</span>
+                <span>T3</span>
+                <span>T4</span>
+                <span>T5</span>
+                <span>T6</span>
+                <span>T7</span>
+                <span>CN</span>
+              </div>
+
+              <div id="work-cal-grid" class="work-cal-grid font-tabular" onkeydown="onWorkCalGridKeydown(event)"></div>
+
+              <div class="work-cal-footer">
+                <div class="work-cal-legend" aria-hidden="true">
+                  <span class="work-cal-legend-item">
+                    <span class="work-cal-swatch is-order"></span>
+                    <span>Có đơn</span>
+                  </span>
+                  <span class="work-cal-legend-item">
+                    <span class="work-cal-swatch is-today"></span>
+                    <span>Hôm nay</span>
+                  </span>
+                </div>
+                <span id="work-cal-month-stats" class="work-cal-month-stats font-tabular">0 ngày có đơn</span>
+              </div>
             </div>
 
-            <div id="work-cal-grid" class="work-cal-grid font-tabular" onkeydown="onWorkCalGridKeydown(event)"></div>
-
-            <div class="work-cal-footer">
-              <div class="work-cal-legend" aria-hidden="true">
-                <span class="work-cal-legend-item">
-                  <span class="work-cal-swatch is-order"></span>
-                  <span>Có đơn</span>
-                </span>
-                <span class="work-cal-legend-item">
-                  <span class="work-cal-swatch is-today"></span>
-                  <span>Hôm nay</span>
-                </span>
-              </div>
-              <span id="work-cal-month-stats" class="work-cal-month-stats font-tabular">0 ngày có đơn</span>
+            <div class="work-cal-toggle-wrap">
+              <button type="button" id="btn-work-cal-toggle" class="btn-work-cal-toggle" aria-expanded="false"
+                aria-controls="work-cal-body" aria-label="Mở lịch — mở rộng bảng lịch tháng"
+                onclick="toggleWorkCalendar('work')">
+                <span class="work-cal-toggle-label">Mở lịch</span>
+                <svg class="work-cal-toggle-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none"
+                  stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+                  aria-hidden="true">
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </button>
             </div>
             <p id="work-cal-live" class="sr-only" role="status" aria-live="polite"></p>
           </div>
@@ -875,8 +890,8 @@
             <div style="width: 40px;" aria-hidden="true"></div>
           </div>
 
-          <!-- Bảng Lịch Tháng (Gộp chọn ngày & các ngày phát sinh thu chi trong tháng) -->
-          <div id="ledger-calendar-card" class="work-calendar-card" role="region"
+          <!-- Bảng Lịch Tháng (Mặc định thu nhỏ chỉ hiện thanh tháng, bấm nút ở dưới để mở rộng) -->
+          <div id="ledger-calendar-card" class="work-calendar-card is-collapsed" role="region"
             aria-label="Lịch thu chi cá nhân và các ngày có phát sinh trong tháng">
             <div class="work-cal-header">
               <div class="work-cal-nav-group">
@@ -900,30 +915,45 @@
                 nay</button>
             </div>
 
-            <div class="work-cal-weekdays" aria-hidden="true">
-              <span>T2</span>
-              <span>T3</span>
-              <span>T4</span>
-              <span>T5</span>
-              <span>T6</span>
-              <span>T7</span>
-              <span>CN</span>
+            <div id="ledger-cal-body" class="work-cal-body" hidden>
+              <div class="work-cal-weekdays" aria-hidden="true">
+                <span>T2</span>
+                <span>T3</span>
+                <span>T4</span>
+                <span>T5</span>
+                <span>T6</span>
+                <span>T7</span>
+                <span>CN</span>
+              </div>
+
+              <div id="ledger-cal-grid" class="work-cal-grid font-tabular" onkeydown="onWorkCalGridKeydown(event)"></div>
+
+              <div class="work-cal-footer">
+                <div class="work-cal-legend" aria-hidden="true">
+                  <span class="work-cal-legend-item">
+                    <span class="work-cal-swatch is-order"></span>
+                    <span>Có thu chi</span>
+                  </span>
+                  <span class="work-cal-legend-item">
+                    <span class="work-cal-swatch is-today"></span>
+                    <span>Hôm nay</span>
+                  </span>
+                </div>
+                <span id="ledger-cal-month-stats" class="work-cal-month-stats font-tabular">0 ngày có thu chi</span>
+              </div>
             </div>
 
-            <div id="ledger-cal-grid" class="work-cal-grid font-tabular" onkeydown="onWorkCalGridKeydown(event)"></div>
-
-            <div class="work-cal-footer">
-              <div class="work-cal-legend" aria-hidden="true">
-                <span class="work-cal-legend-item">
-                  <span class="work-cal-swatch is-order"></span>
-                  <span>Có thu chi</span>
-                </span>
-                <span class="work-cal-legend-item">
-                  <span class="work-cal-swatch is-today"></span>
-                  <span>Hôm nay</span>
-                </span>
-              </div>
-              <span id="ledger-cal-month-stats" class="work-cal-month-stats font-tabular">0 ngày có thu chi</span>
+            <div class="work-cal-toggle-wrap">
+              <button type="button" id="btn-ledger-cal-toggle" class="btn-work-cal-toggle" aria-expanded="false"
+                aria-controls="ledger-cal-body" aria-label="Mở lịch — mở rộng bảng lịch tháng"
+                onclick="toggleWorkCalendar('ledger')">
+                <span class="work-cal-toggle-label">Mở lịch</span>
+                <svg class="work-cal-toggle-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none"
+                  stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+                  aria-hidden="true">
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </button>
             </div>
             <p id="ledger-cal-live" class="sr-only" role="status" aria-live="polite"></p>
           </div>
@@ -1314,7 +1344,7 @@
           <div class="ios-step-num">3</div>
           <div class="ios-step-text">
             <strong>Mở app từ Màn hình chính & Bật thông báo</strong>
-            <p>Thoát ra màn hình chính, mở biểu tượng <strong>QuyenHealth</strong>, vào Cài đặt và bấm <strong>Bật thông
+            <p>Thoát ra màn hình chính, mở biểu tượng <strong>Quyền Anh</strong>, vào Cài đặt và bấm <strong>Bật thông
                 báo</strong>. Khi iPhone hỏi cho phép, bấm <strong>Cho phép</strong>.</p>
           </div>
         </div>
@@ -1808,7 +1838,7 @@
     </div>
   </div>
 
-  <script src="/app.js?v=78"></script>
+  <script src="/app.js?v=80"></script>
 </body>
 
 </html>

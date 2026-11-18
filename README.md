@@ -1,98 +1,86 @@
-# QuyenHealth 🥗💧⚖️
+# Quyền Anh
 
-Hệ thống web theo dõi sức khoẻ siêu nhanh, nhẹ, mượt và tối giản dành riêng cho **Phùng Văn Quyền**.
-Được thiết kế để tối ưu chạy trên **Koyeb cấu hình Nano (0.1 vCPU, 512MB RAM, 2GB DISK)**.
+Ứng dụng web PWA theo dõi sức khoẻ, sổ công việc và thu chi cá nhân tối giản, tốc độ cao, viết bằng **Go** + **SQLite** kết hợp giao diện **HTML5 / CSS3 / Vanilla JavaScript** (nhúng tĩnh qua `go:embed`).
 
----
-
-## 🎯 Mục tiêu & Ràng buộc Sức khoẻ
-
-- **Mục tiêu cân nặng:** 97 Kg &rarr; 70 Kg (Cao 1m72, 22 tuổi).
-- **Chỉ số:** Gan nhiễm mỡ độ 3, máu đông, nguy cơ gút, đường huyết 5.6/7.0 (tiền tiểu đường), tuyến giáp.
-- **Lời dặn của Bác sĩ được tích hợp thẳng vào thuật toán thực đơn:**
-  - ❌ Hạn chế dầu mỡ, tuyệt đối không chiên rán, không nội tạng động vật.
-  - ❌ Không dùng các loại tinh bột GI cao gây tăng đột ngột đường huyết.
-  - ❌ Không dùng các thực phẩm đắt tiền/khó tìm (cá hồi, quinoa, bánh mì đen, gạo lứt...).
-  - ✅ **Chỉ dùng nguyên liệu dân dã ở làng quê Việt Nam:** Khoai lang luộc, ngô luộc, ức gà, thịt thăn lợn nạc, cá đồng (rô, trắm, diêu hồng, chép), trứng gà, đậu phụ, lạc luộc, rau muống, rau cải, mồng tơi, bí xanh, bầu, bí đỏ, cà chua, cà rốt, thanh long ruột đỏ, ổi, đu đủ...
-  - ✅ Bắt buộc mỗi ngày có ít nhất **3 phần rau xanh** và **1 món thực phẩm màu đỏ**.
-  - ✅ Ngân sách năng lượng kiểm soát chặt chẽ ở mức **~1.800 kcal/ngày** (thâm hụt lành mạnh ~500 kcal giúp giảm cân an toàn 0.5 - 0.75kg/tuần).
+Được tối ưu để chạy nhẹ trên **Koyeb Nano (0.1 vCPU, 512MB RAM)** và dùng mượt như app gốc trên điện thoại (iOS / Android).
 
 ---
 
-## 🚀 Các Tính Năng Nghiệp Vụ
+## Tính năng chính
 
-1. **💧 Theo Dõi Nước Lọc:**
-   - Mục tiêu: Tối thiểu 2.500ml - Tối đa 3.000ml / ngày.
-   - Hoạt hoạ sóng nước SVG dâng lên tương ứng với phần trăm mục tiêu đã uống.
-   - Nút bấm nhanh 1 chạm: **Ca (300ml)**, **Chai nhỏ (500ml)**, **Bình (1.000ml)**, hoặc tự gõ số ml.
-   - Nút hoàn tác (undo) nếu bấm nhầm.
+### 1. Hôm nay (Sức khoẻ & Thói quen hằng ngày)
+- **Điểm tuân thủ hằng ngày (0–100):** Tổng hợp tiến độ uống nước, uống thuốc, cân nặng và bữa ăn qua biểu đồ vòng tròn SVG kèm lời chào linh động theo khung giờ.
+- **Cân nặng:** Theo dõi hành trình cân nặng (`97.0 kg` → mục tiêu `70.0 kg`) với nút bấm nhanh `±0.1 kg`, `±0.5 kg` và biểu đồ tiến trình SVG.
+- **Thuốc bổ gan nhiều cữ:** Đánh dấu từng cữ uống thuốc theo lịch nhắc (mặc định 3 lần/ngày: `08:00`, `12:30`, `20:00`).
+- **Nước lọc:** Mục tiêu `2.500 – 3.000 ml/ngày`, hiệu ứng sóng nước SVG, chọn nhanh `+200ml`, `+300ml`, `+500ml`, `+1.000ml` hoặc nhập số tuỳ ý, hỗ trợ hoàn tác.
+- **Ăn uống & Thực đơn Healthy:** Sinh thực đơn 7 ngày phù hợp mục tiêu năng lượng và nguyên liệu dân dã Việt Nam (hạn chế chiên rán/nội tạng/GI cao, đủ rau xanh), đổi món linh hoạt, tổng hợp danh sách đi chợ và ghi nhận `Ăn đúng` / `Ăn khác`.
+- **Động lực:** Bộ ảnh và thông điệp khích lệ hằng ngày.
 
-2. **🍽️ Lên Lịch Bữa Ăn 7 Ngày & Checklist:**
-   - Nút **"Tạo Lịch Bữa Ăn 7 Ngày"**: Thuật toán tự động sinh thực đơn 7 ngày đáp ứng 100% ràng buộc y khoa trong vòng chưa tới 10ms.
-   - Nút **"🔄 Đổi món"** cho từng bữa nếu hôm đó không muốn ăn món được gợi ý.
-   - Nút **"🛒 Đi chợ"**: Tự động gộp nguyên liệu của 7 ngày theo nhóm (Tinh bột, Đạm, Rau củ, Trái cây) kèm định lượng để đi chợ quê tiện lợi.
-   - Checklist từng bữa:
-     - `✅ Ăn đúng`: Xác nhận ăn đúng món.
-     - `✍️ Ăn khác`: Mở form ghi chú món thực tế đã ăn kèm tag cảnh báo nhanh (*Có chiên rán, Có nội tạng, Ăn khuya, Ăn quá no, Uống bia*).
+### 2. Công việc (Sổ công việc thay thế Excel)
+- **Bảng lịch tháng trực quan (`T2` – `CN`):**
+  - Khoanh **vòng xanh** vào những ngày có phát sinh đơn dịch vụ.
+  - Khoanh **đỏ mận** vào ngày hôm nay (hiển thị vòng xanh bao ngoài + đỏ mận ở trong nếu hôm nay cũng có phát sinh đơn).
+  - Bấm vào ngày bất kỳ trên lịch để chuyển ngay sang xem tổng kết và danh sách đơn chi tiết của ngày đó.
+- **Thẻ tổng kết doanh thu:** Chuyển nhanh **Theo ngày / Cả tháng**, hiển thị tổng doanh thu, số đơn, **Thực thu** và **Còn nợ**.
+- **Quản lý đơn dịch vụ:** Ghi đơn nhanh kèm gợi ý tên khách & dịch vụ thường dùng, phân loại kênh (`ZL`, `FB`), trạng thái thanh toán (`TT` đã thu / `CTT` còn nợ), sửa và xoá đơn.
+- **Sổ nợ khách hàng:** Gom các đơn `CTT` theo từng khách hàng; hỗ trợ tìm kiếm theo tên khách/dịch vụ/ngày, lọc theo trạng thái (`Tất cả`, `Chưa trả`, `Đã trả xong`) và khoảng thời gian (`Tất cả`, `Theo ngày`, `Theo tháng`, `Từ – Đến`), thanh toán nhiều đợt kèm tiến độ %, và sao chép nội dung nhắc nợ.
 
-3. **⚖️ Theo Dõi Cân Nặng:**
-   - Bộ chọn cân nặng dạng Stepper nút bấm nhanh `±0.1kg`, `±0.5kg` (không cần bàn phím).
-   - Biểu đồ SVG siêu nhẹ hiển thị tiến trình giảm cân từ 97kg về 70kg.
-   - Thống kê chênh lệch so với ngày hôm trước và mục tiêu.
+### 3. Thu chi (Thu chi cá nhân)
+- **Bảng lịch tháng (`T2` – `CN`):** Khoanh **vòng xanh** cho ngày có phát sinh thu chi (`Chi tiêu`, `Nộp Quỹ`, `Trả Nợ`, `Số Quỹ`), khoanh **đỏ mận** cho hôm nay; bấm vào ngày để xem danh sách phát sinh chi tiết trong ngày.
+- **Thẻ tổng kết Theo ngày / Cả tháng:** Theo dõi nhanh `Chi tiêu`, `Nộp quỹ`, `Mượn` và `Trả nợ`.
+- **Khoản Mượn của Quyền:** Gom toàn bộ khoản mượn xuyên suốt, tìm kiếm theo tên, lọc trạng thái, ghi nhận trả góp nhiều lần kèm lịch sử và phần trăm đã trả.
 
-4. **💊 Checklist Uống Thuốc:**
-   - Nút xác nhận to bản `Đã uống thuốc hôm nay ✅` theo ngày.
-   - Nhắc nhở qua thông báo push.
-
-5. **🩸 Nhật Ký Đường Huyết & Giấc Ngủ:**
-   - Ghi nhận chỉ số mmol/L theo thời điểm (sáng đói, sau ăn, trước ngủ).
-   - Đánh dấu màu an toàn (< 5.6 mmol/L) và cảnh báo ngưỡng (>= 7.0 mmol/L).
-   - Nhắc đi ngủ sớm trước 22:30 để bảo vệ gan.
-
-6. **📑 Báo Cáo Sức Khoẻ Tuần:**
-   - Tổng hợp lượng nước trung bình, % tuân thủ thực đơn, % uống thuốc và cân nặng thay đổi trong 7 ngày để đưa Bác sĩ xem khi tái khám.
-
-7. **🔔 Thông Báo Web Push & Tương Thích iPhone:**
-   - Hoạt động mượt mà trên iPhone (iOS 16.4+) khi chọn **Chia sẻ &rarr; Thêm vào Màn hình chính** (Add to Home Screen).
-   - Endpoint `/api/tick` hỗ trợ các cron ngoài (cron-job.org / UptimeRobot) ping giữ dịch vụ không bị ngủ trên gói Koyeb Free.
-
-8. **💾 Sao Lưu & Khôi Phục JSON:**
-   - 1-click tải toàn bộ dữ liệu ra file `.json` hoặc khôi phục dữ liệu bất cứ lúc nào.
+### 4. Cài đặt, Thông báo & Đồng bộ đa thiết bị
+- **Web Push Notification:** Nhắc cân sáng, uống thuốc nhiều cữ, uống nước lọc và giờ đi ngủ (hỗ trợ cả Android, Desktop và iPhone iOS 16.4+ khi **Thêm vào Màn hình chính**). Tuỳ chỉnh mốc giờ nhắc tự do trên giao diện.
+- **Đồng bộ đa thiết bị & Offline-first:** Lưu trữ kép tại trình duyệt (`localStorage` + `IndexedDB`) kèm hàng đợi đồng bộ (`outbox`) và `tombstones` chống trùng/mất dữ liệu khi mất mạng hoặc redeploy server.
+- **Xuất & Sao lưu dữ liệu:**
+  - Xuất bảng **Excel (`.csv`)** theo tháng.
+  - Lưu/nạp file tài chính (`.json`), hỗ trợ gắn file tự động ghi trực tiếp trên ổ cứng (`showSaveFilePicker`).
+  - Sao lưu & khôi phục toàn bộ dữ liệu ứng dụng (`.json`).
 
 ---
 
-## ⚙️ Hướng Dẫn Deploy Lên Koyeb
+## Cấu trúc mã nguồn
 
-### Cách 1: Deploy qua GitHub Repository
-
-1. Push mã nguồn này lên GitHub của bạn (repo public hoặc private).
-2. Vào [Koyeb Console](https://app.koyeb.com/) &rarr; bấm **Create App** &rarr; chọn **GitHub**.
-3. Chọn repo `webchoquyen`.
-4. Koyeb sẽ tự động nhận diện `Dockerfile`.
-5. Cấu hình phần cứng:
-   - **Instance type:** `nano` (0.1 vCPU, 512MB RAM).
-6. Cấu hình biến môi trường (**Environment Variables**):
-   - `APP_PIN`: Mã PIN bảo mật để Quyền đăng nhập (Ví dụ: `686868` hoặc ngày sinh của Quyền).
-   - `PORT`: `8080` (Mặc định).
-   - `DATA_DIR`: `/data` (Nơi lưu database SQLite).
-   - `TICK_TOKEN`: Mã bí mật bất kỳ nếu dùng cron ngoài ping `/api/tick?token=...`.
-   - `VAPID_SUBJECT`: Email liên hệ của bạn (Ví dụ: `mailto:your-email@gmail.com`).
-7. *(Khuyến nghị nếu gói Koyeb hỗ trợ)*: Gắn một **Persistent Volume** vào đường dẫn `/data` để giữ dữ liệu qua các lần redeploy.
-8. Bấm **Deploy**. Sau ~1 phút, dịch vụ sẽ online tại URL `https://<app-name>.koyeb.app`.
-
----
-
-## 💻 Chạy Thử Trên Máy Local
-
-Yêu cầu: Đã cài Docker hoặc Go 1.23+
-
-```bash
-# Chạy với Docker
-docker build -t quyenhealth .
-docker run -p 8080:8080 -e APP_PIN=123456 -v ./data:/data quyenhealth
-
-# Mở trình duyệt:
-http://localhost:8080
-# Nhập mã PIN: 123456
+```text
+cmd/server/main.go          # Điểm khởi chạy HTTP server & worker nhắc nhở
+internal/app/               # Router, auth PIN, health handlers, work/ledger, backup & Web Push
+internal/meals/             # Thuật toán sinh thực đơn Healthy & danh sách đi chợ
+web/                        # PWA frontend (index.html, style.css, app.js, sw.js, manifest.webmanifest)
+Dockerfile                  # Multi-stage build (Go 1.23 -> Alpine 3.20)
 ```
 
+---
+
+## Hướng dẫn Deploy lên Koyeb
+
+1. Push mã nguồn lên GitHub.
+2. Vào [Koyeb Console](https://app.koyeb.com/) → **Create App** → chọn **GitHub** và repository của bạn (Koyeb tự nhận `Dockerfile`).
+3. Chọn cấu hình **Nano** (`0.1 vCPU`, `512MB RAM`).
+4. Cấu hình biến môi trường (**Environment Variables**):
+   - `APP_PIN`: Mã PIN đăng nhập chính (nên đặt bí mật trên môi trường production).
+   - `PORT`: `8080` (mặc định).
+   - `DATA_DIR`: `/data` (thư mục lưu database SQLite).
+   - `SESSION_SECRET`: *(Tuỳ chọn)* Khoá ký cookie phiên đăng nhập; nếu bỏ trống sẽ suy ra từ `APP_PIN`.
+   - `TICK_TOKEN`: *(Tuỳ chọn)* Mã xác thực cho cron bên ngoài (cron-job.org / UptimeRobot) gọi `GET/POST /api/tick?token=...` để giữ dịch vụ hoạt động và kích hoạt nhắc nhở đúng giờ.
+   - `VAPID_SUBJECT`: *(Tuỳ chọn)* Email hoặc URL liên hệ cho Web Push (ví dụ `mailto:you@example.com`).
+5. Gắn **Persistent Volume** vào đường dẫn `/data` để giữ dữ liệu SQLite qua các lần redeploy.
+
+---
+
+## Chạy thử trên máy Local
+
+Yêu cầu: **Docker** hoặc **Go 1.23+**
+
+### Cách 1: Chạy bằng Docker
+```bash
+docker build -t quyenanh .
+docker run -p 8080:8080 -e APP_PIN=123456 -v ./data:/data quyenanh
+```
+
+### Cách 2: Chạy trực tiếp bằng Go
+```bash
+APP_PIN=123456 DATA_DIR=./data go run ./cmd/server
+```
+
+Sau khi chạy, mở trình duyệt tại `http://localhost:8080` và nhập mã PIN đã cấu hình (mặc định local là `123456` nếu chưa đặt `APP_PIN`).

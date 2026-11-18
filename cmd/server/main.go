@@ -70,7 +70,7 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("[INFO] QuyenHealth đang chạy tại http://localhost:%s (data: %s)", port, dataDir)
+		log.Printf("[INFO] Quyền Anh đang chạy tại http://localhost:%s (data: %s)", port, dataDir)
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Lỗi HTTP server: %v", err)
 		}

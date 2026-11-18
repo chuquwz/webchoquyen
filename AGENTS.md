@@ -1,6 +1,6 @@
 # Project Guidelines & Agent Instructions
 
-This repository contains **QuyenHealth**, a personal health & weight-tracking web application built with a Go backend and a vanilla HTML5/CSS3/JavaScript Progressive Web App (PWA) frontend located in `web/`.
+This repository contains **Quyền Anh**, a personal health, weight-tracking, work-ledger, and finance web application built with a Go backend and a vanilla HTML5/CSS3/JavaScript Progressive Web App (PWA) frontend located in `web/`.
 
 ## Frontend Design Engineering Skills
 

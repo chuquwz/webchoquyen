@@ -1,7 +1,7 @@
 {
-  "name": "QuyenHealth - Theo Dõi Sức Khoẻ",
-  "short_name": "QuyenHealth",
-  "description": "Ứng dụng theo dõi sức khoẻ, nước, cân nặng và thực đơn cho Phùng Văn Quyền",
+  "name": "Quyền Anh - Sức Khoẻ & Công Việc",
+  "short_name": "Quyền Anh",
+  "description": "Ứng dụng theo dõi sức khoẻ, sổ công việc và thu chi cá nhân Quyền Anh",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#F5F7F4",

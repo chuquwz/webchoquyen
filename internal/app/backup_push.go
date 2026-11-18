@@ -243,7 +243,7 @@ func (s *Server) handleBackup(w http.ResponseWriter, r *http.Request) {
 		b.WorkTombstones = ts
 	}
 
-	fname := fmt.Sprintf("quyenhealth-backup-%s.json", s.today())
+	fname := fmt.Sprintf("quyenanh-backup-%s.json", s.today())
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, fname))
 	writeJSON(w, 200, b)
 }
@@ -522,7 +522,7 @@ type pushResult struct {
 }
 
 func (s *Server) handlePushTest(w http.ResponseWriter, r *http.Request) {
-	res, err := s.sendPushDetailed("QuyenHealth", "Thông báo thử thành công! Nhắc nhở sức khoẻ hoạt động tốt.", "/")
+	res, err := s.sendPushDetailed("Quyền Anh", "Thông báo thử thành công! Nhắc nhở sức khoẻ hoạt động tốt.", "/")
 	if err != nil {
 		serverErr(w, err)
 		return

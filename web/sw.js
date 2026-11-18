@@ -1,9 +1,9 @@
-const CACHE_NAME = 'quyenhealth-v78';
+const CACHE_NAME = 'quyenanh-v80';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/style.css?v=78',
-  '/app.js?v=78',
+  '/style.css?v=80',
+  '/app.js?v=80',
   '/manifest.webmanifest',
   '/icons/icon-192.png?v=31',
   '/icons/icon-512.png?v=31'
@@ -62,7 +62,7 @@ self.addEventListener('message', (event) => {
 
 // Xử lý Web Push Notification (Tương thích chuẩn Apple APNs iOS 16.4+ & Android)
 self.addEventListener('push', (event) => {
-  let data = { title: 'QuyenHealth', body: 'Bạn có lời nhắc sức khoẻ mới!', url: '/' };
+  let data = { title: 'Quyền Anh', body: 'Bạn có lời nhắc sức khoẻ mới!', url: '/' };
   try {
     if (event.data) {
       data = Object.assign(data, event.data.json());
@@ -80,14 +80,14 @@ self.addEventListener('push', (event) => {
 
   event.waitUntil(
     Promise.all([
-      self.registration.showNotification(data.title || 'QuyenHealth', options).catch((err) => {
+      self.registration.showNotification(data.title || 'Quyền Anh', options).catch((err) => {
         console.error('showNotification error:', err);
       }),
       self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
         for (let client of windowClients) {
           client.postMessage({
             type: 'PUSH_RECEIVED',
-            title: data.title || 'QuyenHealth',
+            title: data.title || 'Quyền Anh',
             body: data.body || ''
           });
         }
