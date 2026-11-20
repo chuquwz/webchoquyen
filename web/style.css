@@ -106,6 +106,7 @@ body {
   align-items: flex-start;
   padding: 0;
   overflow-x: hidden;
+  overscroll-behavior-x: none;
 }
 
 /* Tabular Numbers for all metrics */
@@ -191,6 +192,7 @@ a:focus-visible,
   padding: max(16px, var(--safe-top)) 20px calc(88px + var(--safe-bottom));
   box-sizing: border-box;
   touch-action: pan-y;
+  overscroll-behavior-x: none;
 }
 
 .tab-pane {
@@ -213,36 +215,120 @@ a:focus-visible,
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .tab-pane.active[data-slide-dir="next"] {
-    animation: slideInPaneNext 0.15s cubic-bezier(0.2, 0, 0, 1);
+  .tab-pane.active[data-slide-dir] {
+    animation: none;
   }
 
-  .tab-pane.active[data-slide-dir="prev"] {
-    animation: slideInPanePrev 0.15s cubic-bezier(0.2, 0, 0, 1);
+  .tab-pane.active[data-slide-dir="next"] > :not(.btn-fab-plus) {
+    animation: slideInPaneNext 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .tab-pane.active[data-slide-dir="prev"] > :not(.btn-fab-plus) {
+    animation: slideInPanePrev 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .tab-pane.is-swipe-dragging > :not(.btn-fab-plus) {
+    transform: translate3d(var(--swipe-drag-x, 0px), 0, 0);
+    opacity: var(--swipe-drag-opacity, 1);
+    animation: none;
+    transition: none !important;
+    will-change: transform, opacity;
+  }
+
+  .tab-pane.is-swipe-rebound > :not(.btn-fab-plus) {
+    transform: translate3d(0, 0, 0);
+    opacity: 1;
+    animation: none;
+    transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.22s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   @keyframes slideInPaneNext {
     from {
       opacity: 0;
-      transform: translateX(14px);
+      transform: translate3d(42px, 0, 0);
     }
 
     to {
       opacity: 1;
-      transform: translateX(0);
+      transform: translate3d(0, 0, 0);
     }
   }
 
   @keyframes slideInPanePrev {
     from {
       opacity: 0;
-      transform: translateX(-14px);
+      transform: translate3d(-42px, 0, 0);
     }
 
     to {
       opacity: 1;
-      transform: translateX(0);
+      transform: translate3d(0, 0, 0);
     }
+  }
+}
+
+.tab-swipe-edge-pill {
+  position: fixed;
+  top: 50%;
+  z-index: 150;
+  pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 14px;
+  border-radius: var(--radius-pill);
+  background-color: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid #C5DEB6;
+  color: var(--text-main);
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 8px 24px rgba(28, 31, 27, 0.14), 0 2px 6px rgba(28, 31, 27, 0.06);
+  opacity: 0;
+  transform: translate3d(0, -50%, 0) scale(0.92);
+  transition: opacity 0.16s ease-out, transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.16s ease-out, border-color 0.16s ease-out, color 0.16s ease-out, box-shadow 0.16s ease-out;
+}
+
+.tab-swipe-edge-pill[data-side="left"] {
+  left: max(10px, calc(50% - 192px));
+}
+
+.tab-swipe-edge-pill[data-side="right"] {
+  right: max(10px, calc(50% - 192px));
+}
+
+@media (max-width: 600px) {
+  .tab-swipe-edge-pill[data-side="left"] {
+    left: 10px;
+  }
+
+  .tab-swipe-edge-pill[data-side="right"] {
+    right: 10px;
+  }
+}
+
+.tab-swipe-edge-pill.is-visible {
+  opacity: 1;
+  transform: translate3d(0, -50%, 0) scale(1);
+}
+
+.tab-swipe-edge-pill.is-ready {
+  background-color: var(--color-pill-green);
+  border-color: #84C757;
+  color: var(--color-pill-text);
+  box-shadow: 0 10px 26px rgba(94, 148, 71, 0.28), 0 2px 6px rgba(28, 31, 27, 0.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-swipe-edge-pill {
+    transform: translateY(-50%);
+    transition: opacity 0.15s ease-out, background-color 0.15s ease-out, border-color 0.15s ease-out, color 0.15s ease-out;
+  }
+
+  .tab-swipe-edge-pill.is-visible {
+    transform: translateY(-50%);
   }
 }
 
@@ -1658,7 +1744,7 @@ input[type="time"].form-input {
   gap: 6px;
   cursor: pointer;
   color: #7C8377;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background-color 0.24s cubic-bezier(0.22, 1, 0.36, 1), color 0.2s ease, padding 0.24s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.24s ease, transform 0.15s ease-out;
   text-decoration: none;
 }
 

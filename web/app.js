@@ -675,6 +675,23 @@
 
   // Quản lý Tab: hôm nay, công việc, thu chi, cài đặt
   const MAIN_TAB_ORDER = ['today', 'work', 'ledger', 'settings'];
+  const MAIN_TAB_LABELS = {
+    today: 'Hôm nay',
+    work: 'Công việc',
+    ledger: 'Thu chi',
+    settings: 'Cài đặt'
+  };
+
+  function clearPaneSwipeStyles(pane) {
+    if (!pane) return;
+    if (pane._reboundTimer) {
+      clearTimeout(pane._reboundTimer);
+      pane._reboundTimer = null;
+    }
+    pane.classList.remove('is-swipe-dragging', 'is-swipe-rebound');
+    pane.style.removeProperty('--swipe-drag-x');
+    pane.style.removeProperty('--swipe-drag-opacity');
+  }
 
   window.switchTab = function (tabId, opts = {}) {
     if (tabId === 'records' || tabId === 'meals') tabId = 'today';
@@ -682,13 +699,16 @@
       tabId = 'today';
     }
 
-    const prevIdx = MAIN_TAB_ORDER.indexOf(state.activeTab);
+    const prevTab = state.activeTab;
+    const prevIdx = MAIN_TAB_ORDER.indexOf(prevTab);
     const nextIdx = MAIN_TAB_ORDER.indexOf(tabId);
+    const isTabChanged = prevTab !== tabId;
     const dir = (opts && opts.direction) ||
       (prevIdx !== -1 && nextIdx !== -1 && nextIdx !== prevIdx ? (nextIdx > prevIdx ? 'next' : 'prev') : '');
 
     state.activeTab = tabId;
     document.querySelectorAll('.tab-pane').forEach(el => {
+      clearPaneSwipeStyles(el);
       el.classList.remove('active');
       el.removeAttribute('data-slide-dir');
     });
@@ -700,6 +720,7 @@
 
     const targetPane = document.getElementById('tab-' + tabId);
     if (targetPane) {
+      clearPaneSwipeStyles(targetPane);
       if (dir) targetPane.setAttribute('data-slide-dir', dir);
       targetPane.classList.add('active');
     }
@@ -726,10 +747,21 @@
       renderFinanceVaultStatus();
     }
 
-    window.scrollTo({ top: 0, behavior: 'smooth' });
     const scrollContainer = document.querySelector('.app-content-area');
-    if (scrollContainer) {
-      scrollContainer.scrollTo({ top: 0, behavior: 'smooth' });
+    if (isTabChanged) {
+      window.scrollTo(0, 0);
+      if (scrollContainer) {
+        if (typeof scrollContainer.scrollTo === 'function') {
+          scrollContainer.scrollTo(0, 0);
+        } else {
+          scrollContainer.scrollTop = 0;
+        }
+      }
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (scrollContainer && typeof scrollContainer.scrollTo === 'function') {
+        scrollContainer.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     }
   };
 
@@ -777,17 +809,68 @@
     if (!appView || appView.dataset.swipeBound) return;
     appView.dataset.swipeBound = '1';
 
-    const SWIPE_EDGE_GUARD_PX = 20;
-    const SWIPE_LOCK_THRESHOLD_PX = 10;
-    const SWIPE_MIN_DISTANCE_PX = 56;
-    const SWIPE_MAX_DURATION_MS = 650;
-    const FLICK_MIN_DISTANCE_PX = 40;
-    const FLICK_MAX_DURATION_MS = 260;
-    const FLICK_MIN_VELOCITY = 0.35;
+    const EDGE_ZONE_PX = 36;
+    const SWIPE_MAX_DURATION_MS = 680;
+    const FLICK_MAX_DURATION_MS = 280;
+    const FLICK_MIN_VELOCITY = 0.28;
     const MAX_VERTICAL_DRIFT_PX = 84;
-    const NO_SWIPE_SELECTOR = 'input, textarea, select, [contenteditable="true"], .motivation-thumbs-strip, .work-chips-scroll, .calendar-days-strip, [data-no-tab-swipe]';
+    const EDITABLE_SELECTOR = 'input, textarea, select, [contenteditable="true"]';
+    const HORIZ_IGNORE_SELECTOR = '.motivation-thumbs-strip, .work-chips-scroll, .calendar-days-strip, [data-no-tab-swipe]';
 
     let gesture = null;
+
+    function prefersReducedMotion() {
+      return Boolean(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    }
+
+    function getActivePane() {
+      return document.getElementById('tab-' + state.activeTab);
+    }
+
+    function getOrCreateEdgePill() {
+      let pill = document.getElementById('tab-swipe-edge-pill');
+      if (!pill && typeof document.createElement === 'function' && document.body) {
+        pill = document.createElement('div');
+        pill.id = 'tab-swipe-edge-pill';
+        pill.className = 'tab-swipe-edge-pill';
+        pill.setAttribute('aria-hidden', 'true');
+        document.body.appendChild(pill);
+      }
+      return pill;
+    }
+
+    function hideEdgePill() {
+      const pill = document.getElementById('tab-swipe-edge-pill');
+      if (!pill) return;
+      pill.classList.remove('is-visible', 'is-ready');
+    }
+
+    function updateEdgePill(side, label, isReady) {
+      const pill = getOrCreateEdgePill();
+      if (!pill) return;
+      pill.setAttribute('data-side', side);
+      pill.textContent = side === 'left' ? `← ${label}` : `${label} →`;
+      pill.classList.add('is-visible');
+      pill.classList.toggle('is-ready', Boolean(isReady));
+    }
+
+    function reboundPane(pane) {
+      if (!pane) return;
+      const wasDragging = pane.classList.contains('is-swipe-dragging');
+      pane.classList.remove('is-swipe-dragging');
+      pane.style.removeProperty('--swipe-drag-x');
+      pane.style.removeProperty('--swipe-drag-opacity');
+      if (!wasDragging || prefersReducedMotion()) {
+        pane.classList.remove('is-swipe-rebound');
+        return;
+      }
+      pane.classList.add('is-swipe-rebound');
+      if (pane._reboundTimer) clearTimeout(pane._reboundTimer);
+      pane._reboundTimer = setTimeout(() => {
+        pane.classList.remove('is-swipe-rebound');
+        pane._reboundTimer = null;
+      }, 220);
+    }
 
     function hasHorizontalScrollableAncestor(target) {
       let el = target && target.nodeType === 1 ? target : (target && target.parentElement);
@@ -803,24 +886,44 @@
       return false;
     }
 
-    function resetGesture() {
+    function getSwipeThresholds(isEdgeSwipe) {
+      return isEdgeSwipe
+        ? { lockThreshold: 6, lockRatio: 1.15, minDistance: 40, flickMinDistance: 28, endRatio: 1.2 }
+        : { lockThreshold: 10, lockRatio: 1.35, minDistance: 52, flickMinDistance: 38, endRatio: 1.4 };
+    }
+
+    function cancelAndRebound() {
+      if (gesture && gesture.axis === 'x') {
+        reboundPane(getActivePane());
+      }
+      hideEdgePill();
       gesture = null;
     }
 
     appView.addEventListener('touchstart', (e) => {
-      resetGesture();
+      cancelAndRebound();
       if (!document.body.classList.contains('is-logged-in')) return;
       if (!e.touches || e.touches.length !== 1) return;
       if (document.querySelector('.modal-overlay.open')) return;
 
       const touch = e.touches[0];
-      if (touch.clientX <= SWIPE_EDGE_GUARD_PX || touch.clientX >= window.innerWidth - SWIPE_EDGE_GUARD_PX) {
-        return;
-      }
+      const rect = typeof appView.getBoundingClientRect === 'function'
+        ? appView.getBoundingClientRect()
+        : { left: 0, right: window.innerWidth || 390 };
+      const leftBoundary = Math.max(0, rect.left || 0);
+      const rightBoundary = rect.right && rect.right > 0 ? rect.right : (window.innerWidth || 390);
+      const distLeft = touch.clientX - leftBoundary;
+      const distRight = rightBoundary - touch.clientX;
+      const viewportWidth = window.innerWidth || rightBoundary;
+      const isEdgeSwipe = distLeft <= EDGE_ZONE_PX || distRight <= EDGE_ZONE_PX ||
+        touch.clientX <= EDGE_ZONE_PX || touch.clientX >= viewportWidth - EDGE_ZONE_PX;
 
       const targetEl = e.target && e.target.nodeType === 1 ? e.target : (e.target && e.target.parentElement);
-      if (targetEl && targetEl.closest && targetEl.closest(NO_SWIPE_SELECTOR)) return;
-      if (hasHorizontalScrollableAncestor(targetEl)) return;
+      if (targetEl && targetEl.closest && targetEl.closest(EDITABLE_SELECTOR)) return;
+      if (!isEdgeSwipe) {
+        if (targetEl && targetEl.closest && targetEl.closest(HORIZ_IGNORE_SELECTOR)) return;
+        if (hasHorizontalScrollableAncestor(targetEl)) return;
+      }
 
       gesture = {
         startX: touch.clientX,
@@ -828,6 +931,7 @@
         lastX: touch.clientX,
         lastY: touch.clientY,
         startTime: Date.now(),
+        isEdgeSwipe,
         axis: null
       };
     }, { passive: true });
@@ -835,7 +939,7 @@
     appView.addEventListener('touchmove', (e) => {
       if (!gesture) return;
       if (!e.touches || e.touches.length !== 1) {
-        resetGesture();
+        cancelAndRebound();
         return;
       }
 
@@ -843,37 +947,85 @@
       gesture.lastX = touch.clientX;
       gesture.lastY = touch.clientY;
 
-      const absX = Math.abs(touch.clientX - gesture.startX);
-      const absY = Math.abs(touch.clientY - gesture.startY);
+      const dx = touch.clientX - gesture.startX;
+      const dy = touch.clientY - gesture.startY;
+      const absX = Math.abs(dx);
+      const absY = Math.abs(dy);
+      const cfg = getSwipeThresholds(gesture.isEdgeSwipe);
 
       if (gesture.axis === null) {
-        if (absX < SWIPE_LOCK_THRESHOLD_PX && absY < SWIPE_LOCK_THRESHOLD_PX) {
+        if (absX < cfg.lockThreshold && absY < cfg.lockThreshold) {
           return;
         }
         if (absY >= absX * 0.85) {
           gesture.axis = 'y';
-          resetGesture();
+          gesture = null;
           return;
         }
-        if (absX >= absY * 1.4) {
+        if (absX >= absY * cfg.lockRatio) {
           gesture.axis = 'x';
+          const pane = getActivePane();
+          if (pane) {
+            clearPaneSwipeStyles(pane);
+            pane.removeAttribute('data-slide-dir');
+          }
+        } else {
+          return;
         }
+      }
+
+      if (gesture.axis !== 'x') return;
+
+      if (absY > MAX_VERTICAL_DRIFT_PX && absY > absX * 0.85) {
+        cancelAndRebound();
         return;
       }
 
-      if (gesture.axis === 'x' && absY > absX * 0.75) {
-        resetGesture();
+      if (e.cancelable && typeof e.preventDefault === 'function') {
+        e.preventDefault();
       }
-    }, { passive: true });
+
+      const curIdx = MAIN_TAB_ORDER.indexOf(state.activeTab);
+      if (curIdx === -1) return;
+
+      const targetIdx = dx < 0 ? curIdx + 1 : (dx > 0 ? curIdx - 1 : -1);
+      const hasTarget = targetIdx >= 0 && targetIdx < MAIN_TAB_ORDER.length;
+      const targetTab = hasTarget ? MAIN_TAB_ORDER[targetIdx] : '';
+
+      const dragX = hasTarget
+        ? Math.max(-132, Math.min(132, dx * 0.68))
+        : Math.max(-38, Math.min(38, dx * 0.24));
+      const opacity = hasTarget
+        ? Math.max(0.76, 1 - (absX / 360) * 0.24)
+        : 1;
+
+      const activePane = getActivePane();
+      if (activePane && !prefersReducedMotion()) {
+        activePane.classList.add('is-swipe-dragging');
+        activePane.style.setProperty('--swipe-drag-x', `${dragX.toFixed(1)}px`);
+        activePane.style.setProperty('--swipe-drag-opacity', opacity.toFixed(3));
+      }
+
+      if (hasTarget) {
+        const side = dx < 0 ? 'right' : 'left';
+        const isReady = absX >= cfg.minDistance;
+        updateEdgePill(side, MAIN_TAB_LABELS[targetTab] || targetTab, isReady);
+      } else {
+        hideEdgePill();
+      }
+    }, { passive: false });
 
     appView.addEventListener('touchend', (e) => {
       if (!gesture) return;
       const g = gesture;
-      resetGesture();
+      gesture = null;
+      hideEdgePill();
 
-      if (g.axis !== 'x') return;
-      if (!document.body.classList.contains('is-logged-in')) return;
-      if (document.querySelector('.modal-overlay.open')) return;
+      const activePane = getActivePane();
+      if (g.axis !== 'x' || !document.body.classList.contains('is-logged-in') || document.querySelector('.modal-overlay.open')) {
+        reboundPane(activePane);
+        return;
+      }
 
       const touch = (e.changedTouches && e.changedTouches[0]) || null;
       const endX = touch ? touch.clientX : g.lastX;
@@ -883,24 +1035,38 @@
       const absX = Math.abs(dx);
       const absY = Math.abs(dy);
       const dt = Math.max(1, Date.now() - g.startTime);
+      const cfg = getSwipeThresholds(g.isEdgeSwipe);
 
-      if (absX <= absY * 1.5 || absY > MAX_VERTICAL_DRIFT_PX) return;
+      if (absX <= absY * cfg.endRatio || absY > MAX_VERTICAL_DRIFT_PX) {
+        reboundPane(activePane);
+        return;
+      }
 
-      const isNormalSwipe = absX >= SWIPE_MIN_DISTANCE_PX && dt <= SWIPE_MAX_DURATION_MS;
-      const isFlick = absX >= FLICK_MIN_DISTANCE_PX && dt <= FLICK_MAX_DURATION_MS && (absX / dt) >= FLICK_MIN_VELOCITY;
-      if (!isNormalSwipe && !isFlick) return;
+      const isNormalSwipe = absX >= cfg.minDistance && dt <= SWIPE_MAX_DURATION_MS;
+      const isFlick = absX >= cfg.flickMinDistance && dt <= FLICK_MAX_DURATION_MS && (absX / dt) >= FLICK_MIN_VELOCITY;
+      if (!isNormalSwipe && !isFlick) {
+        reboundPane(activePane);
+        return;
+      }
 
       const curIdx = MAIN_TAB_ORDER.indexOf(state.activeTab);
-      if (curIdx === -1) return;
+      if (curIdx === -1) {
+        reboundPane(activePane);
+        return;
+      }
 
       if (dx < 0 && curIdx < MAIN_TAB_ORDER.length - 1) {
+        clearPaneSwipeStyles(activePane);
         switchTab(MAIN_TAB_ORDER[curIdx + 1], { direction: 'next', viaSwipe: true });
       } else if (dx > 0 && curIdx > 0) {
+        clearPaneSwipeStyles(activePane);
         switchTab(MAIN_TAB_ORDER[curIdx - 1], { direction: 'prev', viaSwipe: true });
+      } else {
+        reboundPane(activePane);
       }
     }, { passive: true });
 
-    appView.addEventListener('touchcancel', resetGesture, { passive: true });
+    appView.addEventListener('touchcancel', cancelAndRebound, { passive: true });
   }
 
     // Format ngày tiếng Việt
