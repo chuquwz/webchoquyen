@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/SherClockHolmes/webpush-go"
-	"quyenhealth/internal/meals"
 )
 
 // ---------- Sao lưu & Khôi phục JSON ----------
@@ -26,7 +25,6 @@ type backupData struct {
 	Weight         []backupWeight     `json:"weight"`
 	Med            []backupMed        `json:"med"`
 	Meals          []backupMeal       `json:"meals"`
-	Glucose        []backupGlucose    `json:"glucose"`
 	WorkJobs       []backupWorkJob    `json:"work_jobs,omitempty"`
 	WorkLedger     []backupWorkLedger `json:"work_ledger,omitempty"`
 	WorkTombstones []workTombstone    `json:"work_tombstones,omitempty"`
@@ -96,18 +94,8 @@ type backupMed struct {
 type backupMeal struct {
 	Date      string `json:"date"`
 	Slot      string `json:"slot"`
-	ItemsJSON string `json:"items_json"`
-	Kcal      int    `json:"kcal"`
 	Status    string `json:"status"`
-	Note      string `json:"actual_note"`
 	UpdatedAt int64  `json:"updated_at"`
-}
-
-type backupGlucose struct {
-	Ts   int64   `json:"ts"`
-	Date string  `json:"date"`
-	Mmol float64 `json:"mmol"`
-	Ctx  string  `json:"ctx"`
 }
 
 func (s *Server) handleBackup(w http.ResponseWriter, r *http.Request) {
@@ -120,7 +108,6 @@ func (s *Server) handleBackup(w http.ResponseWriter, r *http.Request) {
 		Weight:   []backupWeight{},
 		Med:      []backupMed{},
 		Meals:    []backupMeal{},
-		Glucose:  []backupGlucose{},
 	}
 
 	if rows, err := s.db.Query(`SELECT cid, ts, date, ml FROM water_log ORDER BY ts, id`); err == nil {
@@ -158,21 +145,11 @@ func (s *Server) handleBackup(w http.ResponseWriter, r *http.Request) {
 		rows.Close()
 	}
 
-	if rows, err := s.db.Query(`SELECT date, slot, items_json, kcal, status, actual_note, updated_at FROM meal_plan ORDER BY date, slot`); err == nil {
+	if rows, err := s.db.Query(`SELECT date, slot, status, updated_at FROM meal_plan ORDER BY date, slot`); err == nil {
 		for rows.Next() {
 			var x backupMeal
-			if rows.Scan(&x.Date, &x.Slot, &x.ItemsJSON, &x.Kcal, &x.Status, &x.Note, &x.UpdatedAt) == nil {
+			if rows.Scan(&x.Date, &x.Slot, &x.Status, &x.UpdatedAt) == nil {
 				b.Meals = append(b.Meals, x)
-			}
-		}
-		rows.Close()
-	}
-
-	if rows, err := s.db.Query(`SELECT ts, date, mmol, ctx FROM glucose_log ORDER BY ts, id`); err == nil {
-		for rows.Next() {
-			var x backupGlucose
-			if rows.Scan(&x.Ts, &x.Date, &x.Mmol, &x.Ctx) == nil {
-				b.Glucose = append(b.Glucose, x)
 			}
 		}
 		rows.Close()
@@ -329,21 +306,16 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
 		if x.Date != today || !validDate(x.Date) || !validSlot(x.Slot) {
 			continue
 		}
-		var items []meals.Item
-		if json.Unmarshal([]byte(x.ItemsJSON), &items) != nil {
-			continue
+		st := "pending"
+		if x.Status == "done" {
+			st = "done"
 		}
-		if _, err := tx.Exec(`INSERT INTO meal_plan(date,slot,items_json,kcal,status,actual_note,updated_at) VALUES(?,?,?,?,?,?,?)
-			ON CONFLICT(date,slot) DO UPDATE SET items_json=excluded.items_json, kcal=excluded.kcal, status=excluded.status, actual_note=excluded.actual_note, updated_at=excluded.updated_at`,
-			x.Date, x.Slot, x.ItemsJSON, x.Kcal, x.Status, x.Note, x.UpdatedAt); err != nil {
+		if _, err := tx.Exec(`INSERT INTO meal_plan(date,slot,items_json,kcal,status,actual_note,updated_at) VALUES(?,?,'[]',0,?,'',?)
+			ON CONFLICT(date,slot) DO UPDATE SET status=excluded.status, items_json='[]', kcal=0, actual_note='', updated_at=excluded.updated_at`,
+			x.Date, x.Slot, st, x.UpdatedAt); err != nil {
 			serverErr(w, err)
 			return
 		}
-	}
-
-	if _, err := tx.Exec(`DELETE FROM glucose_log`); err != nil {
-		serverErr(w, err)
-		return
 	}
 
 	if b.WorkJobs != nil {
@@ -668,9 +640,6 @@ func parseHMList(raw, fallback string) []string {
 
 func (s *Server) tick(now time.Time) []string {
 	set := s.settings()
-	if set["remind_on"] != "1" {
-		return nil
-	}
 	nowVN := now.In(s.loc)
 	date := nowVN.Format("2006-01-02")
 	var fired []string
@@ -716,7 +685,7 @@ func (s *Server) tick(now time.Time) []string {
 
 	// 3. Nhắc uống nước theo các mốc giờ tự chọn
 	waterTimes := parseHMList(set["remind_water_times"], "10:00,14:00,17:00,20:00")
-	_, waterTotal := s.waterEntries(date)
+	waterTotal := s.waterTotal(date)
 	waterMin := int(fnum(set, "water_min"))
 	if waterMin <= 0 {
 		waterMin = 2500

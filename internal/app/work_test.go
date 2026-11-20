@@ -268,18 +268,16 @@ func TestMealChecklistDefault3Meals(t *testing.T) {
 	}
 	expectedSlots := []string{"breakfast", "lunch", "dinner"}
 	for i, sl := range expectedSlots {
-		if string(todayResp.Meals[i].Slot) != sl || todayResp.Meals[i].Status != "pending" {
+		if todayResp.Meals[i].Slot != sl || todayResp.Meals[i].Status != "pending" {
 			t.Fatalf("meal %d expected (%s, pending), got (%s, %s)", i, sl, todayResp.Meals[i].Slot, todayResp.Meals[i].Status)
 		}
 	}
 
-	// 2. POST /api/meals/check lưu được trực tiếp trên ngày mới mà không cần generate trước
+	// 2. POST /api/meals/check đánh dấu breakfast là "done" (200) và từ chối "swapped" (400)
 	w = httptest.NewRecorder()
 	h.ServeHTTP(w, authedReq(srv, "POST", "/api/meals/check", map[string]any{
-		"date":   today,
 		"slot":   "breakfast",
 		"status": "done",
-		"note":   "Trứng luộc/hấp, Khoai lang/Ngô luộc",
 	}))
 	if w.Code != 200 {
 		t.Fatalf("expected 200 POST /api/meals/check done, got %d: %s", w.Code, w.Body.String())
@@ -287,53 +285,33 @@ func TestMealChecklistDefault3Meals(t *testing.T) {
 
 	w = httptest.NewRecorder()
 	h.ServeHTTP(w, authedReq(srv, "POST", "/api/meals/check", map[string]any{
-		"date":   today,
 		"slot":   "lunch",
 		"status": "swapped",
-		"note":   "Có đồ chiên/rán",
 	}))
-	if w.Code != 200 {
-		t.Fatalf("expected 200 POST /api/meals/check swapped, got %d: %s", w.Code, w.Body.String())
+	if w.Code != 400 {
+		t.Fatalf("expected 400 POST /api/meals/check swapped, got %d: %s", w.Code, w.Body.String())
 	}
 
-	// 3. GET /api/meals chỉ trả về đúng 3 bữa của ngày hôm nay và phản ánh trạng thái đã lưu
+	// 3. GET /api/today phản ánh đúng breakfast="done", lunch/dinner="pending"
 	w = httptest.NewRecorder()
-	h.ServeHTTP(w, authedReq(srv, "GET", "/api/meals?days=7", nil))
+	h.ServeHTTP(w, authedReq(srv, "GET", "/api/today", nil))
 	if w.Code != 200 {
-		t.Fatalf("expected 200 GET /api/meals?days=7, got %d", w.Code)
+		t.Fatalf("expected 200 GET /api/today after check, got %d", w.Code)
 	}
-	var mealsResp struct {
-		MealsTarget int       `json:"meals_target"`
-		Rows        []mealRow `json:"rows"`
+	if err := json.Unmarshal(w.Body.Bytes(), &todayResp); err != nil {
+		t.Fatalf("unmarshal /api/today after check: %v", err)
 	}
-	if err := json.Unmarshal(w.Body.Bytes(), &mealsResp); err != nil {
-		t.Fatalf("unmarshal /api/meals: %v", err)
+	if len(todayResp.Meals) != 3 {
+		t.Fatalf("expected 3 meals in /api/today, got %d", len(todayResp.Meals))
 	}
-	if mealsResp.MealsTarget != 3 || len(mealsResp.Rows) != 3 {
-		t.Fatalf("expected target=3 and 3 rows for today only, got target=%d len=%d", mealsResp.MealsTarget, len(mealsResp.Rows))
-	}
-
-	foundBreakfast := false
-	foundLunch := false
-	for _, r := range mealsResp.Rows {
+	wantStatus := map[string]string{"breakfast": "done", "lunch": "pending", "dinner": "pending"}
+	for _, r := range todayResp.Meals {
 		if r.Date != today {
-			t.Fatalf("expected only today (%s) rows, got %s", today, r.Date)
+			t.Fatalf("expected today (%s), got %s", today, r.Date)
 		}
-		if r.Date == today && r.Slot == "breakfast" {
-			foundBreakfast = true
-			if r.Status != "done" || r.Note != "Trứng luộc/hấp, Khoai lang/Ngô luộc" {
-				t.Fatalf("unexpected breakfast state: %+v", r)
-			}
+		if r.Status != wantStatus[r.Slot] {
+			t.Fatalf("slot %s expected status %s, got %s", r.Slot, wantStatus[r.Slot], r.Status)
 		}
-		if r.Date == today && r.Slot == "lunch" {
-			foundLunch = true
-			if r.Status != "swapped" || r.Note != "Có đồ chiên/rán" {
-				t.Fatalf("unexpected lunch state: %+v", r)
-			}
-		}
-	}
-	if !foundBreakfast || !foundLunch {
-		t.Fatalf("expected today's breakfast and lunch in /api/meals rows")
 	}
 }
 

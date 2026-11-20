@@ -146,19 +146,14 @@
         "20:00"
       ],
       "settings": {
-        "activity": "1.2",
         "age": "22",
-        "deficit": "500",
         "goal_weight": "70",
         "height": "172",
         "name": "Quyền",
         "remind_med_times": "08:00,12:30,20:00",
-        "remind_on": "1",
         "remind_sleep_times": "22:30",
         "remind_water_times": "10:00,14:00,17:00,20:00",
         "remind_weight_times": "06:30",
-        "snack": "0",
-        "start_weight": "97",
         "t_med": "08:00",
         "t_med2": "12:00",
         "t_sleep": "22:30",
@@ -166,7 +161,6 @@
         "water_max": "3000",
         "water_min": "2500"
       },
-      "target_kcal": 1850,
       "user": "quyen"
     }
   },
@@ -186,19 +180,14 @@
         "20:00"
       ],
       "settings": {
-        "activity": "1.2",
         "age": "22",
-        "deficit": "500",
         "goal_weight": "70",
         "height": "172",
         "name": "Quyền A",
         "remind_med_times": "08:00,12:30,20:00",
-        "remind_on": "1",
         "remind_sleep_times": "22:30",
         "remind_water_times": "09:00, 13:00,16:00,19:30",
         "remind_weight_times": "06:30",
-        "snack": "0",
-        "start_weight": "97",
         "t_med": "08:00",
         "t_med2": "12:00",
         "t_sleep": "22:30",
@@ -206,7 +195,6 @@
         "water_max": "3000",
         "water_min": "2600"
       },
-      "target_kcal": 1850,
       "user": "quyen"
     }
   },
@@ -306,11 +294,6 @@
     "body": {
       "entries": [
         {
-          "id": 3,
-          "ts": 1773532200,
-          "ml": 500
-        },
-        {
           "id": 1,
           "ts": 1773532800,
           "ml": 300
@@ -329,16 +312,6 @@
     },
     "body": {
       "entries": [
-        {
-          "id": 3,
-          "ts": 1773532200,
-          "ml": 500
-        },
-        {
-          "id": 1,
-          "ts": 1773532800,
-          "ml": 300
-        },
         {
           "id": 4,
           "ts": 1773532980,
@@ -370,11 +343,6 @@
     "body": {
       "entries": [
         {
-          "id": 1,
-          "ts": 1773532800,
-          "ml": 300
-        },
-        {
           "id": 4,
           "ts": 1773532980,
           "ml": 250
@@ -396,7 +364,7 @@
     }
   },
   {
-    "name": "weight-old",
+    "name": "weight-today",
     "status": 200,
     "header": {
       "Cache-Control": "no-store",
@@ -406,65 +374,11 @@
       "health_rev": 1007,
       "rows": [
         {
-          "date": "2026-03-01",
-          "kg": 97,
-          "ts": 1773533100
-        }
-      ],
-      "target_kcal": 1850
-    }
-  },
-  {
-    "name": "weight-mid",
-    "status": 200,
-    "header": {
-      "Cache-Control": "no-store",
-      "Content-Type": "application/json; charset=utf-8"
-    },
-    "body": {
-      "health_rev": 1008,
-      "rows": [
-        {
-          "date": "2026-03-01",
-          "kg": 97,
-          "ts": 1773533100
-        },
-        {
-          "date": "2026-03-10",
-          "kg": 96.5,
-          "ts": 1773533100
-        }
-      ],
-      "target_kcal": 1800
-    }
-  },
-  {
-    "name": "weight-today",
-    "status": 200,
-    "header": {
-      "Cache-Control": "no-store",
-      "Content-Type": "application/json; charset=utf-8"
-    },
-    "body": {
-      "health_rev": 1009,
-      "rows": [
-        {
-          "date": "2026-03-01",
-          "kg": 97,
-          "ts": 1773533100
-        },
-        {
-          "date": "2026-03-10",
-          "kg": 96.5,
-          "ts": 1773533100
-        },
-        {
           "date": "2026-03-15",
           "kg": 95.8,
           "ts": 1773533160
         }
-      ],
-      "target_kcal": 1800
+      ]
     }
   },
   {
@@ -476,84 +390,6 @@
     },
     "body": {
       "error": "Cân nặng phải từ 30 đến 300 kg"
-    }
-  },
-  {
-    "name": "weight-future",
-    "status": 400,
-    "header": {
-      "Cache-Control": "no-store",
-      "Content-Type": "application/json; charset=utf-8"
-    },
-    "body": {
-      "error": "ngày không hợp lệ"
-    }
-  },
-  {
-    "name": "weight-del",
-    "status": 200,
-    "header": {
-      "Cache-Control": "no-store",
-      "Content-Type": "application/json; charset=utf-8"
-    },
-    "body": {
-      "health_rev": 1010,
-      "rows": [
-        {
-          "date": "2026-03-01",
-          "kg": 97,
-          "ts": 1773533100
-        },
-        {
-          "date": "2026-03-15",
-          "kg": 95.8,
-          "ts": 1773533160
-        }
-      ]
-    }
-  },
-  {
-    "name": "weight-get",
-    "status": 200,
-    "header": {
-      "Cache-Control": "no-store",
-      "Content-Type": "application/json; charset=utf-8"
-    },
-    "body": {
-      "rows": [
-        {
-          "date": "2026-03-01",
-          "kg": 97,
-          "ts": 1773533100
-        },
-        {
-          "date": "2026-03-15",
-          "kg": 95.8,
-          "ts": 1773533160
-        }
-      ]
-    }
-  },
-  {
-    "name": "weight-get-default",
-    "status": 200,
-    "header": {
-      "Cache-Control": "no-store",
-      "Content-Type": "application/json; charset=utf-8"
-    },
-    "body": {
-      "rows": [
-        {
-          "date": "2026-03-01",
-          "kg": 97,
-          "ts": 1773533100
-        },
-        {
-          "date": "2026-03-15",
-          "kg": 95.8,
-          "ts": 1773533160
-        }
-      ]
     }
   },
   {
@@ -570,7 +406,7 @@
         false,
         true
       ],
-      "health_rev": 1011,
+      "health_rev": 1008,
       "taken": false,
       "taken_count": 2,
       "target_count": 3,
@@ -597,7 +433,7 @@
         false,
         true
       ],
-      "health_rev": 1011,
+      "health_rev": 1008,
       "taken": [],
       "target_count": 3,
       "times": [
@@ -622,7 +458,7 @@
         false,
         false
       ],
-      "health_rev": 1012,
+      "health_rev": 1009,
       "taken": false,
       "taken_count": 1,
       "target_count": 3,
@@ -647,7 +483,7 @@
         true,
         true
       ],
-      "health_rev": 1013,
+      "health_rev": 1010,
       "taken": true,
       "taken_count": 3,
       "target_count": 3,
@@ -672,7 +508,7 @@
         false,
         false
       ],
-      "health_rev": 1014,
+      "health_rev": 1011,
       "taken": false,
       "taken_count": 1,
       "target_count": 3,
@@ -680,564 +516,6 @@
         "08:00",
         "12:30",
         "20:00"
-      ]
-    }
-  },
-  {
-    "name": "glucose-add",
-    "status": 200,
-    "header": {
-      "Cache-Control": "no-store",
-      "Content-Type": "application/json; charset=utf-8"
-    },
-    "body": {
-      "rows": [
-        {
-          "id": 1,
-          "ts": 1773537600,
-          "mmol": 6.2,
-          "ctx": "after"
-        }
-      ]
-    }
-  },
-  {
-    "name": "glucose-add-bad",
-    "status": 400,
-    "header": {
-      "Cache-Control": "no-store",
-      "Content-Type": "application/json; charset=utf-8"
-    },
-    "body": {
-      "error": "Đường huyết phải từ 1 đến 40 mmol/L"
-    }
-  },
-  {
-    "name": "glucose-get",
-    "status": 200,
-    "header": {
-      "Cache-Control": "no-store",
-      "Content-Type": "application/json; charset=utf-8"
-    },
-    "body": {
-      "rows": [
-        {
-          "id": 1,
-          "ts": 1773537600,
-          "mmol": 6.2,
-          "ctx": "after"
-        }
-      ]
-    }
-  },
-  {
-    "name": "glucose-del",
-    "status": 200,
-    "header": {
-      "Cache-Control": "no-store",
-      "Content-Type": "application/json; charset=utf-8"
-    },
-    "body": {
-      "rows": []
-    }
-  },
-  {
-    "name": "meals-generate",
-    "status": 200,
-    "header": {
-      "Cache-Control": "no-store",
-      "Content-Type": "application/json; charset=utf-8"
-    },
-    "body": {
-      "meals_target": 3,
-      "rows": [
-        {
-          "date": "2026-03-15",
-          "slot": "breakfast",
-          "items": [
-            {
-              "id": "p_suatuoi",
-              "name": "Sữa tươi không đường",
-              "qty": "200ml",
-              "kcal": 130,
-              "kind": "protein",
-              "tag": "dairy",
-              "q": 200,
-              "unit": "ml",
-              "shop": "Sữa tươi không đường"
-            },
-            {
-              "id": "c_khoailang",
-              "name": "Khoai lang luộc",
-              "qty": "300g",
-              "kcal": 270,
-              "kind": "carb",
-              "q": 300,
-              "unit": "g",
-              "shop": "Khoai lang"
-            },
-            {
-              "id": "v_b_cachua",
-              "name": "Cà chua chín (ăn sống)",
-              "kcal": 20,
-              "kind": "veg",
-              "red": true,
-              "q": 1,
-              "unit": "phần",
-              "shop": "Cà chua"
-            }
-          ],
-          "kcal": 420,
-          "status": "pending",
-          "note": ""
-        },
-        {
-          "date": "2026-03-15",
-          "slot": "lunch",
-          "items": [
-            {
-              "id": "p_ga_hap",
-              "name": "Ức gà hấp lá chanh",
-              "qty": "160g",
-              "kcal": 264,
-              "kind": "protein",
-              "tag": "chicken",
-              "q": 160,
-              "unit": "g",
-              "shop": "Ức gà"
-            },
-            {
-              "id": "c_khoaiso",
-              "name": "Khoai sọ luộc",
-              "qty": "300g",
-              "kcal": 330,
-              "kind": "carb",
-              "q": 300,
-              "unit": "g",
-              "shop": "Khoai sọ"
-            },
-            {
-              "id": "v_daudua",
-              "name": "Đậu đũa luộc",
-              "kcal": 40,
-              "kind": "veg",
-              "q": 1,
-              "unit": "phần",
-              "shop": "Đậu đũa"
-            },
-            {
-              "id": "s_bixanh",
-              "name": "Canh bí xanh",
-              "kcal": 25,
-              "kind": "soup",
-              "q": 1,
-              "unit": "phần",
-              "shop": "Bí xanh"
-            },
-            {
-              "id": "f_thanhlong",
-              "name": "Thanh long ruột đỏ",
-              "qty": "150g",
-              "kcal": 90,
-              "kind": "fruit",
-              "red": true,
-              "q": 150,
-              "unit": "g",
-              "shop": "Thanh long ruột đỏ"
-            }
-          ],
-          "kcal": 749,
-          "status": "pending",
-          "note": ""
-        },
-        {
-          "date": "2026-03-15",
-          "slot": "dinner",
-          "items": [
-            {
-              "id": "p_dauphu_cachua",
-              "name": "Đậu phụ sốt cà chua (ít dầu)",
-              "qty": "3 miếng",
-              "kcal": 315,
-              "kind": "protein",
-              "red": true,
-              "tag": "tofu",
-              "q": 3,
-              "unit": "miếng",
-              "shop": "Đậu phụ"
-            },
-            {
-              "id": "c_com",
-              "name": "Cơm trắng",
-              "qty": "1 bát",
-              "kcal": 170,
-              "kind": "carb",
-              "q": 1,
-              "unit": "bát",
-              "shop": "Gạo"
-            },
-            {
-              "id": "v_rau_muong",
-              "name": "Rau muống luộc",
-              "kcal": 25,
-              "kind": "veg",
-              "q": 1,
-              "unit": "phần",
-              "shop": "Rau muống"
-            },
-            {
-              "id": "s_bido",
-              "name": "Canh bí đỏ",
-              "kcal": 45,
-              "kind": "soup",
-              "red": true,
-              "q": 1,
-              "unit": "phần",
-              "shop": "Bí đỏ"
-            },
-            {
-              "id": "f_oi",
-              "name": "Ổi",
-              "qty": "100g",
-              "kcal": 68,
-              "kind": "fruit",
-              "q": 100,
-              "unit": "g",
-              "shop": "Ổi"
-            }
-          ],
-          "kcal": 623,
-          "status": "pending",
-          "note": ""
-        }
-      ],
-      "target_kcal": 1800,
-      "today": "2026-03-15"
-    }
-  },
-  {
-    "name": "meals-get",
-    "status": 200,
-    "header": {
-      "Cache-Control": "no-store",
-      "Content-Type": "application/json; charset=utf-8"
-    },
-    "body": {
-      "meals_target": 3,
-      "rows": [
-        {
-          "date": "2026-03-15",
-          "slot": "breakfast",
-          "items": [
-            {
-              "id": "p_suatuoi",
-              "name": "Sữa tươi không đường",
-              "qty": "200ml",
-              "kcal": 130,
-              "kind": "protein",
-              "tag": "dairy",
-              "q": 200,
-              "unit": "ml",
-              "shop": "Sữa tươi không đường"
-            },
-            {
-              "id": "c_khoailang",
-              "name": "Khoai lang luộc",
-              "qty": "300g",
-              "kcal": 270,
-              "kind": "carb",
-              "q": 300,
-              "unit": "g",
-              "shop": "Khoai lang"
-            },
-            {
-              "id": "v_b_cachua",
-              "name": "Cà chua chín (ăn sống)",
-              "kcal": 20,
-              "kind": "veg",
-              "red": true,
-              "q": 1,
-              "unit": "phần",
-              "shop": "Cà chua"
-            }
-          ],
-          "kcal": 420,
-          "status": "pending",
-          "note": ""
-        },
-        {
-          "date": "2026-03-15",
-          "slot": "lunch",
-          "items": [
-            {
-              "id": "p_ga_hap",
-              "name": "Ức gà hấp lá chanh",
-              "qty": "160g",
-              "kcal": 264,
-              "kind": "protein",
-              "tag": "chicken",
-              "q": 160,
-              "unit": "g",
-              "shop": "Ức gà"
-            },
-            {
-              "id": "c_khoaiso",
-              "name": "Khoai sọ luộc",
-              "qty": "300g",
-              "kcal": 330,
-              "kind": "carb",
-              "q": 300,
-              "unit": "g",
-              "shop": "Khoai sọ"
-            },
-            {
-              "id": "v_daudua",
-              "name": "Đậu đũa luộc",
-              "kcal": 40,
-              "kind": "veg",
-              "q": 1,
-              "unit": "phần",
-              "shop": "Đậu đũa"
-            },
-            {
-              "id": "s_bixanh",
-              "name": "Canh bí xanh",
-              "kcal": 25,
-              "kind": "soup",
-              "q": 1,
-              "unit": "phần",
-              "shop": "Bí xanh"
-            },
-            {
-              "id": "f_thanhlong",
-              "name": "Thanh long ruột đỏ",
-              "qty": "150g",
-              "kcal": 90,
-              "kind": "fruit",
-              "red": true,
-              "q": 150,
-              "unit": "g",
-              "shop": "Thanh long ruột đỏ"
-            }
-          ],
-          "kcal": 749,
-          "status": "pending",
-          "note": ""
-        },
-        {
-          "date": "2026-03-15",
-          "slot": "dinner",
-          "items": [
-            {
-              "id": "p_dauphu_cachua",
-              "name": "Đậu phụ sốt cà chua (ít dầu)",
-              "qty": "3 miếng",
-              "kcal": 315,
-              "kind": "protein",
-              "red": true,
-              "tag": "tofu",
-              "q": 3,
-              "unit": "miếng",
-              "shop": "Đậu phụ"
-            },
-            {
-              "id": "c_com",
-              "name": "Cơm trắng",
-              "qty": "1 bát",
-              "kcal": 170,
-              "kind": "carb",
-              "q": 1,
-              "unit": "bát",
-              "shop": "Gạo"
-            },
-            {
-              "id": "v_rau_muong",
-              "name": "Rau muống luộc",
-              "kcal": 25,
-              "kind": "veg",
-              "q": 1,
-              "unit": "phần",
-              "shop": "Rau muống"
-            },
-            {
-              "id": "s_bido",
-              "name": "Canh bí đỏ",
-              "kcal": 45,
-              "kind": "soup",
-              "red": true,
-              "q": 1,
-              "unit": "phần",
-              "shop": "Bí đỏ"
-            },
-            {
-              "id": "f_oi",
-              "name": "Ổi",
-              "qty": "100g",
-              "kcal": 68,
-              "kind": "fruit",
-              "q": 100,
-              "unit": "g",
-              "shop": "Ổi"
-            }
-          ],
-          "kcal": 623,
-          "status": "pending",
-          "note": ""
-        }
-      ],
-      "target_kcal": 1800,
-      "today": "2026-03-15"
-    }
-  },
-  {
-    "name": "meals-swap",
-    "status": 200,
-    "header": {
-      "Cache-Control": "no-store",
-      "Content-Type": "application/json; charset=utf-8"
-    },
-    "body": {
-      "date": "2026-03-15",
-      "slot": "lunch",
-      "items": [
-        {
-          "id": "p_ga_chanh",
-          "name": "Ức gà luộc chấm muối tiêu chanh",
-          "qty": "180g",
-          "kcal": 297,
-          "kind": "protein",
-          "tag": "chicken",
-          "q": 180,
-          "unit": "g",
-          "shop": "Ức gà"
-        },
-        {
-          "id": "c_ngo",
-          "name": "Ngô luộc",
-          "qty": "2 bắp",
-          "kcal": 280,
-          "kind": "carb",
-          "q": 2,
-          "unit": "bắp",
-          "shop": "Ngô (bắp)"
-        },
-        {
-          "id": "v_muong_xao",
-          "name": "Rau muống xào tỏi (ít dầu)",
-          "kcal": 60,
-          "kind": "veg",
-          "q": 1,
-          "unit": "phần",
-          "shop": "Rau muống"
-        },
-        {
-          "id": "s_muop",
-          "name": "Canh mướp",
-          "kcal": 25,
-          "kind": "soup",
-          "q": 1,
-          "unit": "phần",
-          "shop": "Mướp"
-        },
-        {
-          "id": "f_suachua",
-          "name": "Sữa chua không đường",
-          "qty": "1 hộp",
-          "kcal": 60,
-          "kind": "fruit",
-          "tag": "dairy",
-          "q": 1,
-          "unit": "hộp",
-          "shop": "Sữa chua không đường"
-        }
-      ],
-      "kcal": 722,
-      "status": "pending",
-      "note": ""
-    }
-  },
-  {
-    "name": "meals-swap-bad",
-    "status": 400,
-    "header": {
-      "Cache-Control": "no-store",
-      "Content-Type": "application/json; charset=utf-8"
-    },
-    "body": {
-      "error": "chỉ đổi món cho 7 ngày tới"
-    }
-  },
-  {
-    "name": "meals-shopping",
-    "status": 200,
-    "header": {
-      "Cache-Control": "no-store",
-      "Content-Type": "application/json; charset=utf-8"
-    },
-    "body": {
-      "days": 7,
-      "from": "2026-03-15",
-      "lines": [
-        {
-          "group": "2. Đạm",
-          "name": "Sữa tươi không đường",
-          "text": "200 ml"
-        },
-        {
-          "group": "1. Tinh bột",
-          "name": "Khoai lang",
-          "text": "300 g"
-        },
-        {
-          "group": "3. Rau củ",
-          "name": "Cà chua",
-          "text": "1 phần (~100g)"
-        },
-        {
-          "group": "2. Đạm",
-          "name": "Đậu phụ",
-          "text": "3 miếng"
-        },
-        {
-          "group": "1. Tinh bột",
-          "name": "Gạo",
-          "text": "≈ 55 g gạo (1 bát cơm)"
-        },
-        {
-          "group": "3. Rau củ",
-          "name": "Rau muống",
-          "text": "2 phần (~200g)"
-        },
-        {
-          "group": "3. Rau củ",
-          "name": "Bí đỏ",
-          "text": "1 phần (~100g)"
-        },
-        {
-          "group": "4. Trái cây \u0026 ăn phụ",
-          "name": "Ổi",
-          "text": "100 g"
-        },
-        {
-          "group": "2. Đạm",
-          "name": "Ức gà",
-          "text": "180 g"
-        },
-        {
-          "group": "1. Tinh bột",
-          "name": "Ngô (bắp)",
-          "text": "2 bắp"
-        },
-        {
-          "group": "3. Rau củ",
-          "name": "Mướp",
-          "text": "1 phần (~100g)"
-        },
-        {
-          "group": "4. Trái cây \u0026 ăn phụ",
-          "name": "Sữa chua không đường",
-          "text": "1 hộp"
-        }
       ]
     }
   },
@@ -1250,27 +528,9 @@
     },
     "body": {
       "date": "2026-03-15",
-      "health_rev": 1019,
-      "items": [],
-      "note": "",
+      "health_rev": 1012,
       "slot": "breakfast",
       "status": "done"
-    }
-  },
-  {
-    "name": "meals-check-swapped",
-    "status": 200,
-    "header": {
-      "Cache-Control": "no-store",
-      "Content-Type": "application/json; charset=utf-8"
-    },
-    "body": {
-      "date": "2026-03-15",
-      "health_rev": 1020,
-      "items": [],
-      "note": "Ăn phở bò",
-      "slot": "dinner",
-      "status": "swapped"
     }
   },
   {
@@ -1285,183 +545,6 @@
     }
   },
   {
-    "name": "meals-swap-locked",
-    "status": 400,
-    "header": {
-      "Cache-Control": "no-store",
-      "Content-Type": "application/json; charset=utf-8"
-    },
-    "body": {
-      "error": "bữa này đã được ghi nhận, hãy đặt lại 'Chưa ăn' trước khi đổi món"
-    }
-  },
-  {
-    "name": "meals-generate-2",
-    "status": 200,
-    "header": {
-      "Cache-Control": "no-store",
-      "Content-Type": "application/json; charset=utf-8"
-    },
-    "body": {
-      "meals_target": 3,
-      "rows": [
-        {
-          "date": "2026-03-15",
-          "slot": "breakfast",
-          "items": [],
-          "kcal": 420,
-          "status": "done",
-          "note": ""
-        },
-        {
-          "date": "2026-03-15",
-          "slot": "lunch",
-          "items": [
-            {
-              "id": "p_ga_chanh",
-              "name": "Ức gà luộc chấm muối tiêu chanh",
-              "qty": "180g",
-              "kcal": 297,
-              "kind": "protein",
-              "tag": "chicken",
-              "q": 180,
-              "unit": "g",
-              "shop": "Ức gà"
-            },
-            {
-              "id": "c_ngo",
-              "name": "Ngô luộc",
-              "qty": "2 bắp",
-              "kcal": 280,
-              "kind": "carb",
-              "q": 2,
-              "unit": "bắp",
-              "shop": "Ngô (bắp)"
-            },
-            {
-              "id": "v_rau_muong",
-              "name": "Rau muống luộc",
-              "kcal": 25,
-              "kind": "veg",
-              "q": 1,
-              "unit": "phần",
-              "shop": "Rau muống"
-            },
-            {
-              "id": "s_muop",
-              "name": "Canh mướp",
-              "kcal": 25,
-              "kind": "soup",
-              "q": 1,
-              "unit": "phần",
-              "shop": "Mướp"
-            },
-            {
-              "id": "f_suachua",
-              "name": "Sữa chua không đường",
-              "qty": "1 hộp",
-              "kcal": 60,
-              "kind": "fruit",
-              "tag": "dairy",
-              "q": 1,
-              "unit": "hộp",
-              "shop": "Sữa chua không đường"
-            }
-          ],
-          "kcal": 687,
-          "status": "pending",
-          "note": ""
-        },
-        {
-          "date": "2026-03-15",
-          "slot": "dinner",
-          "items": [],
-          "kcal": 623,
-          "status": "swapped",
-          "note": "Ăn phở bò"
-        }
-      ],
-      "target_kcal": 1800,
-      "today": "2026-03-15"
-    }
-  },
-  {
-    "name": "meals-shopping-2",
-    "status": 200,
-    "header": {
-      "Cache-Control": "no-store",
-      "Content-Type": "application/json; charset=utf-8"
-    },
-    "body": {
-      "days": 3,
-      "from": "2026-03-15",
-      "lines": [
-        {
-          "group": "2. Đạm",
-          "name": "Ức gà",
-          "text": "180 g"
-        },
-        {
-          "group": "1. Tinh bột",
-          "name": "Ngô (bắp)",
-          "text": "2 bắp"
-        },
-        {
-          "group": "3. Rau củ",
-          "name": "Rau muống",
-          "text": "1 phần (~100g)"
-        },
-        {
-          "group": "3. Rau củ",
-          "name": "Mướp",
-          "text": "1 phần (~100g)"
-        },
-        {
-          "group": "4. Trái cây \u0026 ăn phụ",
-          "name": "Sữa chua không đường",
-          "text": "1 hộp"
-        }
-      ]
-    }
-  },
-  {
-    "name": "report",
-    "status": 200,
-    "header": {
-      "Cache-Control": "no-store",
-      "Content-Type": "application/json; charset=utf-8"
-    },
-    "body": {
-      "days": [
-        {
-          "date": "2026-03-15",
-          "water": 550,
-          "med": false,
-          "med_count": 1,
-          "med_target": 3,
-          "meals_done": 1,
-          "meals_swapped": 1,
-          "meals_total": 3
-        }
-      ],
-      "glucose": [],
-      "water_max": 3000,
-      "water_min": 2600,
-      "weights": [
-        {
-          "date": "2026-03-01",
-          "kg": 97,
-          "ts": 1773533100
-        },
-        {
-          "date": "2026-03-15",
-          "kg": 95.8,
-          "ts": 1773533160
-        }
-      ]
-    }
-  },
-  {
     "name": "today",
     "status": 200,
     "header": {
@@ -1470,82 +553,22 @@
     },
     "body": {
       "date": "2026-03-15",
-      "health_rev": 1021,
+      "health_rev": 1012,
       "meals": [
         {
           "date": "2026-03-15",
           "slot": "breakfast",
-          "items": [],
-          "kcal": 420,
-          "status": "done",
-          "note": ""
+          "status": "done"
         },
         {
           "date": "2026-03-15",
           "slot": "lunch",
-          "items": [
-            {
-              "id": "p_ga_chanh",
-              "name": "Ức gà luộc chấm muối tiêu chanh",
-              "qty": "180g",
-              "kcal": 297,
-              "kind": "protein",
-              "tag": "chicken",
-              "q": 180,
-              "unit": "g",
-              "shop": "Ức gà"
-            },
-            {
-              "id": "c_ngo",
-              "name": "Ngô luộc",
-              "qty": "2 bắp",
-              "kcal": 280,
-              "kind": "carb",
-              "q": 2,
-              "unit": "bắp",
-              "shop": "Ngô (bắp)"
-            },
-            {
-              "id": "v_rau_muong",
-              "name": "Rau muống luộc",
-              "kcal": 25,
-              "kind": "veg",
-              "q": 1,
-              "unit": "phần",
-              "shop": "Rau muống"
-            },
-            {
-              "id": "s_muop",
-              "name": "Canh mướp",
-              "kcal": 25,
-              "kind": "soup",
-              "q": 1,
-              "unit": "phần",
-              "shop": "Mướp"
-            },
-            {
-              "id": "f_suachua",
-              "name": "Sữa chua không đường",
-              "qty": "1 hộp",
-              "kcal": 60,
-              "kind": "fruit",
-              "tag": "dairy",
-              "q": 1,
-              "unit": "hộp",
-              "shop": "Sữa chua không đường"
-            }
-          ],
-          "kcal": 687,
-          "status": "pending",
-          "note": ""
+          "status": "pending"
         },
         {
           "date": "2026-03-15",
           "slot": "dinner",
-          "items": [],
-          "kcal": 623,
-          "status": "swapped",
-          "note": "Ăn phở bò"
+          "status": "pending"
         }
       ],
       "meals_target": 3,
@@ -1566,21 +589,15 @@
       },
       "now": 1773538800,
       "ok": true,
-      "plan_days": 1,
       "settings": {
-        "activity": "1.2",
         "age": "22",
-        "deficit": "500",
         "goal_weight": "70",
         "height": "172",
         "name": "Quyền A",
         "remind_med_times": "08:00,12:30,20:00",
-        "remind_on": "1",
         "remind_sleep_times": "22:30",
         "remind_water_times": "09:00, 13:00,16:00,19:30",
         "remind_weight_times": "06:30",
-        "snack": "0",
-        "start_weight": "97",
         "t_med": "08:00",
         "t_med2": "12:00",
         "t_sleep": "22:30",
@@ -1588,15 +605,9 @@
         "water_max": "3000",
         "water_min": "2600"
       },
-      "target_kcal": 1800,
       "user": "quyen",
       "water": {
         "entries": [
-          {
-            "id": 1,
-            "ts": 1773532800,
-            "ml": 300
-          },
           {
             "id": 4,
             "ts": 1773532980,
@@ -1606,27 +617,12 @@
         "total": 550
       },
       "weight": {
-        "first": {
-          "date": "2026-03-01",
-          "kg": 97,
-          "ts": 1773533100
-        },
         "last": {
           "date": "2026-03-15",
           "kg": 95.8,
           "ts": 1773533160
         },
-        "prev": {
-          "date": "2026-03-01",
-          "kg": 97,
-          "ts": 1773533100
-        },
         "rows": [
-          {
-            "date": "2026-03-01",
-            "kg": 97,
-            "ts": 1773533100
-          },
           {
             "date": "2026-03-15",
             "kg": 95.8,
@@ -8399,19 +7395,14 @@
       "version": 1,
       "export_at": 1773543600,
       "settings": {
-        "activity": "1.2",
         "age": "22",
-        "deficit": "500",
         "goal_weight": "70",
         "height": "172",
         "name": "Quyền A",
         "remind_med_times": "08:00,12:30,20:00",
-        "remind_on": "1",
         "remind_sleep_times": "22:30",
         "remind_water_times": "09:00, 13:00,16:00,19:30",
         "remind_weight_times": "06:30",
-        "snack": "0",
-        "start_weight": "97",
         "t_med": "08:00",
         "t_med2": "12:00",
         "t_sleep": "22:30",
@@ -8434,11 +7425,6 @@
       ],
       "weight": [
         {
-          "date": "2026-03-01",
-          "kg": 97,
-          "ts": 1773533100
-        },
-        {
           "date": "2026-03-15",
           "kg": 95.8,
           "ts": 1773533160
@@ -8456,32 +7442,10 @@
         {
           "date": "2026-03-15",
           "slot": "breakfast",
-          "items_json": "[]",
-          "kcal": 420,
           "status": "done",
-          "actual_note": "",
           "updated_at": 1773538440
-        },
-        {
-          "date": "2026-03-15",
-          "slot": "dinner",
-          "items_json": "[]",
-          "kcal": 623,
-          "status": "swapped",
-          "actual_note": "Ăn phở bò",
-          "updated_at": 1773538500
-        },
-        {
-          "date": "2026-03-15",
-          "slot": "lunch",
-          "items_json": "[{\"id\":\"p_ga_chanh\",\"name\":\"Ức gà luộc chấm muối tiêu chanh\",\"qty\":\"180g\",\"kcal\":297,\"kind\":\"protein\",\"tag\":\"chicken\",\"q\":180,\"unit\":\"g\",\"shop\":\"Ức gà\"},{\"id\":\"c_ngo\",\"name\":\"Ngô luộc\",\"qty\":\"2 bắp\",\"kcal\":280,\"kind\":\"carb\",\"q\":2,\"unit\":\"bắp\",\"shop\":\"Ngô (bắp)\"},{\"id\":\"v_rau_muong\",\"name\":\"Rau muống luộc\",\"kcal\":25,\"kind\":\"veg\",\"q\":1,\"unit\":\"phần\",\"shop\":\"Rau muống\"},{\"id\":\"s_muop\",\"name\":\"Canh mướp\",\"kcal\":25,\"kind\":\"soup\",\"q\":1,\"unit\":\"phần\",\"shop\":\"Mướp\"},{\"id\":\"f_suachua\",\"name\":\"Sữa chua không đường\",\"qty\":\"1 hộp\",\"kcal\":60,\"kind\":\"fruit\",\"tag\":\"dairy\",\"q\":1,\"unit\":\"hộp\",\"shop\":\"Sữa chua không đường\"}]",
-          "kcal": 687,
-          "status": "pending",
-          "actual_note": "",
-          "updated_at": 1773538620
         }
       ],
-      "glucose": [],
       "work_jobs": [
         {
           "uid": "job_uid_3",
@@ -9638,31 +8602,22 @@
     },
     "body": {
       "date": "2026-03-16",
-      "health_rev": 1021,
+      "health_rev": 1012,
       "meals": [
         {
           "date": "2026-03-16",
           "slot": "breakfast",
-          "items": [],
-          "kcal": 0,
-          "status": "pending",
-          "note": ""
+          "status": "pending"
         },
         {
           "date": "2026-03-16",
           "slot": "lunch",
-          "items": [],
-          "kcal": 0,
-          "status": "pending",
-          "note": ""
+          "status": "pending"
         },
         {
           "date": "2026-03-16",
           "slot": "dinner",
-          "items": [],
-          "kcal": 0,
-          "status": "pending",
-          "note": ""
+          "status": "pending"
         }
       ],
       "meals_target": 3,
@@ -9683,21 +8638,15 @@
       },
       "now": 1773619200,
       "ok": true,
-      "plan_days": 1,
       "settings": {
-        "activity": "1.2",
         "age": "22",
-        "deficit": "500",
         "goal_weight": "70",
         "height": "172",
         "name": "Quyền A",
         "remind_med_times": "08:00,12:30,20:00",
-        "remind_on": "1",
         "remind_sleep_times": "22:30",
         "remind_water_times": "09:00, 13:00,16:00,19:30",
         "remind_weight_times": "06:30",
-        "snack": "0",
-        "start_weight": "97",
         "t_med": "08:00",
         "t_med2": "12:00",
         "t_sleep": "22:30",
@@ -9705,34 +8654,18 @@
         "water_max": "3000",
         "water_min": "2600"
       },
-      "target_kcal": 1800,
       "user": "quyen",
       "water": {
         "entries": [],
         "total": 0
       },
       "weight": {
-        "first": {
-          "date": "2026-03-01",
-          "kg": 97,
-          "ts": 1773533100
-        },
         "last": {
           "date": "2026-03-15",
           "kg": 95.8,
           "ts": 1773533160
         },
-        "prev": {
-          "date": "2026-03-01",
-          "kg": 97,
-          "ts": 1773533100
-        },
         "rows": [
-          {
-            "date": "2026-03-01",
-            "kg": 97,
-            "ts": 1773533100
-          },
           {
             "date": "2026-03-15",
             "kg": 95.8,
@@ -9741,45 +8674,6 @@
         ],
         "today": null
       }
-    }
-  },
-  {
-    "name": "meals-next-day",
-    "status": 200,
-    "header": {
-      "Cache-Control": "no-store",
-      "Content-Type": "application/json; charset=utf-8"
-    },
-    "body": {
-      "meals_target": 3,
-      "rows": [
-        {
-          "date": "2026-03-16",
-          "slot": "breakfast",
-          "items": [],
-          "kcal": 0,
-          "status": "pending",
-          "note": ""
-        },
-        {
-          "date": "2026-03-16",
-          "slot": "lunch",
-          "items": [],
-          "kcal": 0,
-          "status": "pending",
-          "note": ""
-        },
-        {
-          "date": "2026-03-16",
-          "slot": "dinner",
-          "items": [],
-          "kcal": 0,
-          "status": "pending",
-          "note": ""
-        }
-      ],
-      "target_kcal": 1800,
-      "today": "2026-03-16"
     }
   },
   {
@@ -9813,31 +8707,22 @@
     },
     "body": {
       "date": "2026-03-16",
-      "health_rev": 1022,
+      "health_rev": 1013,
       "meals": [
         {
           "date": "2026-03-16",
           "slot": "breakfast",
-          "items": [],
-          "kcal": 0,
-          "status": "pending",
-          "note": ""
+          "status": "pending"
         },
         {
           "date": "2026-03-16",
           "slot": "lunch",
-          "items": [],
-          "kcal": 0,
-          "status": "pending",
-          "note": ""
+          "status": "pending"
         },
         {
           "date": "2026-03-16",
           "slot": "dinner",
-          "items": [],
-          "kcal": 0,
-          "status": "pending",
-          "note": ""
+          "status": "pending"
         }
       ],
       "meals_target": 3,
@@ -9858,21 +8743,15 @@
       },
       "now": 1773619560,
       "ok": true,
-      "plan_days": 1,
       "settings": {
-        "activity": "1.2",
         "age": "22",
-        "deficit": "500",
         "goal_weight": "70",
         "height": "172",
         "name": "Quyền A",
         "remind_med_times": "08:00,12:30,20:00",
-        "remind_on": "1",
         "remind_sleep_times": "22:30",
         "remind_water_times": "09:00, 13:00,16:00,19:30",
         "remind_weight_times": "06:30",
-        "snack": "0",
-        "start_weight": "97",
         "t_med": "08:00",
         "t_med2": "12:00",
         "t_sleep": "22:30",
@@ -9880,34 +8759,18 @@
         "water_max": "3000",
         "water_min": "2600"
       },
-      "target_kcal": 1800,
       "user": "quyen",
       "water": {
         "entries": [],
         "total": 0
       },
       "weight": {
-        "first": {
-          "date": "2026-03-01",
-          "kg": 97,
-          "ts": 1773533100
-        },
         "last": {
           "date": "2026-03-15",
           "kg": 95.8,
           "ts": 1773533160
         },
-        "prev": {
-          "date": "2026-03-01",
-          "kg": 97,
-          "ts": 1773533100
-        },
         "rows": [
-          {
-            "date": "2026-03-01",
-            "kg": 97,
-            "ts": 1773533100
-          },
           {
             "date": "2026-03-15",
             "kg": 95.8,
@@ -10741,19 +9604,14 @@
       "version": 1,
       "export_at": 1773619620,
       "settings": {
-        "activity": "1.2",
         "age": "22",
-        "deficit": "500",
         "goal_weight": "70",
         "height": "172",
         "name": "Quyền A",
         "remind_med_times": "08:00,12:30,20:00",
-        "remind_on": "1",
         "remind_sleep_times": "22:30",
         "remind_water_times": "09:00, 13:00,16:00,19:30",
         "remind_weight_times": "06:30",
-        "snack": "0",
-        "start_weight": "97",
         "t_med": "08:00",
         "t_med2": "12:00",
         "t_sleep": "22:30",
@@ -10764,11 +9622,6 @@
       "water": [],
       "weight": [
         {
-          "date": "2026-03-01",
-          "kg": 97,
-          "ts": 1773533100
-        },
-        {
           "date": "2026-03-15",
           "kg": 95.8,
           "ts": 1773533160
@@ -10776,7 +9629,6 @@
       ],
       "med": [],
       "meals": [],
-      "glucose": [],
       "work_jobs": [
         {
           "uid": "job_uid_3",
@@ -11036,7 +9888,7 @@
       "Content-Type": "application/json; charset=utf-8"
     },
     "body": {
-      "health_rev": 1022,
+      "health_rev": 1013,
       "med_target": 3,
       "med_times": [
         "08:00",
@@ -11044,19 +9896,14 @@
         "20:00"
       ],
       "settings": {
-        "activity": "1.2",
         "age": "22",
-        "deficit": "500",
         "goal_weight": "70",
         "height": "172",
         "name": "Quyền A",
         "remind_med_times": "08:00,12:30,20:00",
-        "remind_on": "1",
         "remind_sleep_times": "22:30",
         "remind_water_times": "09:00, 13:00,16:00,19:30",
         "remind_weight_times": "06:30",
-        "snack": "0",
-        "start_weight": "97",
         "t_med": "08:00",
         "t_med2": "12:00",
         "t_sleep": "22:30",
@@ -11064,7 +9911,6 @@
         "water_max": "3000",
         "water_min": "2600"
       },
-      "target_kcal": 1800,
       "user": "quyen"
     }
   },

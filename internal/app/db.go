@@ -21,12 +21,9 @@ CREATE TABLE IF NOT EXISTS med_log (
   doses_json TEXT NOT NULL DEFAULT '',
   ts INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS meal_plan (
-  date TEXT NOT NULL, slot TEXT NOT NULL, items_json TEXT NOT NULL, kcal INTEGER NOT NULL,
+  date TEXT NOT NULL, slot TEXT NOT NULL, items_json TEXT NOT NULL DEFAULT '[]', kcal INTEGER NOT NULL DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'pending', actual_note TEXT NOT NULL DEFAULT '', updated_at INTEGER NOT NULL,
   PRIMARY KEY (date, slot));
-CREATE TABLE IF NOT EXISTS glucose_log (
-  id INTEGER PRIMARY KEY AUTOINCREMENT, ts INTEGER NOT NULL, date TEXT NOT NULL, mmol REAL NOT NULL, ctx TEXT NOT NULL DEFAULT 'fasting');
-CREATE INDEX IF NOT EXISTS idx_glucose_date ON glucose_log(date);
 CREATE TABLE IF NOT EXISTS push_sub (endpoint TEXT PRIMARY KEY, p256dh TEXT NOT NULL, auth TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS notif_log (key TEXT PRIMARY KEY, ts INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS work_jobs (
@@ -136,6 +133,8 @@ func migrateSchema(db *sql.DB) error {
 			return err
 		}
 	}
+	_, _ = db.Exec(`DROP TABLE IF EXISTS glucose_log`)
+	_, _ = db.Exec(`DELETE FROM settings WHERE key IN ('start_weight','activity','deficit','snack','remind_on')`)
 	return nil
 }
 

@@ -213,14 +213,8 @@ func goldenAPISteps() []goldenStep {
 		{name: "water-del", at: d0 + " 07:04", method: "DELETE", path: "/api/water/3", auth: A},
 		{name: "water-del-bad", at: d0 + " 07:04", method: "DELETE", path: "/api/water/abc", auth: A},
 
-		{name: "weight-old", at: d0 + " 07:05", method: "POST", path: "/api/weight", auth: A, body: map[string]any{"kg": 97.04, "date": "2026-03-01"}},
-		{name: "weight-mid", at: d0 + " 07:05", method: "POST", path: "/api/weight", auth: A, body: map[string]any{"kg": 96.46, "date": "2026-03-10"}},
 		{name: "weight-today", at: d0 + " 07:06", method: "POST", path: "/api/weight", auth: A, body: map[string]any{"kg": 95.8}},
 		{name: "weight-bad", at: d0 + " 07:06", method: "POST", path: "/api/weight", auth: A, body: map[string]any{"kg": 20}},
-		{name: "weight-future", at: d0 + " 07:06", method: "POST", path: "/api/weight", auth: A, body: map[string]any{"kg": 90, "date": "2026-04-01"}},
-		{name: "weight-del", at: d0 + " 07:07", method: "DELETE", path: "/api/weight/2026-03-10", auth: A},
-		{name: "weight-get", at: d0 + " 07:07", method: "GET", path: "/api/weight?days=30", auth: A},
-		{name: "weight-get-default", at: d0 + " 07:07", method: "GET", path: "/api/weight", auth: A},
 
 		{name: "med-doses", at: d0 + " 08:10", method: "PUT", path: "/api/med", auth: A, body: map[string]any{"doses": []bool{true, false, true, true}}},
 		{name: "med-get", at: d0 + " 08:11", method: "GET", path: "/api/med", auth: A},
@@ -228,23 +222,8 @@ func goldenAPISteps() []goldenStep {
 		{name: "med-taken", at: d0 + " 08:13", method: "PUT", path: "/api/med", auth: A, body: map[string]any{"taken": true}},
 		{name: "med-reset", at: d0 + " 08:14", method: "PUT", path: "/api/med", auth: A, body: map[string]any{"taken_count": 1}},
 
-		{name: "glucose-add", at: d0 + " 08:20", method: "POST", path: "/api/glucose", auth: A, body: map[string]any{"mmol": 6.24, "ctx": "after"}},
-		{name: "glucose-add-bad", at: d0 + " 08:20", method: "POST", path: "/api/glucose", auth: A, body: map[string]any{"mmol": 50}},
-		{name: "glucose-get", at: d0 + " 08:21", method: "GET", path: "/api/glucose", auth: A},
-		{name: "glucose-del", at: d0 + " 08:22", method: "DELETE", path: "/api/glucose/1", auth: A},
-
-		{name: "meals-generate", at: d0 + " 08:30", method: "POST", path: "/api/meals/generate", auth: A},
-		{name: "meals-get", at: d0 + " 08:31", method: "GET", path: "/api/meals", auth: A},
-		{name: "meals-swap", at: d0 + " 08:32", method: "POST", path: "/api/meals/swap", auth: A, body: map[string]string{"date": d0, "slot": "lunch"}},
-		{name: "meals-swap-bad", at: d0 + " 08:32", method: "POST", path: "/api/meals/swap", auth: A, body: map[string]string{"date": "2026-01-01", "slot": "lunch"}},
-		{name: "meals-shopping", at: d0 + " 08:33", method: "GET", path: "/api/shopping", auth: A},
-		{name: "meals-check-done", at: d0 + " 08:34", method: "POST", path: "/api/meals/check", auth: A, body: map[string]any{"date": d0, "slot": "breakfast", "status": "done"}},
-		{name: "meals-check-swapped", at: d0 + " 08:35", method: "POST", path: "/api/meals/check", auth: A, body: map[string]any{"date": d0, "slot": "dinner", "status": "swapped", "note": "  Ăn phở bò  "}},
-		{name: "meals-check-bad", at: d0 + " 08:35", method: "POST", path: "/api/meals/check", auth: A, body: map[string]any{"date": d0, "slot": "dinner", "status": "eaten"}},
-		{name: "meals-swap-locked", at: d0 + " 08:36", method: "POST", path: "/api/meals/swap", auth: A, body: map[string]string{"date": d0, "slot": "breakfast"}},
-		{name: "meals-generate-2", at: d0 + " 08:37", method: "POST", path: "/api/meals/generate", auth: A},
-		{name: "meals-shopping-2", at: d0 + " 08:38", method: "GET", path: "/api/shopping?days=3", auth: A},
-		{name: "report", at: d0 + " 08:39", method: "GET", path: "/api/report", auth: A},
+		{name: "meals-check-done", at: d0 + " 08:34", method: "POST", path: "/api/meals/check", auth: A, body: map[string]any{"slot": "breakfast", "status": "done"}},
+		{name: "meals-check-bad", at: d0 + " 08:35", method: "POST", path: "/api/meals/check", auth: A, body: map[string]any{"slot": "dinner", "status": "eaten"}},
 		{name: "today", at: d0 + " 08:40", method: "GET", path: "/api/today", auth: A},
 
 		// ---------- công việc ----------
@@ -354,7 +333,6 @@ func goldenAPISteps() []goldenStep {
 
 		// ngày hôm sau: dữ liệu sức khoẻ ngày cũ bị dọn
 		{name: "today-next-day", at: "2026-03-16 07:00", method: "GET", path: "/api/today", auth: A},
-		{name: "meals-next-day", at: "2026-03-16 07:00", method: "GET", path: "/api/meals", auth: A},
 		{name: "restore", at: "2026-03-16 07:05", method: "POST", path: "/api/restore", auth: A, bodyFn: func(prev map[string][]byte) any {
 			var v map[string]any
 			_ = json.Unmarshal(prev["backup"], &v)
