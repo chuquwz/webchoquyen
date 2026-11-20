@@ -1,0 +1,12 @@
+.git
+.agents
+.uv_cache
+ali/
+quyenhealth
+*.exe
+data/
+*.db*
+**/*_test.go
+**/testdata
+README.md
+AGENTS.md

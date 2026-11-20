@@ -45,6 +45,14 @@ type Server struct {
 	healthRev atomic.Int64
 	workRev   atomic.Int64
 	uidSeq    atomic.Int64
+
+	tokQuyen      string
+	tokDev        string
+	tokQuyenBytes []byte
+	tokDevBytes   []byte
+
+	dbIDOnce sync.Once
+	dbID     string
 }
 
 // Việt Nam không có giờ mùa hè nên dùng múi giờ cố định UTC+7.
@@ -61,6 +69,10 @@ func New(cfg Config, db *sql.DB, static fs.FS) (*Server, error) {
 	}
 	sum := sha256.Sum256([]byte(key))
 	s := &Server{cfg: cfg, db: db, loc: vnLoc, static: static, secret: sum[:], now: time.Now}
+	s.tokQuyen = computeSessionToken(s.secret, "quyen")
+	s.tokDev = computeSessionToken(s.secret, "dev")
+	s.tokQuyenBytes = []byte(s.tokQuyen)
+	s.tokDevBytes = []byte(s.tokDev)
 	bootRev := time.Now().UnixMilli()
 	s.healthRev.Store(bootRev)
 	s.workRev.Store(bootRev)
@@ -150,8 +162,8 @@ func addDays(date string, n int) string {
 
 // ---------- xác thực ----------
 
-func (s *Server) sessionTokenFor(user string) string {
-	m := hmac.New(sha256.New, s.secret)
+func computeSessionToken(secret []byte, user string) string {
+	m := hmac.New(sha256.New, secret)
 	if user == "dev" {
 		m.Write([]byte("session-dev-v1"))
 	} else {
@@ -160,8 +172,15 @@ func (s *Server) sessionTokenFor(user string) string {
 	return hex.EncodeToString(m.Sum(nil))
 }
 
+func (s *Server) sessionTokenFor(user string) string {
+	if user == "dev" {
+		return s.tokDev
+	}
+	return s.tokQuyen
+}
+
 func (s *Server) sessionToken() string {
-	return s.sessionTokenFor("quyen")
+	return s.tokQuyen
 }
 
 func (s *Server) currentUser(r *http.Request) string {
@@ -170,10 +189,10 @@ func (s *Server) currentUser(r *http.Request) string {
 		return ""
 	}
 	val := []byte(c.Value)
-	if subtle.ConstantTimeCompare(val, []byte(s.sessionTokenFor("quyen"))) == 1 {
+	if subtle.ConstantTimeCompare(val, s.tokQuyenBytes) == 1 {
 		return "quyen"
 	}
-	if subtle.ConstantTimeCompare(val, []byte(s.sessionTokenFor("dev"))) == 1 {
+	if subtle.ConstantTimeCompare(val, s.tokDevBytes) == 1 {
 		return "dev"
 	}
 	return ""

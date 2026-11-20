@@ -114,16 +114,104 @@ func dayKcal(d Day) int {
 
 // ---------- bộ sinh ----------
 
+type qStep struct {
+	q       float64
+	kcal    float64
+	kcalInt int
+	qty     string
+}
+
+var (
+	foodQSteps    = map[*Food][4][]qStep{}
+	foodFixedItem = map[*Food]Item{}
+)
+
+func slotIdx(s Slot) int {
+	switch s {
+	case Breakfast:
+		return 0
+	case Lunch:
+		return 1
+	case Dinner:
+		return 2
+	default:
+		return 3
+	}
+}
+
+func buildQSteps(fd *Food, slot Slot) []qStep {
+	qs := qRange(fd, slot)
+	steps := make([]qStep, len(qs))
+	for i, q := range qs {
+		k := kcalAt(fd, q)
+		steps[i] = qStep{
+			q:       q,
+			kcal:    k,
+			kcalInt: int(math.Round(k)),
+			qty:     fmtQty(fd, q),
+		}
+	}
+	return steps
+}
+
+func init() {
+	for _, fd := range Foods {
+		var arr [4][]qStep
+		for _, s := range AllSlots {
+			arr[slotIdx(s)] = buildQSteps(fd, s)
+		}
+		foodQSteps[fd] = arr
+		foodFixedItem[fd] = mkItem(fd, fd.Qty)
+	}
+}
+
+func qStepsFor(fd *Food, slot Slot) []qStep {
+	if arr, ok := foodQSteps[fd]; ok {
+		return arr[slotIdx(slot)]
+	}
+	return buildQSteps(fd, slot)
+}
+
+func mkItemStep(fd *Food, st qStep) Item {
+	return Item{ID: fd.ID, Name: fd.Name, Qty: st.qty, Kcal: st.kcalInt,
+		Kind: fd.Kind, Red: fd.Red, Tag: fd.Tag, Q: st.q, Unit: fd.Unit, Shop: fd.Shop}
+}
+
+func mkFixedItem(fd *Food) Item {
+	if it, ok := foodFixedItem[fd]; ok {
+		return it
+	}
+	return mkItem(fd, fd.Qty)
+}
+
 type gen struct {
-	rng    *rand.Rand
-	target int
-	snack  bool
-	wk     map[string]int // số lần dùng mỗi nhóm đạm ở các ngày khác trong tuần
-	strict bool           // true: không nới lỏng ràng buộc, chooseDay trả nil nếu bất khả thi
+	rng      *rand.Rand
+	target   int
+	snack    bool
+	wk       map[string]int // số lần dùng mỗi nhóm đạm ở các ngày khác trong tuần
+	strict   bool           // true: không nới lỏng ràng buộc, chooseDay trả nil nếu bất khả thi
+	cands    []*Food
+	ws       []int
+	used     map[string]bool
+	chkTags  map[string]int
+	chkSeenP map[string]bool
+	chkSeenV map[string]bool
+	chkSeenC map[string]bool
 }
 
 func newGen(seed int64, target int, snack bool) *gen {
-	return &gen{rng: rand.New(rand.NewSource(seed)), target: target, snack: snack}
+	return &gen{
+		rng:      rand.New(rand.NewSource(seed)),
+		target:   target,
+		snack:    snack,
+		cands:    make([]*Food, 0, 16),
+		ws:       make([]int, 0, 16),
+		used:     make(map[string]bool, 24),
+		chkTags:  make(map[string]int, 8),
+		chkSeenP: make(map[string]bool, 4),
+		chkSeenV: make(map[string]bool, 8),
+		chkSeenC: make(map[string]bool, 4),
+	}
 }
 
 // weight trả về trọng số chọn món, giảm dần khi nhóm đạm của món gần chạm giới hạn tuần.
@@ -146,8 +234,8 @@ func (g *gen) weight(fd *Food) int {
 }
 
 func (g *gen) pick(list []*Food, used map[string]bool) *Food {
-	var cands []*Food
-	var ws []int
+	cands := g.cands[:0]
+	ws := g.ws[:0]
 	total := 0
 	for _, fd := range list {
 		if used != nil && used[fd.ID] {
@@ -168,6 +256,8 @@ func (g *gen) pick(list []*Food, used map[string]bool) *Food {
 			total += fd.W
 		}
 	}
+	g.cands = cands
+	g.ws = ws
 	r := g.rng.Intn(total)
 	for i, fd := range cands {
 		r -= ws[i]
@@ -179,7 +269,6 @@ func (g *gen) pick(list []*Food, used map[string]bool) *Food {
 }
 
 func (g *gen) buildMeal(slot Slot, budget float64, used map[string]bool) Meal {
-	var items []Item
 	fixed := 0.0
 
 	carb := g.pick(pool[slot][Carb], used)
@@ -191,7 +280,8 @@ func (g *gen) buildMeal(slot Slot, budget float64, used map[string]bool) Meal {
 
 	v := g.pick(pool[slot][Veg], used)
 	used[v.ID] = true
-	var extra []*Food
+	var extraBuf [3]*Food
+	extra := extraBuf[:0]
 	extra = append(extra, v)
 	if slot == Lunch || (slot == Dinner && g.rng.Intn(100) < 40) {
 		s := g.pick(pool[slot][Soup], used)
@@ -209,19 +299,24 @@ func (g *gen) buildMeal(slot Slot, budget float64, used map[string]bool) Meal {
 	}
 
 	// chọn khẩu phần tinh bột + đạm sao cho gần ngân sách kcal nhất
-	bestQC, bestQP, bestDiff := carb.Min, prot.Min, math.Inf(1)
-	for _, qc := range qRange(carb, slot) {
-		for _, qp := range qRange(prot, slot) {
-			tot := fixed + kcalAt(carb, qc) + kcalAt(prot, qp)
+	cSteps := qStepsFor(carb, slot)
+	pSteps := qStepsFor(prot, slot)
+	bestC, bestP := cSteps[0], pSteps[0]
+	bestDiff := math.Inf(1)
+	for _, qc := range cSteps {
+		base := fixed + qc.kcal
+		for _, qp := range pSteps {
+			tot := base + qp.kcal
 			diff := math.Abs(tot - budget)
 			if diff < bestDiff-1e-9 {
-				bestDiff, bestQC, bestQP = diff, qc, qp
+				bestDiff, bestC, bestP = diff, qc, qp
 			}
 		}
 	}
-	items = append(items, mkItem(prot, bestQP), mkItem(carb, bestQC))
+	items := make([]Item, 0, 2+len(extra))
+	items = append(items, mkItemStep(prot, bestP), mkItemStep(carb, bestC))
 	for _, e := range extra {
-		items = append(items, mkItem(e, e.Qty))
+		items = append(items, mkFixedItem(e))
 	}
 	return Meal{Items: items, Kcal: mealKcal(items)}
 }
@@ -230,13 +325,14 @@ func (g *gen) buildSnack(used map[string]bool) Meal {
 	fr := g.pick(pool[Snack][Fruit], used)
 	used[fr.ID] = true
 	budget := 0.07 * float64(g.target)
-	bestQ, bestDiff := fr.Min, math.Inf(1)
-	for _, q := range qRange(fr, Snack) {
-		if d := math.Abs(kcalAt(fr, q) - budget); d < bestDiff-1e-9 {
-			bestDiff, bestQ = d, q
+	steps := qStepsFor(fr, Snack)
+	best, bestDiff := steps[0], math.Inf(1)
+	for _, st := range steps {
+		if d := math.Abs(st.kcal - budget); d < bestDiff-1e-9 {
+			bestDiff, best = d, st
 		}
 	}
-	it := mkItem(fr, bestQ)
+	it := mkItemStep(fr, best)
 	return Meal{Items: []Item{it}, Kcal: it.Kcal}
 }
 
@@ -250,9 +346,22 @@ func markUsed(d Day, used map[string]bool) {
 	}
 }
 
+func slotShare(s Slot) float64 {
+	switch s {
+	case Breakfast:
+		return 0.24
+	case Lunch:
+		return 0.42
+	case Dinner:
+		return 0.34
+	}
+	return 0
+}
+
 func (g *gen) candidate(fixed Day, avoid map[string]bool) Day {
-	day := Day{}
-	used := map[string]bool{}
+	day := make(Day, 4)
+	clear(g.used)
+	used := g.used
 	for k := range avoid {
 		used[k] = true
 	}
@@ -267,17 +376,17 @@ func (g *gen) candidate(fixed Day, avoid map[string]bool) Day {
 		}
 	}
 	remaining := float64(g.target - dayKcal(day))
-	shares := map[Slot]float64{Breakfast: 0.24, Lunch: 0.42, Dinner: 0.34}
 	sum := 0.0
-	var free []Slot
+	var freeBuf [3]Slot
+	free := freeBuf[:0]
 	for _, s := range []Slot{Breakfast, Lunch, Dinner} {
 		if _, ok := day[s]; !ok {
 			free = append(free, s)
-			sum += shares[s]
+			sum += slotShare(s)
 		}
 	}
 	for _, s := range free {
-		day[s] = g.buildMeal(s, remaining*shares[s]/sum, used)
+		day[s] = g.buildMeal(s, remaining*slotShare(s)/sum, used)
 	}
 	return day
 }
@@ -410,14 +519,63 @@ func CheckWeek(plan map[string]Day) []string {
 	return bad
 }
 
-func (g *gen) score(d Day, prev Day, wk *counts) float64 {
-	s := math.Abs(float64(dayKcal(d)-g.target)) / float64(g.target) * 100
-	pv := map[string]bool{}
-	for _, m := range prev {
-		for _, it := range m.Items {
-			pv[it.ID] = true
+func (g *gen) failsDay(d Day, nbProt map[string]bool, target int, o checkOpts) bool {
+	if o.kcalTol > 0 {
+		if math.Abs(float64(dayKcal(d)-target))/float64(target) > o.kcalTol {
+			return true
 		}
 	}
+	clear(g.chkTags)
+	clear(g.chkSeenP)
+	clear(g.chkSeenV)
+	clear(g.chkSeenC)
+	vegN, red := 0, false
+	for _, m := range d {
+		for _, it := range m.Items {
+			if it.Kind == Veg || it.Kind == Soup {
+				vegN++
+				if g.chkSeenV[it.ID] {
+					return true
+				}
+				g.chkSeenV[it.ID] = true
+			}
+			if it.Red {
+				red = true
+			}
+			if it.Tag != "" {
+				n := g.chkTags[it.Tag] + 1
+				g.chkTags[it.Tag] = n
+				if c, ok := dayCap[it.Tag]; ok && n > c {
+					return true
+				}
+				if o.week != nil {
+					if c, ok := weekCap[it.Tag]; ok && o.week.tags[it.Tag]+n > c {
+						return true
+					}
+				}
+			}
+			if it.Kind == Protein {
+				if g.chkSeenP[it.ID] {
+					return true
+				}
+				g.chkSeenP[it.ID] = true
+				if o.consec && nbProt[it.ID] {
+					return true
+				}
+			}
+			if it.Kind == Carb && it.ID != "c_com" {
+				if g.chkSeenC[it.ID] {
+					return true
+				}
+				g.chkSeenC[it.ID] = true
+			}
+		}
+	}
+	return vegN < 3 || !red
+}
+
+func (g *gen) scoreWithPrev(d Day, pv map[string]bool, wk *counts) float64 {
+	s := math.Abs(float64(dayKcal(d)-g.target)) / float64(g.target) * 100
 	for _, m := range d {
 		for _, it := range m.Items {
 			if it.Kind == Carb && it.ID == "c_com" {
@@ -440,6 +598,28 @@ func (g *gen) chooseDay(i int, dates []string, plan map[string]Day, fixedDay Day
 	if i+1 < len(dates) {
 		next = plan[dates[i+1]]
 	}
+	var nbProt map[string]bool
+	if len(prev) > 0 || len(next) > 0 {
+		nbProt = make(map[string]bool, 6)
+		for _, nb := range [2]Day{prev, next} {
+			for _, m := range nb {
+				for _, it := range m.Items {
+					if it.Kind == Protein {
+						nbProt[it.ID] = true
+					}
+				}
+			}
+		}
+	}
+	var prevIDs map[string]bool
+	if len(prev) > 0 {
+		prevIDs = make(map[string]bool, 16)
+		for _, m := range prev {
+			for _, it := range m.Items {
+				prevIDs[it.ID] = true
+			}
+		}
+	}
 	wk := newCounts()
 	for j, dt := range dates {
 		if j != i {
@@ -451,26 +631,23 @@ func (g *gen) chooseDay(i int, dates []string, plan map[string]Day, fixedDay Day
 	if len(fixedDay) > 0 {
 		tol = 0
 	}
-	passes := []checkOpts{
+	passes := [3]checkOpts{
 		{kcalTol: tol, consec: true, week: wk},
 		{kcalTol: 0, consec: false, week: wk},
 		{kcalTol: 0, consec: false, week: nil},
 	}
 	var last Day
-	for pi, o := range passes {
-		tries := 150
-		if pi == 0 {
-			tries = 150
-		}
+	for _, o := range passes {
+		const tries = 150
 		var best Day
 		bestScore := math.Inf(1)
 		for try := 0; try < tries; try++ {
 			cand := g.candidate(fixedDay, avoid)
 			last = cand
-			if len(checkDay(cand, prev, next, g.target, o)) > 0 {
+			if g.failsDay(cand, nbProt, g.target, o) {
 				continue
 			}
-			if sc := g.score(cand, prev, wk); sc < bestScore {
+			if sc := g.scoreWithPrev(cand, prevIDs, wk); sc < bestScore {
 				best, bestScore = cand, sc
 			}
 		}
@@ -507,14 +684,17 @@ func genOnce(g *gen, dates []string, fixed map[string]Day) map[string]Day {
 // đã có (đã ăn/đã ghi chú) và được giữ nguyên. Thử nhiều lần để đảm bảo mọi ràng buộc
 // được thoả; nếu bất khả thi thì nới lỏng dần.
 func Generate(dates []string, fixed map[string]Day, target int, snack bool, seed int64) map[string]Day {
+	g := newGen(seed, target, snack)
+	g.strict = true
 	for attempt := int64(0); attempt < 60; attempt++ {
-		g := newGen(seed+attempt*7919, target, snack)
-		g.strict = true
+		g.rng.Seed(seed + attempt*7919)
 		if p := genOnce(g, dates, fixed); p != nil {
 			return p
 		}
 	}
-	return genOnce(newGen(seed, target, snack), dates, fixed)
+	g.rng.Seed(seed)
+	g.strict = false
+	return genOnce(g, dates, fixed)
 }
 
 // Swap đổi món cho một bữa, giữ nguyên các bữa khác. plan phải gồm toàn bộ các ngày của lịch.
@@ -540,8 +720,9 @@ func Swap(dates []string, plan map[string]Day, date string, slot Slot, target in
 			avoid[it.ID] = true
 		}
 	}
+	g := newGen(seed, target, snack || slot == Snack)
 	for attempt := int64(0); attempt < 41; attempt++ {
-		g := newGen(seed+attempt*7919, target, snack || slot == Snack)
+		g.rng.Seed(seed + attempt*7919)
 		g.strict = attempt < 40
 		nd := g.chooseDay(idx, dates, plan, fixedDay, avoid)
 		if nd == nil {

@@ -17,3 +17,6 @@ quyenhealth
 .DS_Store
 Thumbs.db
 
+# Caches
+.uv_cache/
+

@@ -583,10 +583,10 @@ func TestDebtJobPartialPaymentAndVaultSync(t *testing.T) {
 		t.Fatalf("expected 200 creating CTT job, got %d: %s", w.Code, w.Body.String())
 	}
 	var createDebtResp struct {
-		Job workJob `json:"job"`
+		ID int64 `json:"id"`
 	}
 	_ = json.Unmarshal(w.Body.Bytes(), &createDebtResp)
-	debtJobID := createDebtResp.Job.ID
+	debtJobID := createDebtResp.ID
 
 	w = httptest.NewRecorder()
 	h.ServeHTTP(w, authedReq(srv, "POST", "/api/work/job", map[string]any{
@@ -781,7 +781,7 @@ func TestDebtJobPartialPaymentAndVaultSync(t *testing.T) {
 func TestSyncStateAndMedDoses(t *testing.T) {
 	srv := newTestServer(t)
 	h := srv.Handler()
-	today := dateStr(srv.now())
+	today := srv.today()
 
 	var s0 struct {
 		OK        bool   `json:"ok"`
@@ -826,7 +826,7 @@ func TestSyncStateAndMedDoses(t *testing.T) {
 	var todayResp struct {
 		HealthRev int64 `json:"health_rev"`
 		Med       struct {
-			Count int    `json:"count"`
+			Count int    `json:"taken_count"`
 			Doses []bool `json:"doses"`
 		} `json:"med"`
 	}
@@ -848,20 +848,18 @@ func TestSyncStateAndMedDoses(t *testing.T) {
 		}
 	}
 	var waterResp struct {
-		Water struct {
-			Total int `json:"total"`
-		} `json:"water"`
+		Total int `json:"total"`
 	}
 	_ = json.Unmarshal(w.Body.Bytes(), &waterResp)
-	if waterResp.Water.Total != 300 {
-		t.Fatalf("expected idempotent water total=300, got %d", waterResp.Water.Total)
+	if waterResp.Total != 300 {
+		t.Fatalf("expected idempotent water total=300, got %d", waterResp.Total)
 	}
 }
 
 func TestWorkDeleteTombstonesPreventResurrection(t *testing.T) {
 	srv := newTestServer(t)
 	h := srv.Handler()
-	today := dateStr(srv.now())
+	today := srv.today()
 
 	// 1. Máy 1 tạo 1 công việc và 1 khoản mượn với client uid ổn định
 	w := httptest.NewRecorder()
@@ -878,7 +876,7 @@ func TestWorkDeleteTombstonesPreventResurrection(t *testing.T) {
 		t.Fatalf("expected 200 POST /api/work/job, got %d: %s", w.Code, w.Body.String())
 	}
 	var jobCreateResp struct {
-		Item workJob `json:"item"`
+		ID int64 `json:"id"`
 	}
 	_ = json.Unmarshal(w.Body.Bytes(), &jobCreateResp)
 
@@ -894,7 +892,7 @@ func TestWorkDeleteTombstonesPreventResurrection(t *testing.T) {
 		t.Fatalf("expected 200 POST /api/work/ledger, got %d: %s", w.Code, w.Body.String())
 	}
 	var ldgCreateResp struct {
-		Item workLedger `json:"item"`
+		ID int64 `json:"id"`
 	}
 	_ = json.Unmarshal(w.Body.Bytes(), &ldgCreateResp)
 
@@ -913,12 +911,12 @@ func TestWorkDeleteTombstonesPreventResurrection(t *testing.T) {
 
 	// 3. Máy 1 xoá cả 2 bản ghi -> server lưu tombstone & tăng work_rev
 	w = httptest.NewRecorder()
-	h.ServeHTTP(w, authedReq(srv, "DELETE", "/api/work/job/"+strconvItoa64(jobCreateResp.Item.ID), nil))
+	h.ServeHTTP(w, authedReq(srv, "DELETE", "/api/work/job/"+strconvItoa64(jobCreateResp.ID), nil))
 	if w.Code != 200 {
 		t.Fatalf("expected 200 delete job, got %d: %s", w.Code, w.Body.String())
 	}
 	w = httptest.NewRecorder()
-	h.ServeHTTP(w, authedReq(srv, "DELETE", "/api/work/ledger/"+strconvItoa64(ldgCreateResp.Item.ID), nil))
+	h.ServeHTTP(w, authedReq(srv, "DELETE", "/api/work/ledger/"+strconvItoa64(ldgCreateResp.ID), nil))
 	if w.Code != 200 {
 		t.Fatalf("expected 200 delete ledger, got %d: %s", w.Code, w.Body.String())
 	}
@@ -989,7 +987,7 @@ func TestWorkDeleteTombstonesPreventResurrection(t *testing.T) {
 func TestWorkIdempotentUIDAndLastWriteWins(t *testing.T) {
 	srv := newTestServer(t)
 	h := srv.Handler()
-	today := dateStr(srv.now())
+	today := srv.today()
 
 	// 1. Gửi lại cùng uid 2 lần không tạo bản ghi trùng
 	var id1, id2 int64
@@ -1008,13 +1006,13 @@ func TestWorkIdempotentUIDAndLastWriteWins(t *testing.T) {
 			t.Fatalf("expected 200 POST /api/work/job try %d, got %d: %s", i+1, w.Code, w.Body.String())
 		}
 		var resp struct {
-			Item workJob `json:"item"`
+			ID int64 `json:"id"`
 		}
 		_ = json.Unmarshal(w.Body.Bytes(), &resp)
 		if i == 0 {
-			id1 = resp.Item.ID
+			id1 = resp.ID
 		} else {
-			id2 = resp.Item.ID
+			id2 = resp.ID
 		}
 	}
 	if id1 == 0 || id1 != id2 {

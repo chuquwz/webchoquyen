@@ -145,7 +145,7 @@ func OpenDB(dir string) (*sql.DB, error) {
 		return nil, err
 	}
 	path := filepath.ToSlash(filepath.Join(dir, "health.db"))
-	dsn := fmt.Sprintf("file:%s?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=synchronous(NORMAL)&_pragma=foreign_keys(1)", path)
+	dsn := fmt.Sprintf("file:%s?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=synchronous(NORMAL)&_pragma=foreign_keys(1)&_pragma=journal_size_limit(1048576)", path)
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, err

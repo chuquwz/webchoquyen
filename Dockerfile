@@ -12,17 +12,12 @@ RUN go mod download
 COPY . .
 
 # Build binary tĩnh tối ưu dung lượng và tốc độ
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /quyenhealth cmd/server/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -buildvcs=false -ldflags="-s -w" -o /quyenhealth ./cmd/server
 
-# Stage 2: Runtime image siêu nhẹ với alpine (~7MB, có sẵn ca-certificates cho Web Push)
-FROM alpine:3.20
-
-RUN apk --no-cache add ca-certificates tzdata
+# Stage 2: Runtime image siêu nhẹ distroless/static (~2MB, có sẵn ca-certificates, tzdata và /tmp)
+FROM gcr.io/distroless/static-debian12
 
 WORKDIR /app
-
-# Tạo thư mục data cho SQLite
-RUN mkdir -p /data
 
 COPY --from=builder /quyenhealth /app/quyenhealth
 

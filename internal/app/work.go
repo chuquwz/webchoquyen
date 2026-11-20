@@ -320,6 +320,10 @@ func (s *Server) queryAllTombstones() []workTombstone {
 }
 
 func (s *Server) attachJobPayments(out []workJob) error {
+	return s.attachJobPaymentsMode(out, false)
+}
+
+func (s *Server) attachJobPaymentsMode(out []workJob, all bool) error {
 	jobIDs := make([]int64, 0, len(out))
 	idxByID := make(map[int64]int, len(out))
 	for i := range out {
@@ -340,13 +344,19 @@ func (s *Server) attachJobPayments(out []workJob) error {
 		return nil
 	}
 
-	placeholders := strings.Repeat("?,", len(jobIDs)-1) + "?"
-	args := make([]any, len(jobIDs))
-	for i, id := range jobIDs {
-		args[i] = id
+	var rows *sql.Rows
+	var err error
+	if all {
+		rows, err = s.db.Query(`SELECT id, COALESCE(uid, ''), job_id, date, amount, note, ts FROM work_job_payments ORDER BY date ASC, id ASC`)
+	} else {
+		placeholders := strings.Repeat("?,", len(jobIDs)-1) + "?"
+		args := make([]any, len(jobIDs))
+		for i, id := range jobIDs {
+			args[i] = id
+		}
+		q := `SELECT id, COALESCE(uid, ''), job_id, date, amount, note, ts FROM work_job_payments WHERE job_id IN (` + placeholders + `) ORDER BY date ASC, id ASC`
+		rows, err = s.db.Query(q, args...)
 	}
-	q := `SELECT id, COALESCE(uid, ''), job_id, date, amount, note, ts FROM work_job_payments WHERE job_id IN (` + placeholders + `) ORDER BY date ASC, id ASC`
-	rows, err := s.db.Query(q, args...)
 	if err != nil {
 		return err
 	}
@@ -409,6 +419,10 @@ func (s *Server) queryWorkJobsByDate(date string) ([]workJob, error) {
 }
 
 func (s *Server) attachLedgerRepayments(out []workLedger) error {
+	return s.attachLedgerRepaymentsMode(out, false)
+}
+
+func (s *Server) attachLedgerRepaymentsMode(out []workLedger, all bool) error {
 	borrowIDs := make([]int64, 0)
 	idxByID := make(map[int64]int)
 	for i := range out {
@@ -426,13 +440,19 @@ func (s *Server) attachLedgerRepayments(out []workLedger) error {
 		return nil
 	}
 
-	placeholders := strings.Repeat("?,", len(borrowIDs)-1) + "?"
-	args := make([]any, len(borrowIDs))
-	for i, id := range borrowIDs {
-		args[i] = id
+	var rows *sql.Rows
+	var err error
+	if all {
+		rows, err = s.db.Query(`SELECT id, COALESCE(uid, ''), ledger_id, date, amount, note, ts FROM work_ledger_repayments ORDER BY date ASC, id ASC`)
+	} else {
+		placeholders := strings.Repeat("?,", len(borrowIDs)-1) + "?"
+		args := make([]any, len(borrowIDs))
+		for i, id := range borrowIDs {
+			args[i] = id
+		}
+		q := `SELECT id, COALESCE(uid, ''), ledger_id, date, amount, note, ts FROM work_ledger_repayments WHERE ledger_id IN (` + placeholders + `) ORDER BY date ASC, id ASC`
+		rows, err = s.db.Query(q, args...)
 	}
-	q := `SELECT id, COALESCE(uid, ''), ledger_id, date, amount, note, ts FROM work_ledger_repayments WHERE ledger_id IN (` + placeholders + `) ORDER BY date ASC, id ASC`
-	rows, err := s.db.Query(q, args...)
 	if err != nil {
 		return err
 	}
@@ -516,39 +536,43 @@ func (s *Server) queryWorkRepaymentsByDate(date string) ([]workBorrowRepaymentVi
 	return out, rows.Err()
 }
 
+func monthDateRange(month string) (string, string) {
+	return month + "-", month + "."
+}
+
 func (s *Server) computeWorkSummary(datePrefix string, exactDate bool) workSummary {
 	var sum workSummary
 	var jobWhere, ledgerWhere, repayWhere, payWhere string
-	var arg string
+	var args []any
 	if exactDate {
 		jobWhere = `WHERE work_jobs.date = ?`
 		ledgerWhere = `WHERE wl.date = ?`
 		repayWhere = `WHERE date = ?`
 		payWhere = `WHERE date = ?`
-		arg = datePrefix
+		args = []any{datePrefix}
 	} else {
-		jobWhere = `WHERE work_jobs.date LIKE ?`
-		ledgerWhere = `WHERE wl.date LIKE ?`
-		repayWhere = `WHERE date LIKE ?`
-		payWhere = `WHERE date LIKE ?`
-		arg = datePrefix + "-%"
+		start, end := monthDateRange(datePrefix)
+		jobWhere = `WHERE work_jobs.date >= ? AND work_jobs.date < ?`
+		ledgerWhere = `WHERE wl.date >= ? AND wl.date < ?`
+		repayWhere = `WHERE date >= ? AND date < ?`
+		payWhere = `WHERE date >= ? AND date < ?`
+		args = []any{start, end}
 	}
 
 	rows, err := s.db.Query(`
 		SELECT work_jobs.price, work_jobs.status,
-		       COALESCE((SELECT SUM(p.amount) FROM work_job_payments p WHERE p.job_id = work_jobs.id), 0),
-		       EXISTS(SELECT 1 FROM work_job_payments p WHERE p.job_id = work_jobs.id)
-		FROM work_jobs `+jobWhere, arg)
+		       (SELECT SUM(p.amount) FROM work_job_payments p WHERE p.job_id = work_jobs.id)
+		FROM work_jobs `+jobWhere, args...)
 	if err == nil {
 		for rows.Next() {
-			var price, sumPaid int
+			var price int
 			var status string
-			var hasPays bool
-			if rows.Scan(&price, &status, &sumPaid, &hasPays) == nil {
+			var sumPaid sql.NullInt64
+			if rows.Scan(&price, &status, &sumPaid) == nil {
 				sum.TotalJobs++
 				sum.TotalRevenue += price
-				if hasPays {
-					rem := price - sumPaid
+				if sumPaid.Valid {
+					rem := price - int(sumPaid.Int64)
 					if rem < 0 || status == "TT" {
 						rem = 0
 					}
@@ -571,13 +595,13 @@ func (s *Server) computeWorkSummary(datePrefix string, exactDate bool) workSumma
 	}
 
 	var jobPaidCollections int
-	if err := s.db.QueryRow(`SELECT COALESCE(SUM(amount), 0) FROM work_job_payments `+payWhere, arg).Scan(&jobPaidCollections); err == nil {
+	if err := s.db.QueryRow(`SELECT COALESCE(SUM(amount), 0) FROM work_job_payments `+payWhere, args...).Scan(&jobPaidCollections); err == nil {
 		sum.PaidAmount += jobPaidCollections
 	}
 
 	lrows, err := s.db.Query(`
 		SELECT wl.category, wl.amount, COALESCE((SELECT SUM(r.amount) FROM work_ledger_repayments r WHERE r.ledger_id = wl.id), 0)
-		FROM work_ledger wl `+ledgerWhere+` ORDER BY wl.id ASC`, arg)
+		FROM work_ledger wl `+ledgerWhere+` ORDER BY wl.id ASC`, args...)
 	if err == nil {
 		for lrows.Next() {
 			var cat string
@@ -605,7 +629,7 @@ func (s *Server) computeWorkSummary(datePrefix string, exactDate bool) workSumma
 	}
 
 	var repayPaid int
-	if err := s.db.QueryRow(`SELECT COALESCE(SUM(amount), 0) FROM work_ledger_repayments `+repayWhere, arg).Scan(&repayPaid); err == nil {
+	if err := s.db.QueryRow(`SELECT COALESCE(SUM(amount), 0) FROM work_ledger_repayments `+repayWhere, args...).Scan(&repayPaid); err == nil {
 		sum.RepayAmount += repayPaid
 	}
 
@@ -613,31 +637,13 @@ func (s *Server) computeWorkSummary(datePrefix string, exactDate bool) workSumma
 	return sum
 }
 
-func (s *Server) queryDebtGroups() ([]unpaidCustomerGroup, []unpaidCustomerGroup, int, int) {
-	rows, err := s.db.Query(`
-		SELECT id, COALESCE(uid, ''), date, customer, channel, service, price, status, note, ts, COALESCE(updated_at, 0)
-		FROM work_jobs
-		WHERE status='CTT' OR EXISTS(SELECT 1 FROM work_job_payments p WHERE p.job_id = work_jobs.id)
-		ORDER BY date DESC, id DESC`)
-	if err != nil {
-		return []unpaidCustomerGroup{}, []unpaidCustomerGroup{}, 0, 0
-	}
-	allDebtJobs := []workJob{}
-	for rows.Next() {
-		var j workJob
-		if rows.Scan(&j.ID, &j.UID, &j.Date, &j.Customer, &j.Channel, &j.Service, &j.Price, &j.Status, &j.Note, &j.Ts, &j.UpdatedAt) == nil {
-			allDebtJobs = append(allDebtJobs, j)
-		}
-	}
-	rows.Close()
-	_ = s.attachJobPayments(allDebtJobs)
-
+func buildDebtGroups(jobs []workJob, reverse bool) ([]unpaidCustomerGroup, []unpaidCustomerGroup, int, int) {
 	byKey := map[string]*unpaidCustomerGroup{}
 	var orderKeys []string
 	totalUnpaidAll := 0
 	totalUnpaidJobs := 0
 
-	for _, j := range allDebtJobs {
+	addJob := func(j workJob) {
 		key := strings.ToLower(strings.TrimSpace(j.Customer))
 		g, ok := byKey[key]
 		if !ok {
@@ -662,6 +668,19 @@ func (s *Server) queryDebtGroups() ([]unpaidCustomerGroup, []unpaidCustomerGroup
 			g.SettledCount++
 		}
 		g.Jobs = append(g.Jobs, j)
+	}
+
+	if reverse {
+		for i := len(jobs) - 1; i >= 0; i-- {
+			j := jobs[i]
+			if j.Status == "CTT" || len(j.Payments) > 0 {
+				addJob(j)
+			}
+		}
+	} else {
+		for _, j := range jobs {
+			addJob(j)
+		}
 	}
 
 	allDebt := make([]unpaidCustomerGroup, 0, len(orderKeys))
@@ -706,13 +725,34 @@ func (s *Server) queryDebtGroups() ([]unpaidCustomerGroup, []unpaidCustomerGroup
 	return unpaidOnly, allDebt, totalUnpaidAll, totalUnpaidJobs
 }
 
+func (s *Server) queryDebtGroups() ([]unpaidCustomerGroup, []unpaidCustomerGroup, int, int) {
+	rows, err := s.db.Query(`
+		SELECT id, COALESCE(uid, ''), date, customer, channel, service, price, status, note, ts, COALESCE(updated_at, 0)
+		FROM work_jobs
+		WHERE status='CTT' OR EXISTS(SELECT 1 FROM work_job_payments p WHERE p.job_id = work_jobs.id)
+		ORDER BY date DESC, id DESC`)
+	if err != nil {
+		return []unpaidCustomerGroup{}, []unpaidCustomerGroup{}, 0, 0
+	}
+	allDebtJobs := []workJob{}
+	for rows.Next() {
+		var j workJob
+		if rows.Scan(&j.ID, &j.UID, &j.Date, &j.Customer, &j.Channel, &j.Service, &j.Price, &j.Status, &j.Note, &j.Ts, &j.UpdatedAt) == nil {
+			allDebtJobs = append(allDebtJobs, j)
+		}
+	}
+	rows.Close()
+	_ = s.attachJobPayments(allDebtJobs)
+	return buildDebtGroups(allDebtJobs, false)
+}
+
 func (s *Server) queryUnpaidGroups() ([]unpaidCustomerGroup, int, int) {
 	unpaidOnly, _, totalUnpaidAll, totalUnpaidJobs := s.queryDebtGroups()
 	return unpaidOnly, totalUnpaidAll, totalUnpaidJobs
 }
 
 func (s *Server) queryMonthDaysBrief(month string) []workDayBrief {
-	likeArg := month + "-%"
+	start, end := monthDateRange(month)
 	byDate := map[string]*workDayBrief{}
 	ensureDay := func(d string) *workDayBrief {
 		b := byDate[d]
@@ -725,20 +765,19 @@ func (s *Server) queryMonthDaysBrief(month string) []workDayBrief {
 
 	rows, err := s.db.Query(`
 		SELECT work_jobs.date, work_jobs.price, work_jobs.status,
-		       COALESCE((SELECT SUM(p.amount) FROM work_job_payments p WHERE p.job_id = work_jobs.id), 0),
-		       EXISTS(SELECT 1 FROM work_job_payments p WHERE p.job_id = work_jobs.id)
-		FROM work_jobs WHERE work_jobs.date LIKE ?`, likeArg)
+		       (SELECT SUM(p.amount) FROM work_job_payments p WHERE p.job_id = work_jobs.id)
+		FROM work_jobs WHERE work_jobs.date >= ? AND work_jobs.date < ?`, start, end)
 	if err == nil {
 		for rows.Next() {
 			var d, st string
-			var p, sumPaid int
-			var hasPays bool
-			if rows.Scan(&d, &p, &st, &sumPaid, &hasPays) == nil {
+			var p int
+			var sumPaid sql.NullInt64
+			if rows.Scan(&d, &p, &st, &sumPaid) == nil {
 				b := ensureDay(d)
 				b.JobCount++
 				b.TotalRevenue += p
-				if hasPays {
-					rem := p - sumPaid
+				if sumPaid.Valid {
+					rem := p - int(sumPaid.Int64)
 					if rem < 0 || st == "TT" {
 						rem = 0
 					}
@@ -753,7 +792,7 @@ func (s *Server) queryMonthDaysBrief(month string) []workDayBrief {
 		rows.Close()
 	}
 
-	prows, err := s.db.Query(`SELECT date, amount FROM work_job_payments WHERE date LIKE ?`, likeArg)
+	prows, err := s.db.Query(`SELECT date, amount FROM work_job_payments WHERE date >= ? AND date < ?`, start, end)
 	if err == nil {
 		for prows.Next() {
 			var d string
@@ -765,7 +804,7 @@ func (s *Server) queryMonthDaysBrief(month string) []workDayBrief {
 		prows.Close()
 	}
 
-	lrows, err := s.db.Query(`SELECT date, amount FROM work_ledger WHERE date LIKE ? AND category='expense'`, likeArg)
+	lrows, err := s.db.Query(`SELECT date, amount FROM work_ledger WHERE date >= ? AND date < ? AND category='expense'`, start, end)
 	if err == nil {
 		for lrows.Next() {
 			var d string
@@ -859,12 +898,12 @@ func (s *Server) handleGetWork(w http.ResponseWriter, r *http.Request) {
 		month = date[:7]
 	}
 
-	jobs, err := s.queryWorkJobsByDate(date)
+	allJobs, err := s.queryAllWorkJobsErr()
 	if err != nil {
 		serverErr(w, err)
 		return
 	}
-	ledger, err := s.queryWorkLedgerByDate(date)
+	allLedger, err := s.queryAllWorkLedgerErr()
 	if err != nil {
 		serverErr(w, err)
 		return
@@ -875,13 +914,24 @@ func (s *Server) handleGetWork(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	jobs := []workJob{}
+	for _, j := range allJobs {
+		if j.Date == date {
+			jobs = append(jobs, j)
+		}
+	}
+	ledger := []workLedger{}
+	for _, l := range allLedger {
+		if l.Date == date {
+			ledger = append(ledger, l)
+		}
+	}
+
 	daySum := s.computeWorkSummary(date, true)
 	monthSum := s.computeWorkSummary(month, false)
-	unpaidGroups, debtGroups, totalUnpaidAll, totalUnpaidJobs := s.queryDebtGroups()
+	unpaidGroups, debtGroups, totalUnpaidAll, totalUnpaidJobs := buildDebtGroups(allJobs, true)
 	recentDays := s.queryMonthDaysBrief(month)
 	customers, services := s.workSuggestions()
-	allJobs := s.queryAllWorkJobs()
-	allLedger := s.queryAllWorkLedger()
 	tombstones := s.queryAllTombstones()
 
 	writeJSON(w, 200, map[string]any{
@@ -1894,7 +1944,7 @@ func (s *Server) handleExportWorkCSV(w http.ResponseWriter, r *http.Request) {
 	if !validMonth(month) {
 		month = s.today()[:7]
 	}
-	likeArg := month + "-%"
+	start, end := monthDateRange(month)
 
 	monthSum := s.computeWorkSummary(month, false)
 	unpaidGroups, totalUnpaidAll, _ := s.queryUnpaidGroups()
@@ -1928,7 +1978,7 @@ func (s *Server) handleExportWorkCSV(w http.ResponseWriter, r *http.Request) {
 	_ = cw.Write([]string{"I. BẢNG ĐƠN DỊCH VỤ KHÁCH HÀNG TRONG THÁNG"})
 	_ = cw.Write([]string{"Ngày", "STT Ngày", "Tên Khách Hàng", "FB/ZL", "Dịch Vụ", "Giá Tiền (VNĐ)", "Trạng Thái", "Tổng Kết Ngày (VNĐ)", "Ghi Chú"})
 
-	rows, err := s.db.Query(`SELECT date, customer, channel, service, price, status, note FROM work_jobs WHERE date LIKE ? ORDER BY date ASC, id ASC`, likeArg)
+	rows, err := s.db.Query(`SELECT date, customer, channel, service, price, status, note FROM work_jobs WHERE date >= ? AND date < ? ORDER BY date ASC, id ASC`, start, end)
 	if err == nil {
 		type rowItem struct {
 			date, cust, ch, svc, st, note string
@@ -2010,7 +2060,7 @@ func (s *Server) handleExportWorkCSV(w http.ResponseWriter, r *http.Request) {
 		note       string
 	}
 	var ledgerRows []csvLedgerRow
-	lrows, err := s.db.Query(`SELECT id, date, category, amount, note FROM work_ledger WHERE date LIKE ? ORDER BY date ASC, id ASC`, likeArg)
+	lrows, err := s.db.Query(`SELECT id, date, category, amount, note FROM work_ledger WHERE date >= ? AND date < ? ORDER BY date ASC, id ASC`, start, end)
 	if err == nil {
 		for lrows.Next() {
 			var r csvLedgerRow
@@ -2067,8 +2117,8 @@ func (s *Server) handleExportWorkCSV(w http.ResponseWriter, r *http.Request) {
 		SELECT r.date, r.amount, r.note, wl.date, wl.note
 		FROM work_ledger_repayments r
 		JOIN work_ledger wl ON wl.id = r.ledger_id
-		WHERE r.date LIKE ?
-		ORDER BY r.date ASC, r.id ASC`, likeArg)
+		WHERE r.date >= ? AND r.date < ?
+		ORDER BY r.date ASC, r.id ASC`, start, end)
 	if err == nil {
 		for rrows.Next() {
 			var x csvRepayRow
@@ -2099,47 +2149,83 @@ func (s *Server) handleExportWorkCSV(w http.ResponseWriter, r *http.Request) {
 // ---------- Đồng bộ & Lưu trữ dữ liệu tài chính trên máy cá nhân (Chống mất dữ liệu khi Redeploy) ----------
 
 func (s *Server) dbInstanceID() string {
-	var id string
-	err := s.db.QueryRow(`SELECT value FROM settings WHERE key='_db_instance_id'`).Scan(&id)
-	if err == nil && id != "" {
-		return id
-	}
-	id = fmt.Sprintf("db_%d", time.Now().UnixNano())
-	_, _ = s.db.Exec(`INSERT INTO settings(key,value) VALUES('_db_instance_id',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`, id)
-	return id
+	s.dbIDOnce.Do(func() {
+		var id string
+		err := s.db.QueryRow(`SELECT value FROM settings WHERE key='_db_instance_id'`).Scan(&id)
+		if err == nil && id != "" {
+			s.dbID = id
+			return
+		}
+		id = fmt.Sprintf("db_%d", time.Now().UnixNano())
+		_, _ = s.db.Exec(`INSERT INTO settings(key,value) VALUES('_db_instance_id',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`, id)
+		s.dbID = id
+	})
+	return s.dbID
 }
 
-func (s *Server) queryAllWorkJobs() []workJob {
+func (s *Server) queryAllWorkJobsErr() ([]workJob, error) {
 	rows, err := s.db.Query(`SELECT id, COALESCE(uid, ''), date, customer, channel, service, price, status, note, ts, COALESCE(updated_at, 0) FROM work_jobs ORDER BY date ASC, id ASC`)
 	if err != nil {
-		return []workJob{}
+		return nil, err
 	}
 	out := []workJob{}
 	for rows.Next() {
 		var j workJob
-		if rows.Scan(&j.ID, &j.UID, &j.Date, &j.Customer, &j.Channel, &j.Service, &j.Price, &j.Status, &j.Note, &j.Ts, &j.UpdatedAt) == nil {
-			out = append(out, j)
+		if err := rows.Scan(&j.ID, &j.UID, &j.Date, &j.Customer, &j.Channel, &j.Service, &j.Price, &j.Status, &j.Note, &j.Ts, &j.UpdatedAt); err != nil {
+			rows.Close()
+			return nil, err
 		}
+		out = append(out, j)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
 	}
 	rows.Close()
-	_ = s.attachJobPayments(out)
+	if err := s.attachJobPaymentsMode(out, true); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (s *Server) queryAllWorkJobs() []workJob {
+	out, err := s.queryAllWorkJobsErr()
+	if err != nil {
+		return []workJob{}
+	}
 	return out
 }
 
-func (s *Server) queryAllWorkLedger() []workLedger {
+func (s *Server) queryAllWorkLedgerErr() ([]workLedger, error) {
 	rows, err := s.db.Query(`SELECT id, COALESCE(uid, ''), date, category, amount, note, ts, COALESCE(updated_at, 0) FROM work_ledger ORDER BY date ASC, id ASC`)
 	if err != nil {
-		return []workLedger{}
+		return nil, err
 	}
 	out := []workLedger{}
 	for rows.Next() {
 		var l workLedger
-		if rows.Scan(&l.ID, &l.UID, &l.Date, &l.Category, &l.Amount, &l.Note, &l.Ts, &l.UpdatedAt) == nil {
-			out = append(out, l)
+		if err := rows.Scan(&l.ID, &l.UID, &l.Date, &l.Category, &l.Amount, &l.Note, &l.Ts, &l.UpdatedAt); err != nil {
+			rows.Close()
+			return nil, err
 		}
+		out = append(out, l)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
 	}
 	rows.Close()
-	_ = s.attachLedgerRepayments(out)
+	if err := s.attachLedgerRepaymentsMode(out, true); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (s *Server) queryAllWorkLedger() []workLedger {
+	out, err := s.queryAllWorkLedgerErr()
+	if err != nil {
+		return []workLedger{}
+	}
 	return out
 }
 
