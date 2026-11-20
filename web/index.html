@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=84">
+  <link rel="stylesheet" href="/style.css?v=85">
 </head>
 
 <body>
@@ -889,15 +889,6 @@
 
             <div id="work-unpaid-groups-list" class="work-items-stack" style="margin-bottom: 24px;"></div>
           </div>
-
-          <button type="button" class="btn-fab-plus" onclick="openAddWorkJobModal()" aria-label="Mở popup ghi đơn mới"
-            title="Ghi đơn mới">
-            <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.8"
-              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-          </button>
         </section>
 
         <!-- =====================================================================
@@ -1064,16 +1055,25 @@
             </div>
             <div id="work-ledger-list" class="work-items-stack"></div>
           </div>
-
-          <button type="button" class="btn-fab-plus" onclick="openAddWorkLedgerModal()"
-            aria-label="Mở popup ghi thu chi cá nhân" title="Ghi thu chi cá nhân">
-            <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.8"
-              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-          </button>
         </section>
+
+        <button type="button" class="btn-fab-plus" data-fab-for="work" onclick="openAddWorkJobModal()"
+          aria-label="Mở popup ghi đơn mới" title="Ghi đơn mới">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.8"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+        </button>
+
+        <button type="button" class="btn-fab-plus" data-fab-for="ledger" onclick="openAddWorkLedgerModal()"
+          aria-label="Mở popup ghi thu chi cá nhân" title="Ghi thu chi cá nhân">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.8"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+        </button>
 
       </div>
 
@@ -1865,7 +1865,7 @@
     </div>
   </div>
 
-  <script src="/app.js?v=84"></script>
+  <script src="/app.js?v=85"></script>
 </body>
 
 </html>

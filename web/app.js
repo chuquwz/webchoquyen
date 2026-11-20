@@ -681,16 +681,37 @@
     ledger: 'Thu chi',
     settings: 'Cài đặt'
   };
+  let lastWorkSyncAt = 0;
+  let lastSettingsSyncAt = 0;
+  let tabSyncTimer = null;
+  let cancelSwipeSessionFn = null;
 
   function clearPaneSwipeStyles(pane) {
     if (!pane) return;
-    if (pane._reboundTimer) {
-      clearTimeout(pane._reboundTimer);
-      pane._reboundTimer = null;
+    pane.classList.remove('is-swipe-preview', 'is-swipe-dragging', 'is-swipe-settling');
+    pane.style.transform = '';
+    pane.style.removeProperty('--swipe-scroll-y');
+  }
+
+  function prefersReducedMotion() {
+    return Boolean(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+
+  function updateNavPillSelection(tabId, focusNavBtn = false) {
+    document.querySelectorAll('.nav-pill-btn').forEach(el => {
+      el.classList.remove('active');
+      el.setAttribute('aria-selected', 'false');
+      el.setAttribute('tabindex', '-1');
+    });
+    const navBtn = document.getElementById('nav-btn-' + tabId);
+    if (navBtn) {
+      navBtn.classList.add('active');
+      navBtn.setAttribute('aria-selected', 'true');
+      navBtn.setAttribute('tabindex', '0');
+      if (focusNavBtn) {
+        navBtn.focus();
+      }
     }
-    pane.classList.remove('is-swipe-dragging', 'is-swipe-rebound');
-    pane.style.removeProperty('--swipe-drag-x');
-    pane.style.removeProperty('--swipe-drag-opacity');
   }
 
   window.switchTab = function (tabId, opts = {}) {
@@ -699,23 +720,25 @@
       tabId = 'today';
     }
 
+    if (typeof cancelSwipeSessionFn === 'function' && !(opts && opts.fromSwipeFlush)) {
+      cancelSwipeSessionFn();
+    }
+
     const prevTab = state.activeTab;
     const prevIdx = MAIN_TAB_ORDER.indexOf(prevTab);
     const nextIdx = MAIN_TAB_ORDER.indexOf(tabId);
     const isTabChanged = prevTab !== tabId;
-    const dir = (opts && opts.direction) ||
-      (prevIdx !== -1 && nextIdx !== -1 && nextIdx !== prevIdx ? (nextIdx > prevIdx ? 'next' : 'prev') : '');
+    const viaSwipeSettled = Boolean(opts && opts.viaSwipeSettled);
+    const dir = viaSwipeSettled
+      ? ''
+      : ((opts && opts.direction) ||
+        (prevIdx !== -1 && nextIdx !== -1 && nextIdx !== prevIdx ? (nextIdx > prevIdx ? 'next' : 'prev') : ''));
 
     state.activeTab = tabId;
     document.querySelectorAll('.tab-pane').forEach(el => {
       clearPaneSwipeStyles(el);
       el.classList.remove('active');
       el.removeAttribute('data-slide-dir');
-    });
-    document.querySelectorAll('.nav-pill-btn').forEach(el => {
-      el.classList.remove('active');
-      el.setAttribute('aria-selected', 'false');
-      el.setAttribute('tabindex', '-1');
     });
 
     const targetPane = document.getElementById('tab-' + tabId);
@@ -725,27 +748,7 @@
       targetPane.classList.add('active');
     }
 
-    const navBtn = document.getElementById('nav-btn-' + tabId);
-    if (navBtn) {
-      navBtn.classList.add('active');
-      navBtn.setAttribute('aria-selected', 'true');
-      navBtn.setAttribute('tabindex', '0');
-      if (opts && opts.focusNavBtn) {
-        navBtn.focus();
-      }
-    }
-
-    if (tabId === 'today') {
-      renderDynamicGreeting();
-      if (syncState.authenticated) {
-        checkRemoteSyncState({ silent: true, force: true });
-      }
-    }
-    if (tabId === 'work' || tabId === 'ledger') loadWorkData();
-    if (tabId === 'settings') {
-      loadSettingsData();
-      renderFinanceVaultStatus();
-    }
+    updateNavPillSelection(tabId, Boolean(opts && opts.focusNavBtn));
 
     const scrollContainer = document.querySelector('.app-content-area');
     if (isTabChanged) {
@@ -762,6 +765,47 @@
       if (scrollContainer && typeof scrollContainer.scrollTo === 'function') {
         scrollContainer.scrollTo({ top: 0, behavior: 'smooth' });
       }
+    }
+
+    if (tabSyncTimer) {
+      clearTimeout(tabSyncTimer);
+      tabSyncTimer = null;
+    }
+
+    if (tabId === 'work' || tabId === 'ledger') {
+      if (!workState.date && typeof computeWorkFromLocalVault === 'function') {
+        computeWorkFromLocalVault(workState.date || state.today);
+      }
+    } else if (tabId === 'today') {
+      renderDynamicGreeting();
+    } else if (tabId === 'settings') {
+      renderFinanceVaultStatus();
+    }
+
+    const scheduleBgSync = (fn) => {
+      if (viaSwipeSettled || !isTabChanged || prefersReducedMotion()) {
+        fn();
+      } else {
+        tabSyncTimer = setTimeout(() => {
+          tabSyncTimer = null;
+          if (state.activeTab === tabId) fn();
+        }, 240);
+      }
+    };
+
+    const now = Date.now();
+    if (tabId === 'today' && syncState.authenticated) {
+      scheduleBgSync(() => checkRemoteSyncState({ silent: true, force: true }));
+    } else if ((tabId === 'work' || tabId === 'ledger') && (now - lastWorkSyncAt >= 3000 || !workState.date)) {
+      scheduleBgSync(() => {
+        lastWorkSyncAt = Date.now();
+        loadWorkData(undefined, { silent: true });
+      });
+    } else if (tabId === 'settings' && (now - lastSettingsSyncAt >= 3000)) {
+      scheduleBgSync(() => {
+        lastSettingsSyncAt = Date.now();
+        loadSettingsData({ silent: true });
+      });
     }
   };
 
@@ -814,14 +858,21 @@
     const FLICK_MAX_DURATION_MS = 280;
     const FLICK_MIN_VELOCITY = 0.28;
     const MAX_VERTICAL_DRIFT_PX = 84;
+    const SETTLE_DURATION_MS = 220;
     const EDITABLE_SELECTOR = 'input, textarea, select, [contenteditable="true"]';
     const HORIZ_IGNORE_SELECTOR = '.motivation-thumbs-strip, .work-chips-scroll, .calendar-days-strip, [data-no-tab-swipe]';
 
-    let gesture = null;
+    const scheduleFrame = typeof window.requestAnimationFrame === 'function'
+      ? window.requestAnimationFrame.bind(window)
+      : (fn) => setTimeout(fn, 0);
+    const cancelFrame = typeof window.cancelAnimationFrame === 'function'
+      ? window.cancelAnimationFrame.bind(window)
+      : clearTimeout;
 
-    function prefersReducedMotion() {
-      return Boolean(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-    }
+    let gesture = null;
+    let rafId = 0;
+    let pendingDrag = null;
+    let pendingSettle = null;
 
     function getActivePane() {
       return document.getElementById('tab-' + state.activeTab);
@@ -854,23 +905,41 @@
       pill.classList.toggle('is-ready', Boolean(isReady));
     }
 
-    function reboundPane(pane) {
-      if (!pane) return;
-      const wasDragging = pane.classList.contains('is-swipe-dragging');
-      pane.classList.remove('is-swipe-dragging');
-      pane.style.removeProperty('--swipe-drag-x');
-      pane.style.removeProperty('--swipe-drag-opacity');
-      if (!wasDragging || prefersReducedMotion()) {
-        pane.classList.remove('is-swipe-rebound');
-        return;
+    function cancelPendingFrame() {
+      if (rafId) {
+        cancelFrame(rafId);
+        rafId = 0;
       }
-      pane.classList.add('is-swipe-rebound');
-      if (pane._reboundTimer) clearTimeout(pane._reboundTimer);
-      pane._reboundTimer = setTimeout(() => {
-        pane.classList.remove('is-swipe-rebound');
-        pane._reboundTimer = null;
-      }, 220);
+      pendingDrag = null;
     }
+
+    function flushPendingSettle() {
+      if (!pendingSettle) return;
+      const s = pendingSettle;
+      pendingSettle = null;
+      if (s.timerId) clearTimeout(s.timerId);
+      if (s.isSwitch && s.targetTab) {
+        switchTab(s.targetTab, { viaSwipeSettled: true, fromSwipeFlush: true });
+      } else {
+        clearPaneSwipeStyles(s.activePane);
+        if (s.previewPane) clearPaneSwipeStyles(s.previewPane);
+      }
+    }
+
+    cancelSwipeSessionFn = function () {
+      cancelPendingFrame();
+      hideEdgePill();
+      if (pendingSettle) {
+        if (pendingSettle.timerId) clearTimeout(pendingSettle.timerId);
+        clearPaneSwipeStyles(pendingSettle.activePane);
+        if (pendingSettle.previewPane) clearPaneSwipeStyles(pendingSettle.previewPane);
+        pendingSettle = null;
+      }
+      if (gesture && gesture.previewPane) {
+        clearPaneSwipeStyles(gesture.previewPane);
+      }
+      gesture = null;
+    };
 
     function hasHorizontalScrollableAncestor(target) {
       let el = target && target.nodeType === 1 ? target : (target && target.parentElement);
@@ -892,15 +961,110 @@
         : { lockThreshold: 10, lockRatio: 1.35, minDistance: 52, flickMinDistance: 38, endRatio: 1.4 };
     }
 
-    function cancelAndRebound() {
-      if (gesture && gesture.axis === 'x') {
-        reboundPane(getActivePane());
+    function applyDragFrame(dx, isEdgeSwipe) {
+      if (!gesture || gesture.axis !== 'x') return;
+      const curIdx = MAIN_TAB_ORDER.indexOf(state.activeTab);
+      if (curIdx === -1) return;
+
+      const activePane = getActivePane();
+      if (!activePane) return;
+
+      const stride = Math.max(240, appView.clientWidth || window.innerWidth || 390);
+      const targetIdx = dx < 0 ? curIdx + 1 : (dx > 0 ? curIdx - 1 : -1);
+      const hasTarget = targetIdx >= 0 && targetIdx < MAIN_TAB_ORDER.length;
+      const targetTab = hasTarget ? MAIN_TAB_ORDER[targetIdx] : '';
+      const previewPane = targetTab ? document.getElementById('tab-' + targetTab) : null;
+
+      if (gesture.previewPane && gesture.previewPane !== previewPane) {
+        clearPaneSwipeStyles(gesture.previewPane);
+        gesture.previewPane = null;
       }
+
+      const cfg = getSwipeThresholds(isEdgeSwipe);
+      const absX = Math.abs(dx);
+      gesture.stride = stride;
+
+      if (!prefersReducedMotion()) {
+        if (hasTarget && previewPane) {
+          if ((targetTab === 'work' || targetTab === 'ledger') && !workState.date && typeof computeWorkFromLocalVault === 'function') {
+            computeWorkFromLocalVault(workState.date || state.today);
+          }
+          const clampedDx = Math.max(-stride, Math.min(stride, dx));
+          const previewX = clampedDx < 0 ? (stride + clampedDx) : (-stride + clampedDx);
+
+          activePane.classList.add('is-swipe-dragging');
+          activePane.style.transform = `translate3d(${clampedDx.toFixed(1)}px, 0, 0)`;
+
+          if (!previewPane.classList.contains('is-swipe-preview')) {
+            previewPane.style.setProperty('--swipe-scroll-y', `${gesture.scrollY}px`);
+            previewPane.classList.add('is-swipe-preview');
+          }
+          previewPane.classList.add('is-swipe-dragging');
+          previewPane.style.transform = `translate3d(${previewX.toFixed(1)}px, 0, 0)`;
+
+          gesture.previewPane = previewPane;
+          gesture.lastClampedDx = clampedDx;
+        } else {
+          const dampedDx = Math.max(-44, Math.min(44, dx * 0.22));
+          activePane.classList.add('is-swipe-dragging');
+          activePane.style.transform = `translate3d(${dampedDx.toFixed(1)}px, 0, 0)`;
+          gesture.lastClampedDx = dampedDx;
+        }
+      }
+
+      if (hasTarget) {
+        const side = dx < 0 ? 'right' : 'left';
+        updateEdgePill(side, MAIN_TAB_LABELS[targetTab] || targetTab, absX >= cfg.minDistance);
+      } else {
+        hideEdgePill();
+      }
+    }
+
+    function startRebound(activePane, previewPane, clampedDx, stride) {
+      if (prefersReducedMotion() || !activePane) {
+        clearPaneSwipeStyles(activePane);
+        if (previewPane) clearPaneSwipeStyles(previewPane);
+        return;
+      }
+      const hasDrag = activePane.classList.contains('is-swipe-dragging') || Boolean(previewPane);
+      if (!hasDrag) {
+        clearPaneSwipeStyles(activePane);
+        if (previewPane) clearPaneSwipeStyles(previewPane);
+        return;
+      }
+
+      activePane.classList.remove('is-swipe-dragging');
+      activePane.classList.add('is-swipe-settling');
+      activePane.style.transform = 'translate3d(0, 0, 0)';
+
+      if (previewPane) {
+        const outX = clampedDx < 0 ? stride : -stride;
+        previewPane.classList.remove('is-swipe-dragging');
+        previewPane.classList.add('is-swipe-settling');
+        previewPane.style.transform = `translate3d(${outX}px, 0, 0)`;
+      }
+
+      pendingSettle = {
+        isSwitch: false,
+        activePane,
+        previewPane,
+        timerId: setTimeout(flushPendingSettle, SETTLE_DURATION_MS + 10)
+      };
+    }
+
+    function cancelAndRebound() {
+      cancelPendingFrame();
       hideEdgePill();
+      if (!gesture) return;
+      const g = gesture;
       gesture = null;
+      if (g.axis === 'x') {
+        startRebound(getActivePane(), g.previewPane, g.lastClampedDx || 0, g.stride || 390);
+      }
     }
 
     appView.addEventListener('touchstart', (e) => {
+      flushPendingSettle();
       cancelAndRebound();
       if (!document.body.classList.contains('is-logged-in')) return;
       if (!e.touches || e.touches.length !== 1) return;
@@ -925,14 +1089,19 @@
         if (hasHorizontalScrollableAncestor(targetEl)) return;
       }
 
+      const scrollY = (window.scrollY || window.pageYOffset || 0) + (appView.scrollTop || 0);
       gesture = {
         startX: touch.clientX,
         startY: touch.clientY,
         lastX: touch.clientX,
         lastY: touch.clientY,
         startTime: Date.now(),
+        scrollY,
         isEdgeSwipe,
-        axis: null
+        axis: null,
+        previewPane: null,
+        lastClampedDx: 0,
+        stride: Math.max(240, appView.clientWidth || viewportWidth || 390)
       };
     }, { passive: true });
 
@@ -985,85 +1154,128 @@
         e.preventDefault();
       }
 
-      const curIdx = MAIN_TAB_ORDER.indexOf(state.activeTab);
-      if (curIdx === -1) return;
-
-      const targetIdx = dx < 0 ? curIdx + 1 : (dx > 0 ? curIdx - 1 : -1);
-      const hasTarget = targetIdx >= 0 && targetIdx < MAIN_TAB_ORDER.length;
-      const targetTab = hasTarget ? MAIN_TAB_ORDER[targetIdx] : '';
-
-      const dragX = hasTarget
-        ? Math.max(-132, Math.min(132, dx * 0.68))
-        : Math.max(-38, Math.min(38, dx * 0.24));
-      const opacity = hasTarget
-        ? Math.max(0.76, 1 - (absX / 360) * 0.24)
-        : 1;
-
-      const activePane = getActivePane();
-      if (activePane && !prefersReducedMotion()) {
-        activePane.classList.add('is-swipe-dragging');
-        activePane.style.setProperty('--swipe-drag-x', `${dragX.toFixed(1)}px`);
-        activePane.style.setProperty('--swipe-drag-opacity', opacity.toFixed(3));
-      }
-
-      if (hasTarget) {
-        const side = dx < 0 ? 'right' : 'left';
-        const isReady = absX >= cfg.minDistance;
-        updateEdgePill(side, MAIN_TAB_LABELS[targetTab] || targetTab, isReady);
-      } else {
-        hideEdgePill();
+      pendingDrag = { dx, isEdgeSwipe: gesture.isEdgeSwipe };
+      if (!rafId) {
+        rafId = scheduleFrame(() => {
+          rafId = 0;
+          if (!pendingDrag || !gesture) return;
+          const frame = pendingDrag;
+          pendingDrag = null;
+          applyDragFrame(frame.dx, frame.isEdgeSwipe);
+        });
       }
     }, { passive: false });
 
     appView.addEventListener('touchend', (e) => {
       if (!gesture) return;
+      const touch = (e.changedTouches && e.changedTouches[0]) || null;
+      const endX = touch ? touch.clientX : gesture.lastX;
+      const endY = touch ? touch.clientY : gesture.lastY;
+      const dx = endX - gesture.startX;
+      const dy = endY - gesture.startY;
+
+      if (pendingDrag) {
+        const frame = pendingDrag;
+        cancelPendingFrame();
+        if (gesture.axis === 'x') {
+          applyDragFrame(frame.dx, frame.isEdgeSwipe);
+        }
+      } else {
+        cancelPendingFrame();
+      }
+
       const g = gesture;
       gesture = null;
       hideEdgePill();
 
       const activePane = getActivePane();
-      if (g.axis !== 'x' || !document.body.classList.contains('is-logged-in') || document.querySelector('.modal-overlay.open')) {
-        reboundPane(activePane);
-        return;
-      }
-
-      const touch = (e.changedTouches && e.changedTouches[0]) || null;
-      const endX = touch ? touch.clientX : g.lastX;
-      const endY = touch ? touch.clientY : g.lastY;
-      const dx = endX - g.startX;
-      const dy = endY - g.startY;
       const absX = Math.abs(dx);
       const absY = Math.abs(dy);
       const dt = Math.max(1, Date.now() - g.startTime);
       const cfg = getSwipeThresholds(g.isEdgeSwipe);
+      const stride = g.stride || Math.max(240, appView.clientWidth || window.innerWidth || 390);
+
+      if (g.axis !== 'x' || !document.body.classList.contains('is-logged-in') || document.querySelector('.modal-overlay.open')) {
+        startRebound(activePane, g.previewPane, g.lastClampedDx || 0, stride);
+        return;
+      }
 
       if (absX <= absY * cfg.endRatio || absY > MAX_VERTICAL_DRIFT_PX) {
-        reboundPane(activePane);
+        startRebound(activePane, g.previewPane, g.lastClampedDx || 0, stride);
         return;
       }
 
       const isNormalSwipe = absX >= cfg.minDistance && dt <= SWIPE_MAX_DURATION_MS;
       const isFlick = absX >= cfg.flickMinDistance && dt <= FLICK_MAX_DURATION_MS && (absX / dt) >= FLICK_MIN_VELOCITY;
       if (!isNormalSwipe && !isFlick) {
-        reboundPane(activePane);
+        startRebound(activePane, g.previewPane, g.lastClampedDx || 0, stride);
         return;
       }
 
       const curIdx = MAIN_TAB_ORDER.indexOf(state.activeTab);
       if (curIdx === -1) {
-        reboundPane(activePane);
+        startRebound(activePane, g.previewPane, g.lastClampedDx || 0, stride);
         return;
       }
 
-      if (dx < 0 && curIdx < MAIN_TAB_ORDER.length - 1) {
-        clearPaneSwipeStyles(activePane);
-        switchTab(MAIN_TAB_ORDER[curIdx + 1], { direction: 'next', viaSwipe: true });
-      } else if (dx > 0 && curIdx > 0) {
-        clearPaneSwipeStyles(activePane);
-        switchTab(MAIN_TAB_ORDER[curIdx - 1], { direction: 'prev', viaSwipe: true });
-      } else {
-        reboundPane(activePane);
+      const targetTab = (dx < 0 && curIdx < MAIN_TAB_ORDER.length - 1)
+        ? MAIN_TAB_ORDER[curIdx + 1]
+        : ((dx > 0 && curIdx > 0) ? MAIN_TAB_ORDER[curIdx - 1] : '');
+      const dir = dx < 0 ? 'next' : 'prev';
+
+      if (!targetTab) {
+        startRebound(activePane, g.previewPane, g.lastClampedDx || 0, stride);
+        return;
       }
+
+      if (prefersReducedMotion()) {
+        clearPaneSwipeStyles(activePane);
+        if (g.previewPane) clearPaneSwipeStyles(g.previewPane);
+        switchTab(targetTab, { direction: dir, viaSwipe: true });
+        return;
+      }
+
+      const previewPane = document.getElementById('tab-' + targetTab);
+      if (!activePane || !previewPane) {
+        switchTab(targetTab, { direction: dir, viaSwipe: true });
+        return;
+      }
+
+      if ((targetTab === 'work' || targetTab === 'ledger') && !workState.date && typeof computeWorkFromLocalVault === 'function') {
+        computeWorkFromLocalVault(workState.date || state.today);
+      }
+
+      if (g.previewPane && g.previewPane !== previewPane) {
+        clearPaneSwipeStyles(g.previewPane);
+      }
+
+      if (!previewPane.classList.contains('is-swipe-preview')) {
+        const clampedDx = Math.max(-stride, Math.min(stride, dx));
+        const startPreviewX = dir === 'next' ? (stride + clampedDx) : (-stride + clampedDx);
+        previewPane.style.setProperty('--swipe-scroll-y', `${g.scrollY}px`);
+        previewPane.classList.add('is-swipe-preview', 'is-swipe-dragging');
+        previewPane.style.transform = `translate3d(${startPreviewX.toFixed(1)}px, 0, 0)`;
+        void previewPane.offsetWidth;
+      }
+
+      updateNavPillSelection(targetTab);
+
+      const activeOutX = dir === 'next' ? -stride : stride;
+      activePane.classList.remove('is-swipe-dragging');
+      activePane.classList.add('is-swipe-settling');
+      activePane.style.transform = `translate3d(${activeOutX}px, 0, 0)`;
+
+      previewPane.classList.remove('is-swipe-dragging');
+      previewPane.classList.add('is-swipe-settling');
+      previewPane.style.transform = 'translate3d(0, 0, 0)';
+
+      pendingSettle = {
+        isSwitch: true,
+        activePane,
+        previewPane,
+        targetTab,
+        timerId: setTimeout(flushPendingSettle, SETTLE_DURATION_MS + 10)
+      };
     }, { passive: true });
 
     appView.addEventListener('touchcancel', cancelAndRebound, { passive: true });
@@ -3821,6 +4033,7 @@
             tombstones: srvTombstones
           });
         }
+        computeWorkFromLocalVault(workState.date || state.today);
       } catch (e) { }
     }
 
