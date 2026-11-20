@@ -190,11 +190,12 @@ a:focus-visible,
   width: 100%;
   padding: max(16px, var(--safe-top)) 20px calc(88px + var(--safe-bottom));
   box-sizing: border-box;
+  touch-action: pan-y;
 }
 
 .tab-pane {
   display: none;
-  animation: fadeInPane 0.22s ease-out;
+  animation: fadeInPane 0.15s ease-out;
 }
 
 .tab-pane.active {
@@ -208,6 +209,40 @@ a:focus-visible,
 
   to {
     opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tab-pane.active[data-slide-dir="next"] {
+    animation: slideInPaneNext 0.15s cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  .tab-pane.active[data-slide-dir="prev"] {
+    animation: slideInPanePrev 0.15s cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  @keyframes slideInPaneNext {
+    from {
+      opacity: 0;
+      transform: translateX(14px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes slideInPanePrev {
+    from {
+      opacity: 0;
+      transform: translateX(-14px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
   }
 }
 

@@ -16,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=82">
+  <link rel="stylesheet" href="/style.css?v=83">
 </head>
 
 <body>
@@ -1083,7 +1083,7 @@
       <nav class="mockup-bottom-nav" id="app-bottom-nav" role="tablist" aria-label="Điều hướng chính">
         <!-- 1. Hôm nay -->
         <button type="button" class="nav-pill-btn active" id="nav-btn-today" role="tab" aria-selected="true"
-          aria-label="Hôm nay" onclick="switchTab('today')">
+          aria-controls="tab-today" tabindex="0" aria-label="Hôm nay" onclick="switchTab('today')">
           <svg class="nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
             stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1V9.5z" />
@@ -1093,7 +1093,7 @@
 
         <!-- 2. Công việc (Sổ Việc) -->
         <button type="button" class="nav-pill-btn" id="nav-btn-work" role="tab" aria-selected="false"
-          aria-label="Công việc" onclick="switchTab('work')">
+          aria-controls="tab-work" tabindex="-1" aria-label="Công việc" onclick="switchTab('work')">
           <svg class="nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
             stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
@@ -1104,7 +1104,7 @@
 
         <!-- 3. Thu chi cá nhân -->
         <button type="button" class="nav-pill-btn" id="nav-btn-ledger" role="tab" aria-selected="false"
-          aria-label="Thu chi" onclick="switchTab('ledger')">
+          aria-controls="tab-ledger" tabindex="-1" aria-label="Thu chi" onclick="switchTab('ledger')">
           <svg class="nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
             stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
@@ -1116,7 +1116,7 @@
 
         <!-- 4. Cài đặt -->
         <button type="button" class="nav-pill-btn" id="nav-btn-settings" role="tab" aria-selected="false"
-          aria-label="Cài đặt" onclick="switchTab('settings')">
+          aria-controls="tab-settings" tabindex="-1" aria-label="Cài đặt" onclick="switchTab('settings')">
           <svg class="nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
             stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
@@ -1865,7 +1865,7 @@
     </div>
   </div>
 
-  <script src="/app.js?v=82"></script></script></script>
+  <script src="/app.js?v=83"></script>
 </body>
 
 </html>

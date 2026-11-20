@@ -519,6 +519,7 @@
     setupHeroGreetingWatcher();
     renderDynamicGreeting();
     setupRouting();
+    setupTabSwipeGesture();
     try {
       const me = await api('/api/me');
       if (me && me.ok) {
@@ -673,25 +674,44 @@
   };
 
   // Quản lý Tab: hôm nay, công việc, thu chi, cài đặt
-  window.switchTab = function (tabId) {
+  const MAIN_TAB_ORDER = ['today', 'work', 'ledger', 'settings'];
+
+  window.switchTab = function (tabId, opts = {}) {
     if (tabId === 'records' || tabId === 'meals') tabId = 'today';
     if (tabId === 'overview' || !document.getElementById('tab-' + tabId)) {
       tabId = 'today';
     }
+
+    const prevIdx = MAIN_TAB_ORDER.indexOf(state.activeTab);
+    const nextIdx = MAIN_TAB_ORDER.indexOf(tabId);
+    const dir = (opts && opts.direction) ||
+      (prevIdx !== -1 && nextIdx !== -1 && nextIdx !== prevIdx ? (nextIdx > prevIdx ? 'next' : 'prev') : '');
+
     state.activeTab = tabId;
-    document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(el => {
+      el.classList.remove('active');
+      el.removeAttribute('data-slide-dir');
+    });
     document.querySelectorAll('.nav-pill-btn').forEach(el => {
       el.classList.remove('active');
       el.setAttribute('aria-selected', 'false');
+      el.setAttribute('tabindex', '-1');
     });
 
     const targetPane = document.getElementById('tab-' + tabId);
-    if (targetPane) targetPane.classList.add('active');
+    if (targetPane) {
+      if (dir) targetPane.setAttribute('data-slide-dir', dir);
+      targetPane.classList.add('active');
+    }
 
     const navBtn = document.getElementById('nav-btn-' + tabId);
     if (navBtn) {
       navBtn.classList.add('active');
       navBtn.setAttribute('aria-selected', 'true');
+      navBtn.setAttribute('tabindex', '0');
+      if (opts && opts.focusNavBtn) {
+        navBtn.focus();
+      }
     }
 
     if (tabId === 'today') {
@@ -718,6 +738,169 @@
     if (['today', 'work', 'ledger', 'settings'].includes(hash)) {
       switchTab(hash);
     }
+  }
+
+  function setupTabSwipeGesture() {
+    const bottomNav = document.getElementById('app-bottom-nav');
+    if (bottomNav && !bottomNav.dataset.keyboardBound) {
+      bottomNav.dataset.keyboardBound = '1';
+      bottomNav.addEventListener('keydown', (e) => {
+        const key = e.key;
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(key)) return;
+        const btn = e.target && e.target.closest ? e.target.closest('.nav-pill-btn') : null;
+        if (!btn) return;
+        const btnId = btn.id || '';
+        const currentFromBtn = btnId.startsWith('nav-btn-') ? btnId.slice('nav-btn-'.length) : state.activeTab;
+        const curIdx = MAIN_TAB_ORDER.indexOf(currentFromBtn);
+        if (curIdx === -1) return;
+
+        let targetIdx = curIdx;
+        if (key === 'ArrowRight') {
+          targetIdx = (curIdx + 1) % MAIN_TAB_ORDER.length;
+        } else if (key === 'ArrowLeft') {
+          targetIdx = (curIdx - 1 + MAIN_TAB_ORDER.length) % MAIN_TAB_ORDER.length;
+        } else if (key === 'Home') {
+          targetIdx = 0;
+        } else if (key === 'End') {
+          targetIdx = MAIN_TAB_ORDER.length - 1;
+        }
+
+        e.preventDefault();
+        const targetTab = MAIN_TAB_ORDER[targetIdx];
+        if (targetTab) {
+          switchTab(targetTab, { focusNavBtn: true });
+        }
+      });
+    }
+
+    const appView = document.getElementById('app-view');
+    if (!appView || appView.dataset.swipeBound) return;
+    appView.dataset.swipeBound = '1';
+
+    const SWIPE_EDGE_GUARD_PX = 20;
+    const SWIPE_LOCK_THRESHOLD_PX = 10;
+    const SWIPE_MIN_DISTANCE_PX = 56;
+    const SWIPE_MAX_DURATION_MS = 650;
+    const FLICK_MIN_DISTANCE_PX = 40;
+    const FLICK_MAX_DURATION_MS = 260;
+    const FLICK_MIN_VELOCITY = 0.35;
+    const MAX_VERTICAL_DRIFT_PX = 84;
+    const NO_SWIPE_SELECTOR = 'input, textarea, select, [contenteditable="true"], .motivation-thumbs-strip, .work-chips-scroll, .calendar-days-strip, [data-no-tab-swipe]';
+
+    let gesture = null;
+
+    function hasHorizontalScrollableAncestor(target) {
+      let el = target && target.nodeType === 1 ? target : (target && target.parentElement);
+      while (el && el !== appView) {
+        if (el.scrollWidth > el.clientWidth + 2) {
+          const overflowX = window.getComputedStyle(el).overflowX;
+          if (/(auto|scroll)/.test(overflowX)) {
+            return true;
+          }
+        }
+        el = el.parentElement;
+      }
+      return false;
+    }
+
+    function resetGesture() {
+      gesture = null;
+    }
+
+    appView.addEventListener('touchstart', (e) => {
+      resetGesture();
+      if (!document.body.classList.contains('is-logged-in')) return;
+      if (!e.touches || e.touches.length !== 1) return;
+      if (document.querySelector('.modal-overlay.open')) return;
+
+      const touch = e.touches[0];
+      if (touch.clientX <= SWIPE_EDGE_GUARD_PX || touch.clientX >= window.innerWidth - SWIPE_EDGE_GUARD_PX) {
+        return;
+      }
+
+      const targetEl = e.target && e.target.nodeType === 1 ? e.target : (e.target && e.target.parentElement);
+      if (targetEl && targetEl.closest && targetEl.closest(NO_SWIPE_SELECTOR)) return;
+      if (hasHorizontalScrollableAncestor(targetEl)) return;
+
+      gesture = {
+        startX: touch.clientX,
+        startY: touch.clientY,
+        lastX: touch.clientX,
+        lastY: touch.clientY,
+        startTime: Date.now(),
+        axis: null
+      };
+    }, { passive: true });
+
+    appView.addEventListener('touchmove', (e) => {
+      if (!gesture) return;
+      if (!e.touches || e.touches.length !== 1) {
+        resetGesture();
+        return;
+      }
+
+      const touch = e.touches[0];
+      gesture.lastX = touch.clientX;
+      gesture.lastY = touch.clientY;
+
+      const absX = Math.abs(touch.clientX - gesture.startX);
+      const absY = Math.abs(touch.clientY - gesture.startY);
+
+      if (gesture.axis === null) {
+        if (absX < SWIPE_LOCK_THRESHOLD_PX && absY < SWIPE_LOCK_THRESHOLD_PX) {
+          return;
+        }
+        if (absY >= absX * 0.85) {
+          gesture.axis = 'y';
+          resetGesture();
+          return;
+        }
+        if (absX >= absY * 1.4) {
+          gesture.axis = 'x';
+        }
+        return;
+      }
+
+      if (gesture.axis === 'x' && absY > absX * 0.75) {
+        resetGesture();
+      }
+    }, { passive: true });
+
+    appView.addEventListener('touchend', (e) => {
+      if (!gesture) return;
+      const g = gesture;
+      resetGesture();
+
+      if (g.axis !== 'x') return;
+      if (!document.body.classList.contains('is-logged-in')) return;
+      if (document.querySelector('.modal-overlay.open')) return;
+
+      const touch = (e.changedTouches && e.changedTouches[0]) || null;
+      const endX = touch ? touch.clientX : g.lastX;
+      const endY = touch ? touch.clientY : g.lastY;
+      const dx = endX - g.startX;
+      const dy = endY - g.startY;
+      const absX = Math.abs(dx);
+      const absY = Math.abs(dy);
+      const dt = Math.max(1, Date.now() - g.startTime);
+
+      if (absX <= absY * 1.5 || absY > MAX_VERTICAL_DRIFT_PX) return;
+
+      const isNormalSwipe = absX >= SWIPE_MIN_DISTANCE_PX && dt <= SWIPE_MAX_DURATION_MS;
+      const isFlick = absX >= FLICK_MIN_DISTANCE_PX && dt <= FLICK_MAX_DURATION_MS && (absX / dt) >= FLICK_MIN_VELOCITY;
+      if (!isNormalSwipe && !isFlick) return;
+
+      const curIdx = MAIN_TAB_ORDER.indexOf(state.activeTab);
+      if (curIdx === -1) return;
+
+      if (dx < 0 && curIdx < MAIN_TAB_ORDER.length - 1) {
+        switchTab(MAIN_TAB_ORDER[curIdx + 1], { direction: 'next', viaSwipe: true });
+      } else if (dx > 0 && curIdx > 0) {
+        switchTab(MAIN_TAB_ORDER[curIdx - 1], { direction: 'prev', viaSwipe: true });
+      }
+    }, { passive: true });
+
+    appView.addEventListener('touchcancel', resetGesture, { passive: true });
   }
 
     // Format ngày tiếng Việt
