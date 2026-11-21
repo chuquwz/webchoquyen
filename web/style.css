@@ -7467,8 +7467,8 @@ html[data-theme="dark"] .btn-fab-plus {
   background-color: var(--fund-bg);
   border: 1.5px solid var(--fund-border);
   border-radius: 28px;
-  padding: 22px 20px 20px;
-  min-height: 276px;
+  padding: 20px 20px 18px;
+  min-height: 0;
   box-shadow: var(--shadow-card);
   transition: border-color 0.25s ease-out, box-shadow 0.28s ease-out, transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -7620,7 +7620,7 @@ html[data-theme="dark"] .btn-fab-plus {
   z-index: 2;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .fund-card-top {
@@ -7684,11 +7684,25 @@ html[data-theme="dark"] .btn-fab-plus {
   color: var(--fund-btn-fg);
 }
 
-.fund-card-status-line {
-  font-size: 13px;
-  font-weight: 600;
+.fund-target-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+  padding: 3px 10px 3px 8px;
+  border-radius: 999px;
+  background-color: var(--fund-badge-bg);
+  border: 1px solid var(--fund-border);
   color: var(--fund-text-strong);
-  margin-top: 3px;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.25;
+  max-width: 100%;
+}
+
+.fund-target-pill-icon {
+  flex-shrink: 0;
+  opacity: 0.9;
 }
 
 .btn-fund-edit-gear {
@@ -7721,13 +7735,13 @@ html[data-theme="dark"] .btn-fab-plus {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 4px 0 2px;
+  padding: 6px 0 4px;
 }
 
 .fund-hero-numbers {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
   flex: 1;
 }
@@ -7741,35 +7755,12 @@ html[data-theme="dark"] .btn-fab-plus {
 }
 
 .fund-saved-val {
-  font-size: clamp(23px, 7.2vw, 31px);
+  font-size: clamp(26px, 7.8vw, 34px);
   line-height: 1.1;
   font-weight: 800;
   color: var(--text-main);
   letter-spacing: -0.03em;
   overflow-wrap: anywhere;
-}
-
-.fund-target-val {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-sub);
-}
-
-.fund-meta-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 6px;
-}
-
-.fund-meta-pill {
-  font-size: 11.5px;
-  font-weight: 700;
-  padding: 4px 9px;
-  border-radius: 999px;
-  background-color: var(--fund-badge-bg);
-  color: var(--fund-text-strong);
-  border: 1px solid var(--fund-border);
 }
 
 .fund-dial-wrap {
@@ -7847,13 +7838,7 @@ html[data-theme="dark"] .btn-fab-plus {
   margin-top: 1px;
 }
 
-/* Shimmer Progress Runway & Milestone Markers */
-.fund-runway-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
+/* Shimmer Progress Bar (dùng trong modal lịch sử nạp quỹ) */
 .fund-progress-track {
   position: relative;
   width: 100%;
@@ -7874,44 +7859,6 @@ html[data-theme="dark"] .btn-fab-plus {
 
 .fund-goal-card .fund-progress-fill {
   background: var(--fund-accent);
-}
-
-.fund-progress-beacon {
-  position: absolute;
-  right: 2px;
-  top: 50%;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background-color: #FFFFFF;
-  transform: translateY(-50%);
-  box-shadow: 0 0 8px rgba(255, 255, 255, 0.9);
-}
-
-.fund-progress-tick {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 1.5px;
-  background-color: rgba(255, 255, 255, 0.55);
-  pointer-events: none;
-}
-
-.fund-runway-milestones {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  font-size: 10.5px;
-  font-weight: 700;
-  color: var(--text-sub);
-}
-
-.fund-runway-milestone {
-  text-align: right;
-}
-
-.fund-runway-milestone.is-reached {
-  color: var(--fund-text-strong);
-  font-weight: 800;
 }
 
 .fund-card-actions {

@@ -7854,21 +7854,6 @@
       cardsList.innerHTML = model.funds.map(f => {
         const safeName = escapeHTML(f.name);
         const offset = (RING_CIRC * (1 - f.pctClamped / 100)).toFixed(2);
-        let statusLine = '';
-        if (f.reachedGoal) {
-          statusLine = f.excess > 0
-            ? `Vượt mục tiêu +${formatShortK(f.excess)}`
-            : 'Đã hoàn thành mục tiêu!';
-        } else if (f.pctRaw >= 80) {
-          statusLine = `Sắp cán đích • còn ${formatShortK(f.remaining)}`;
-        } else {
-          statusLine = `Còn thiếu ${formatShortK(f.remaining)}`;
-        }
-
-        const avgText = f.depositCount > 0 ? `TB ${formatShortK(f.avgDeposit)}/lần` : 'Chưa nạp lần nào';
-        const milestonesHTML = [25, 50, 75, 100].map(m =>
-          `<span class="fund-runway-milestone${f.pctRaw >= m ? ' is-reached' : ''}">${m}%</span>`
-        ).join('');
 
         return `
           <div class="fund-goal-card fund-theme-${escapeHTML(f.color)}${f.reachedGoal ? ' is-goal-reached' : ''}" data-fund-card="${escapeHTML(f.id)}">
@@ -7892,7 +7877,13 @@
                       <span class="fund-card-name">${safeName}</span>
                       ${f.reachedGoal ? `<span class="fund-goal-done-badge">${workIconSVG('check', 11)} Đạt đích</span>` : ''}
                     </div>
-                    <div class="fund-card-status-line font-tabular">${escapeHTML(statusLine)}</div>
+                    <div class="fund-target-pill font-tabular">
+                      <svg class="fund-target-pill-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="9" />
+                        <circle cx="12" cy="12" r="4" />
+                      </svg>
+                      <span>Mục tiêu ${formatVND(f.target)}</span>
+                    </div>
                   </div>
                 </div>
                 <button type="button" class="btn-fund-edit-gear" onclick="openFundEditorModal('${escapeHTML(f.id)}')"
@@ -7907,11 +7898,6 @@
                 <div class="fund-hero-numbers">
                   <span class="fund-saved-eyebrow">Đã tích luỹ</span>
                   <strong class="fund-saved-val font-tabular">${formatVND(f.saved)}</strong>
-                  <span class="fund-target-val font-tabular">Mục tiêu ${formatVND(f.target)}</span>
-                  <div class="fund-meta-pills font-tabular">
-                    <span class="fund-meta-pill">Tháng này +${formatShortK(f.monthSaved)}</span>
-                    <span class="fund-meta-pill">${escapeHTML(avgText)}</span>
-                  </div>
                 </div>
                 <div class="fund-dial-wrap" aria-label="Tiến độ quỹ ${safeName}: ${f.pctRaw}%">
                   <span class="fund-dial-halo" aria-hidden="true"></span>
@@ -7926,16 +7912,6 @@
                     <span class="fund-dial-sub">mục tiêu</span>
                   </div>
                 </div>
-              </div>
-
-              <div class="fund-runway-wrap">
-                <div class="fund-progress-track" aria-hidden="true">
-                  <div class="fund-progress-fill" style="width: ${f.pctClamped}%;">${f.pctClamped > 0 ? '<span class="fund-progress-beacon"></span>' : ''}</div>
-                  <span class="fund-progress-tick" style="left: 25%;"></span>
-                  <span class="fund-progress-tick" style="left: 50%;"></span>
-                  <span class="fund-progress-tick" style="left: 75%;"></span>
-                </div>
-                <div class="fund-runway-milestones font-tabular" aria-hidden="true">${milestonesHTML}</div>
               </div>
 
               <div class="fund-card-actions">
@@ -7967,12 +7943,9 @@
             const prevPct = Math.min(100, prevPctRaw);
             const prevOffset = (RING_CIRC * (1 - prevPct / 100)).toFixed(2);
             const newOffset = (RING_CIRC * (1 - targetFund.pctClamped / 100)).toFixed(2);
-            const barEl = cardEl.querySelector('.fund-progress-fill');
             const ringEl = cardEl.querySelector('.fund-ring-fill');
-            if (barEl) barEl.style.width = `${prevPct}%`;
             if (ringEl) ringEl.style.strokeDashoffset = prevOffset;
             void cardEl.offsetWidth;
-            if (barEl) barEl.style.width = `${targetFund.pctClamped}%`;
             if (ringEl) ringEl.style.strokeDashoffset = newOffset;
 
             const savedValEl = cardEl.querySelector('.fund-saved-val');
