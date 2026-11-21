@@ -1599,15 +1599,19 @@ a:focus-visible,
 }
 
 .form-input {
+  display: block;
   width: 100% !important;
   max-width: 100% !important;
   min-width: 0 !important;
+  height: 46px;
+  min-height: 46px;
   box-sizing: border-box !important;
   border: 1.5px solid #E4ECE0;
   border-radius: 12px;
-  padding: 8px 10px;
+  padding: 9px 12px;
   font-family: inherit;
-  font-size: 13.5px;
+  font-size: 16px;
+  line-height: 1.25;
   color: var(--text-main);
   background-color: #FFFFFF;
   outline: none;
@@ -1622,10 +1626,39 @@ a:focus-visible,
 select.form-input {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238A9185' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 10px center;
-  padding-right: 28px;
+  background-position: right 12px center;
+  padding-right: 34px !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
   -webkit-appearance: none;
   appearance: none;
+}
+
+input[type="date"].form-input {
+  display: flex;
+  align-items: center;
+  text-align: left !important;
+  overflow: hidden;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+input[type="date"].form-input::-webkit-date-and-time-value {
+  text-align: left;
+  width: 100%;
+  margin: 0;
+}
+
+input[type="date"].form-input::-webkit-datetime-edit,
+input[type="date"].form-input::-webkit-datetime-edit-fields-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: left;
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
 }
 
 input[type="time"].form-input {
@@ -3390,8 +3423,15 @@ body:not(.is-logged-in) #app-bottom-nav {
 /* 16px font size on mobile inputs to prevent iOS Safari auto-zoom */
 .work-mobile-input {
   font-size: 16px !important;
-  min-height: 44px;
-  padding: 9px 12px !important;
+  height: 46px;
+  min-height: 46px;
+  padding-top: 9px !important;
+  padding-bottom: 9px !important;
+  padding-left: 12px !important;
+}
+
+input.work-mobile-input:not(.work-search-input) {
+  padding-right: 12px !important;
 }
 
 .work-chips-label {
@@ -3454,7 +3494,11 @@ body:not(.is-logged-in) #app-bottom-nav {
 }
 
 .btn-price-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 38px;
+  padding: 6px 8px;
   border-radius: 11px;
   background-color: #F3F8F0;
   border: 1.5px solid #D7E6D0;
@@ -3462,8 +3506,14 @@ body:not(.is-logged-in) #app-bottom-nav {
   font-family: inherit;
   font-size: 12.5px;
   font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
   cursor: pointer;
   transition: transform 0.15s ease-out, background-color 0.15s ease-out;
+}
+
+.btn-price-chip[hidden] {
+  display: none !important;
 }
 
 .btn-price-chip:not(:disabled):active {
@@ -5826,17 +5876,17 @@ body:not(.is-logged-in) #app-bottom-nav {
   color: #1A3A0E;
 }
 
-.repay-meta-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 10px;
+.work-price-Preset-grid .btn-price-chip.is-pay-all {
+  grid-column: 1 / -1;
+  min-height: 40px;
+  padding: 8px 14px;
 }
 
-@media (max-width: 380px) {
-  .repay-meta-grid {
-    grid-template-columns: 1fr;
-  }
+.repay-meta-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-top: 10px;
 }
 
 .repay-history-section {
@@ -6295,7 +6345,7 @@ body:not(.is-logged-in) #app-bottom-nav {
 
 .work-time-range-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 8px;
 }
 

@@ -53,7 +53,7 @@
       } catch (_) { }
     })();
   </script>
-  <link rel="stylesheet" href="/style.css?v=94">
+  <link rel="stylesheet" href="/style.css?v=95">
 </head>
 
 <body>
@@ -1566,17 +1566,24 @@
       </div>
       <form onsubmit="submitEditWorkJob(event)">
         <input type="hidden" id="edit-job-id">
-        <div class="form-grid-2">
-          <div class="form-group">
-            <label class="form-label" for="edit-job-date">Ngày làm</label>
-            <input type="date" id="edit-job-date" class="form-input font-tabular" required>
-          </div>
+        <div class="form-group">
+          <label class="form-label" for="edit-job-date">Ngày làm</label>
+          <input type="date" id="edit-job-date" class="form-input work-mobile-input font-tabular" required>
+        </div>
+        <div class="form-grid-2" style="margin-top: 10px;">
           <div class="form-group">
             <label class="form-label" for="edit-job-channel">Kênh liên hệ</label>
-            <select id="edit-job-channel" class="form-input">
+            <select id="edit-job-channel" class="form-input work-mobile-input">
               <option value="ZL">Zalo (ZL)</option>
               <option value="FB">Facebook (FB)</option>
               <option value="KHAC">Khác</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="edit-job-status">Trạng thái</label>
+            <select id="edit-job-status" class="form-input work-mobile-input">
+              <option value="TT">Đã thu (TT)</option>
+              <option value="CTT">Khách nợ (CTT)</option>
             </select>
           </div>
         </div>
@@ -1588,18 +1595,9 @@
           <label class="form-label" for="edit-job-service">Dịch vụ &amp; dòng máy</label>
           <input type="text" id="edit-job-service" class="form-input work-mobile-input" maxlength="150" required>
         </div>
-        <div class="form-grid-2" style="margin-top: 10px;">
-          <div class="form-group">
-            <label class="form-label" for="edit-job-price">Giá tiền (VNĐ)</label>
-            <input type="number" id="edit-job-price" class="form-input work-mobile-input font-tabular" min="1" required>
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="edit-job-status">Trạng thái</label>
-            <select id="edit-job-status" class="form-input">
-              <option value="TT">Đã thu (TT)</option>
-              <option value="CTT">Khách nợ (CTT)</option>
-            </select>
-          </div>
+        <div class="form-group" style="margin-top: 10px;">
+          <label class="form-label" for="edit-job-price">Giá tiền (VNĐ)</label>
+          <input type="number" id="edit-job-price" class="form-input work-mobile-input font-tabular" min="1" required>
         </div>
         <button type="submit" class="btn-green-pill" style="width: 100%; margin-top: 16px;">Lưu thay đổi</button>
       </form>
@@ -2252,7 +2250,7 @@
     </div>
   </div>
 
-  <script src="/app.js?v=94"></script>
+  <script src="/app.js?v=95"></script>
 </body>
 
 </html>

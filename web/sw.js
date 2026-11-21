@@ -1,9 +1,9 @@
-const CACHE_NAME = 'quyenanh-v94';
+const CACHE_NAME = 'quyenanh-v95';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/style.css?v=94',
-  '/app.js?v=94',
+  '/style.css?v=95',
+  '/app.js?v=95',
   '/manifest.webmanifest',
   '/icons/icon-192.png?v=31',
   '/icons/icon-512.png?v=31'
