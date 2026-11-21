@@ -1,9 +1,9 @@
-const CACHE_NAME = 'quyenanh-v86';
+const CACHE_NAME = 'quyenanh-v87';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/style.css?v=86',
-  '/app.js?v=86',
+  '/style.css?v=87',
+  '/app.js?v=87',
   '/manifest.webmanifest',
   '/icons/icon-192.png?v=31',
   '/icons/icon-512.png?v=31'
@@ -12,7 +12,7 @@ const STATIC_ASSETS = [
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)).catch(() => {})
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)).catch(() => { })
   );
 });
 
@@ -91,7 +91,7 @@ self.addEventListener('push', (event) => {
             body: data.body || ''
           });
         }
-      }).catch(() => {})
+      }).catch(() => { })
     ])
   );
 });

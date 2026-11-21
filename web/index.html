@@ -16,7 +16,44 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="/style.css?v=86">
+  <script>
+    (function () {
+      try {
+        var raw = localStorage.getItem('qh_theme_pref_v1');
+        var pref = raw ? JSON.parse(raw) : {};
+        var mode = (pref && pref.mode) || 'system';
+        var startStr = (pref && pref.darkStart) || '18:30';
+        var endStr = (pref && pref.darkEnd) || '06:00';
+        var parseHM = function (s, fb) {
+          var m = /^(\d{2}):(\d{2})$/.exec(String(s || ''));
+          if (!m) return fb;
+          var h = Number(m[1]), mn = Number(m[2]);
+          return (h >= 0 && h < 24 && mn >= 0 && mn < 60) ? (h * 60 + mn) : fb;
+        };
+        var resolved = 'light';
+        if (mode === 'dark') {
+          resolved = 'dark';
+        } else if (mode === 'light') {
+          resolved = 'light';
+        } else if (mode === 'schedule') {
+          var now = new Date();
+          var cur = now.getHours() * 60 + now.getMinutes();
+          var s = parseHM(startStr, 18 * 60 + 30);
+          var e = parseHM(endStr, 6 * 60);
+          if (s < e) resolved = (cur >= s && cur < e) ? 'dark' : 'light';
+          else if (s > e) resolved = (cur >= s || cur < e) ? 'dark' : 'light';
+        } else {
+          resolved = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+        }
+        document.documentElement.setAttribute('data-theme', resolved);
+        var tc = document.querySelector('meta[name="theme-color"]');
+        if (tc) tc.setAttribute('content', resolved === 'dark' ? '#111611' : '#F5F7F4');
+        var sb = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+        if (sb) sb.setAttribute('content', resolved === 'dark' ? 'black-translucent' : 'default');
+      } catch (_) {}
+    })();
+  </script>
+  <link rel="stylesheet" href="/style.css?v=88">
 </head>
 
 <body>
@@ -368,7 +405,7 @@
         <section id="tab-settings" class="tab-pane" role="tabpanel" aria-label="Hồ sơ và Cài đặt">
           <div class="screen-nav-header">
             <button type="button" class="btn-circle-action" aria-label="Quay lại" onclick="switchTab('today')">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#1C1F1B" stroke-width="2.2">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2">
                 <path d="M15 18l-6-6 6-6" />
               </svg>
             </button>
@@ -383,6 +420,69 @@
             <div class="profile-meta-info">
               <strong id="profile-display-name" class="profile-name">Phùng Văn Quyền</strong>
               <span id="profile-display-sub" class="profile-target">Hành trình: 97.0 kg &rarr; Mục tiêu 70.0 kg</span>
+            </div>
+          </div>
+
+          <!-- Giao diện & Chế độ tối -->
+          <div class="settings-card-block" id="settings-theme-card">
+            <h3 class="settings-block-title">Giao diện &amp; Chế độ tối</h3>
+            <p id="theme-status-desc" class="settings-block-desc">Tự động thay đổi theo cài đặt hệ thống</p>
+            <div class="theme-mode-grid" role="group" aria-label="Chế độ giao diện">
+              <button type="button" class="theme-mode-btn active" data-theme-mode="system" aria-pressed="true"
+                onclick="setThemeMode('system')">
+                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+                  stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="3" y="4" width="18" height="12" rx="2" />
+                  <line x1="8" y1="20" x2="16" y2="20" />
+                  <line x1="12" y1="16" x2="12" y2="20" />
+                </svg>
+                <span>Hệ thống</span>
+              </button>
+              <button type="button" class="theme-mode-btn" data-theme-mode="schedule" aria-pressed="false"
+                onclick="setThemeMode('schedule')">
+                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+                  stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M12 7v5l3 2" />
+                </svg>
+                <span>Theo giờ</span>
+              </button>
+              <button type="button" class="theme-mode-btn" data-theme-mode="light" aria-pressed="false"
+                onclick="setThemeMode('light')">
+                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+                  stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="4" />
+                  <path d="M12 2v2" />
+                  <path d="M12 20v2" />
+                  <path d="m4.93 4.93 1.41 1.41" />
+                  <path d="m17.66 17.66 1.41 1.41" />
+                  <path d="M2 12h2" />
+                  <path d="M20 12h2" />
+                  <path d="m6.34 17.66-1.41 1.41" />
+                  <path d="m19.07 4.93-1.41 1.41" />
+                </svg>
+                <span>Sáng</span>
+              </button>
+              <button type="button" class="theme-mode-btn" data-theme-mode="dark" aria-pressed="false"
+                onclick="setThemeMode('dark')">
+                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+                  stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+                </svg>
+                <span>Tối</span>
+              </button>
+            </div>
+            <div id="theme-schedule-row" class="theme-schedule-row" hidden>
+              <div class="form-group">
+                <label class="form-label" for="theme-dark-start">Bật tối lúc</label>
+                <input type="time" id="theme-dark-start" class="form-input font-tabular" value="18:30"
+                  onchange="onThemeScheduleChange()">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="theme-dark-end">Tắt tối lúc</label>
+                <input type="time" id="theme-dark-end" class="form-input font-tabular" value="06:00"
+                  onchange="onThemeScheduleChange()">
+              </div>
             </div>
           </div>
 
@@ -624,7 +724,7 @@
           <div class="screen-nav-header">
             <button type="button" class="btn-circle-action" aria-label="Quay lại trang Hôm nay"
               onclick="switchTab('today')">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#1C1F1B" stroke-width="2.2"
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2"
                 stroke-linecap="round" stroke-linejoin="round">
                 <path d="M15 18l-6-6 6-6" />
               </svg>
@@ -899,7 +999,7 @@
           <div class="screen-nav-header">
             <button type="button" class="btn-circle-action" aria-label="Quay lại trang Hôm nay"
               onclick="switchTab('today')">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#1C1F1B" stroke-width="2.2"
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2"
                 stroke-linecap="round" stroke-linejoin="round">
                 <path d="M15 18l-6-6 6-6" />
               </svg>
@@ -996,15 +1096,11 @@
               <span id="ledger-hero-expense" class="work-huge-money font-tabular">0đ</span>
             </div>
 
-            <!-- Lưới 4 chỉ số thu chi (Chi tiêu, Nộp quỹ, Mượn toàn thời gian, Trả nợ) -->
-            <div class="work-month-grid-4 font-tabular">
+            <!-- Lưới 3 chỉ số thu chi (Chi tiêu, Mượn toàn thời gian, Trả nợ) -->
+            <div class="work-month-grid-3 font-tabular">
               <div class="work-month-cell">
                 <span class="work-month-cell-lbl">Chi tiêu</span>
                 <strong id="ledger-stat-expense" class="work-month-cell-val">0đ</strong>
-              </div>
-              <div class="work-month-cell">
-                <span class="work-month-cell-lbl">Nộp quỹ</span>
-                <strong id="ledger-stat-fund-in" class="work-month-cell-val">0đ</strong>
               </div>
               <div class="work-month-cell">
                 <span class="work-month-cell-lbl">Mượn</span>
@@ -1015,8 +1111,6 @@
                 <strong id="ledger-stat-repay" class="work-month-cell-val">0đ</strong>
               </div>
             </div>
-
-            <div id="ledger-stat-fund-bal-row" class="work-extra-badges-row" style="display: none;"></div>
           </div>
 
           <!-- 1 Nút gom toàn bộ các khoản Mượn của Quyền (Luôn hiển thị bất kể ngày/tháng) -->
@@ -1057,6 +1151,83 @@
           </div>
         </section>
 
+        <!-- =====================================================================
+             MÀN HÌNH: QUỸ TIẾT KIỆM & MỤC TIÊU (ĐA QUỸ + LỊCH SỬ NẠP TỪNG QUỸ)
+             ===================================================================== -->
+        <section id="tab-funds" class="tab-pane" role="tabpanel" aria-label="Quỹ tiết kiệm">
+          <div class="screen-nav-header">
+            <button type="button" class="btn-circle-action" aria-label="Quay lại trang Hôm nay"
+              onclick="switchTab('today')">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
+            <h1 class="screen-nav-title">Quỹ tiết kiệm</h1>
+            <button type="button" class="btn-circle-action btn-funds-header-add" aria-label="Tạo quỹ mới"
+              title="Tạo quỹ mới" onclick="openFundEditorModal()">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4"
+                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            </button>
+          </div>
+
+          <!-- Thẻ Tổng Kết Đa Quỹ -->
+          <div class="funds-hero-card" role="region" aria-label="Tổng quan các quỹ tiết kiệm">
+            <span class="funds-hero-bg" aria-hidden="true">
+              <span class="funds-hero-orb orb-1"></span>
+              <span class="funds-hero-orb orb-2"></span>
+              <span class="funds-hero-wave"></span>
+            </span>
+            <div class="funds-hero-content">
+              <div class="work-bank-header-row">
+                <span class="work-summary-eyebrow">Tổng tích luỹ các quỹ</span>
+                <span id="funds-hero-count-pill" class="work-job-count-pill font-tabular">1 quỹ</span>
+              </div>
+              <div class="funds-hero-balance-row">
+                <span id="funds-hero-total" class="work-huge-money font-tabular">0đ</span>
+                <span id="funds-hero-pct-pill" class="funds-hero-pct-pill font-tabular">0%</span>
+              </div>
+              <div class="funds-hero-target-sub">
+                Mục tiêu tổng: <strong id="funds-hero-target" class="font-tabular">0đ</strong> &bull;
+                <span id="funds-hero-remaining">Còn thiếu 0đ</span>
+              </div>
+              <div class="fund-progress-track is-hero" aria-hidden="true">
+                <div id="funds-hero-bar-fill" class="fund-progress-fill" style="width: 0%;"></div>
+                <span class="fund-progress-tick" style="left: 25%;"></span>
+                <span class="fund-progress-tick" style="left: 50%;"></span>
+                <span class="fund-progress-tick" style="left: 75%;"></span>
+              </div>
+              <div class="funds-hero-actions">
+                <button type="button" class="btn-green-pill btn-sm" onclick="openFundDepositModal()">+ Nạp quỹ</button>
+                <button type="button" class="btn-secondary-pill btn-sm" onclick="openFundEditorModal()">+ Tạo quỹ mới</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Danh sách các quỹ -->
+          <div class="section-container" style="margin-top: 16px;">
+            <div class="section-title-header">
+              <h2 class="section-heading">Các quỹ của bạn</h2>
+              <span id="funds-goal-done-sub" class="work-list-sub font-tabular">0/0 đạt mục tiêu</span>
+            </div>
+            <div id="funds-cards-list" class="funds-cards-stack"></div>
+          </div>
+
+          <!-- Lịch sử nạp tiền từng quỹ -->
+          <div class="section-container" style="margin-top: 20px; margin-bottom: 28px;">
+            <div class="section-title-header">
+              <h2 class="section-heading">Lịch sử nạp quỹ</h2>
+              <span id="funds-history-count-sub" class="work-list-sub font-tabular">0 lần nạp</span>
+            </div>
+            <div id="funds-history-filter-bar" class="work-chips-scroll" data-no-tab-swipe="1" role="tablist"
+              aria-label="Lọc lịch sử theo quỹ"></div>
+            <div id="funds-history-list" class="work-items-stack" style="margin-top: 8px;"></div>
+          </div>
+        </section>
+
         <button type="button" class="btn-fab-plus" data-fab-for="work" onclick="openAddWorkJobModal()"
           aria-label="Mở popup ghi đơn mới" title="Ghi đơn mới">
           <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.8"
@@ -1068,6 +1239,15 @@
 
         <button type="button" class="btn-fab-plus" data-fab-for="ledger" onclick="openAddWorkLedgerModal()"
           aria-label="Mở popup ghi thu chi cá nhân" title="Ghi thu chi cá nhân">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.8"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+        </button>
+
+        <button type="button" class="btn-fab-plus" data-fab-for="funds" onclick="openFundDepositModal()"
+          aria-label="Mở popup nạp quỹ nhanh" title="Nạp quỹ nhanh">
           <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.8"
             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <line x1="12" y1="5" x2="12" y2="19" />
@@ -1114,7 +1294,19 @@
           <span class="nav-label">Thu chi</span>
         </button>
 
-        <!-- 4. Cài đặt -->
+        <!-- 4. Quỹ tiết kiệm -->
+        <button type="button" class="nav-pill-btn" id="nav-btn-funds" role="tab" aria-selected="false"
+          aria-controls="tab-funds" tabindex="-1" aria-label="Quỹ" onclick="switchTab('funds')">
+          <svg class="nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
+            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <ellipse cx="12" cy="6" rx="8" ry="3" />
+            <path d="M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6" />
+            <path d="M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6" />
+          </svg>
+          <span class="nav-label">Quỹ</span>
+        </button>
+
+        <!-- 5. Cài đặt -->
         <button type="button" class="nav-pill-btn" id="nav-btn-settings" role="tab" aria-selected="false"
           aria-controls="tab-settings" tabindex="-1" aria-label="Cài đặt" onclick="switchTab('settings')">
           <svg class="nav-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
@@ -1611,7 +1803,7 @@
       </div>
       <form id="work-ledger-form" class="work-quick-card" onsubmit="submitWorkLedger(event)">
         <p class="work-helper-text" style="margin-top: 0; margin-bottom: 10px;">
-          Ghi nhận nhanh các khoản chi tiêu cá nhân, thuê tool, nộp quỹ và mượn theo ngày - tháng.
+          Ghi nhận nhanh các khoản chi tiêu cá nhân, thuê tool và mượn theo ngày - tháng.
         </p>
 
         <!-- Chọn Phân Loại -->
@@ -1627,13 +1819,6 @@
                 <path d="M16 10a4 4 0 0 1-8 0" />
               </svg>
               <span>Chi tiêu / Phát sinh</span>
-            </button>
-            <button type="button" class="work-cat-chip" data-cat="fund_in" onclick="setWorkLedgerCategory('fund_in')">
-              <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
-                stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-              </svg>
-              <span>Nộp Quỹ</span>
             </button>
             <button type="button" class="work-cat-chip" data-cat="borrow" onclick="setWorkLedgerCategory('borrow')">
               <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
@@ -1682,8 +1867,6 @@
             <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Đổ xăng', 150000)">Đổ xăng
               (150k)</button>
             <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Đi ăn', 200000)">Đi ăn</button>
-            <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Nộp quỹ ngày', 100000)">Nộp quỹ
-              ngày</button>
           </div>
         </div>
 
@@ -1865,7 +2048,196 @@
     </div>
   </div>
 
-  <script src="/app.js?v=86"></script>
+  <!-- MODAL: Nạp Tiền Vào Quỹ -->
+  <div id="modal-fund-deposit" class="modal-overlay modal-top" role="dialog" aria-modal="true"
+    aria-labelledby="modal-fund-deposit-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="modal-fund-deposit-title" class="modal-title">+ Nạp tiền vào quỹ</h3>
+        <button type="button" class="modal-close" aria-label="Đóng hộp thoại nạp quỹ"
+          onclick="closeModal('modal-fund-deposit')">&times;</button>
+      </div>
+      <form id="fund-deposit-form" class="work-quick-card" onsubmit="submitFundDeposit(event)">
+        <div class="form-group">
+          <span class="form-label">Chọn quỹ muốn nạp</span>
+          <div id="fund-deposit-fund-chips" class="work-chips-scroll" data-no-tab-swipe="1" role="radiogroup"
+            aria-label="Chọn quỹ đích"></div>
+          <input type="hidden" id="fund-deposit-fund-id" value="">
+        </div>
+
+        <div class="form-group" style="margin-top: 10px;">
+          <label class="form-label" for="fund-deposit-date">Ngày nạp</label>
+          <input type="date" id="fund-deposit-date" class="form-input work-mobile-input font-tabular" required>
+        </div>
+
+        <div class="form-group" style="margin-top: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 8px;">
+            <label class="form-label" for="fund-deposit-amount">Số tiền (gõ số nghìn: 100 = 100.000đ)</label>
+            <span id="fund-deposit-amount-preview" class="work-price-preview font-tabular"></span>
+          </div>
+          <input type="number" id="fund-deposit-amount" class="form-input work-mobile-input font-tabular"
+            placeholder="Ví dụ: 100 hoặc 100000" inputmode="numeric" min="1" required
+            oninput="updateFundDepositPreview()">
+          <div id="fund-deposit-after-preview" class="repay-after-hint font-tabular" aria-live="polite"></div>
+          <div class="work-price-Preset-grid" aria-label="Chọn nhanh số tiền nạp quỹ">
+            <button type="button" class="btn-price-chip font-tabular" onclick="setFundDepositAmount(50000)">50k</button>
+            <button type="button" class="btn-price-chip font-tabular" onclick="setFundDepositAmount(100000)">100k</button>
+            <button type="button" class="btn-price-chip font-tabular" onclick="setFundDepositAmount(200000)">200k</button>
+            <button type="button" class="btn-price-chip font-tabular" onclick="setFundDepositAmount(500000)">500k</button>
+            <button type="button" class="btn-price-chip font-tabular" onclick="setFundDepositAmount(1000000)">1tr</button>
+            <button type="button" id="btn-fund-deposit-fill-goal" class="btn-price-chip is-pay-all font-tabular"
+              onclick="fillFundDepositToGoal()" hidden>Đủ mục tiêu</button>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top: 10px;">
+          <label class="form-label" for="fund-deposit-note">Ghi chú (không bắt buộc)</label>
+          <input type="text" id="fund-deposit-note" class="form-input work-mobile-input"
+            placeholder="Ví dụ: Nộp quỹ ngày, Trích doanh thu..." maxlength="180">
+          <div class="work-chips-scroll" data-no-tab-swipe="1" style="margin-top: 6px;" aria-label="Gợi ý ghi chú nạp quỹ">
+            <button type="button" class="work-suggest-chip" onclick="setFundDepositNote('Nộp quỹ ngày', 100000)">Nộp quỹ ngày</button>
+            <button type="button" class="work-suggest-chip" onclick="setFundDepositNote('Trích doanh thu', 200000)">Trích doanh thu</button>
+            <button type="button" class="work-suggest-chip" onclick="setFundDepositNote('Tiền thưởng', 500000)">Tiền thưởng</button>
+            <button type="button" class="work-suggest-chip" onclick="setFundDepositNote('Tiết kiệm tuần', 300000)">Tiết kiệm tuần</button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-green-pill" style="width: 100%; margin-top: 14px;">Nạp vào quỹ</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Tạo / Cài Đặt Quỹ -->
+  <div id="modal-fund-editor" class="modal-overlay modal-top" role="dialog" aria-modal="true"
+    aria-labelledby="modal-fund-editor-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="modal-fund-editor-title" class="modal-title">Tạo quỹ mới</h3>
+        <button type="button" class="modal-close" aria-label="Đóng hộp thoại cài đặt quỹ"
+          onclick="closeModal('modal-fund-editor')">&times;</button>
+      </div>
+      <form id="fund-editor-form" class="work-quick-card" onsubmit="submitFundEditor(event)">
+        <input type="hidden" id="fund-edit-id" value="">
+
+        <div class="form-group">
+          <label class="form-label" for="fund-edit-name">Tên quỹ</label>
+          <input type="text" id="fund-edit-name" class="form-input work-mobile-input"
+            placeholder="Ví dụ: Quỹ dự phòng, Quỹ mua xe..." maxlength="40" required>
+        </div>
+
+        <div class="form-group" style="margin-top: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 8px;">
+            <label class="form-label" for="fund-edit-target">Mục tiêu quỹ (gõ số nghìn: 5000 = 5.000.000đ)</label>
+            <span id="fund-edit-target-preview" class="work-price-preview font-tabular"></span>
+          </div>
+          <input type="number" id="fund-edit-target" class="form-input work-mobile-input font-tabular"
+            placeholder="Ví dụ: 5000 hoặc 5000000" inputmode="numeric" min="1" required
+            oninput="updateFundTargetPreview()">
+          <div class="work-price-Preset-grid" aria-label="Chọn nhanh mục tiêu quỹ">
+            <button type="button" class="btn-price-chip font-tabular" onclick="setFundEditTarget(1000000)">1tr</button>
+            <button type="button" class="btn-price-chip font-tabular" onclick="setFundEditTarget(2000000)">2tr</button>
+            <button type="button" class="btn-price-chip font-tabular" onclick="setFundEditTarget(5000000)">5tr</button>
+            <button type="button" class="btn-price-chip font-tabular" onclick="setFundEditTarget(10000000)">10tr</button>
+            <button type="button" class="btn-price-chip font-tabular" onclick="setFundEditTarget(20000000)">20tr</button>
+            <button type="button" class="btn-price-chip font-tabular" onclick="setFundEditTarget(50000000)">50tr</button>
+            <button type="button" class="btn-price-chip font-tabular" onclick="setFundEditTarget(100000000)">100tr</button>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top: 12px;">
+          <span class="form-label">Màu sắc hiển thị</span>
+          <div id="fund-edit-color-grid" class="fund-color-grid" role="group" aria-label="Chọn màu sắc quỹ">
+            <button type="button" class="fund-color-swatch is-sage active" data-fund-color="sage" aria-pressed="true"
+              aria-label="Màu xanh lá" onclick="setFundEditColor('sage')"><span class="fund-swatch-dot"></span></button>
+            <button type="button" class="fund-color-swatch is-emerald" data-fund-color="emerald" aria-pressed="false"
+              aria-label="Màu ngọc lục bảo" onclick="setFundEditColor('emerald')"><span class="fund-swatch-dot"></span></button>
+            <button type="button" class="fund-color-swatch is-sky" data-fund-color="sky" aria-pressed="false"
+              aria-label="Màu xanh dương" onclick="setFundEditColor('sky')"><span class="fund-swatch-dot"></span></button>
+            <button type="button" class="fund-color-swatch is-amber" data-fund-color="amber" aria-pressed="false"
+              aria-label="Màu vàng hổ phách" onclick="setFundEditColor('amber')"><span class="fund-swatch-dot"></span></button>
+            <button type="button" class="fund-color-swatch is-rose" data-fund-color="rose" aria-pressed="false"
+              aria-label="Màu hồng san hô" onclick="setFundEditColor('rose')"><span class="fund-swatch-dot"></span></button>
+            <button type="button" class="fund-color-swatch is-violet" data-fund-color="violet" aria-pressed="false"
+              aria-label="Màu tím lavender" onclick="setFundEditColor('violet')"><span class="fund-swatch-dot"></span></button>
+          </div>
+          <input type="hidden" id="fund-edit-color" value="sage">
+        </div>
+
+        <div class="form-group" style="margin-top: 12px;">
+          <span class="form-label">Biểu tượng quỹ</span>
+          <div id="fund-edit-icon-grid" class="fund-icon-grid" role="group" aria-label="Chọn biểu tượng quỹ">
+            <button type="button" class="fund-icon-opt active" data-fund-icon="piggy" aria-pressed="true"
+              aria-label="Biểu tượng ống heo" onclick="setFundEditIcon('piggy')">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <ellipse cx="12" cy="6" rx="8" ry="3" /><path d="M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6" /><path d="M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6" />
+              </svg>
+            </button>
+            <button type="button" class="fund-icon-opt" data-fund-icon="shield" aria-pressed="false"
+              aria-label="Biểu tượng lá chắn dự phòng" onclick="setFundEditIcon('shield')">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="m9 12 2 2 4-4" />
+              </svg>
+            </button>
+            <button type="button" class="fund-icon-opt" data-fund-icon="bike" aria-pressed="false"
+              aria-label="Biểu tượng xe cộ" onclick="setFundEditIcon('bike')">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="5.5" cy="17.5" r="3.5" /><circle cx="18.5" cy="17.5" r="3.5" /><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5V14l-3-3 4-3 2 3h2" />
+              </svg>
+            </button>
+            <button type="button" class="fund-icon-opt" data-fund-icon="heart" aria-pressed="false"
+              aria-label="Biểu tượng trái tim" onclick="setFundEditIcon('heart')">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+              </svg>
+            </button>
+            <button type="button" class="fund-icon-opt" data-fund-icon="home" aria-pressed="false"
+              aria-label="Biểu tượng ngôi nhà" onclick="setFundEditIcon('home')">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1V9.5z" />
+              </svg>
+            </button>
+            <button type="button" class="fund-icon-opt" data-fund-icon="gift" aria-pressed="false"
+              aria-label="Biểu tượng hộp quà" onclick="setFundEditIcon('gift')">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="20 12 20 22 4 22 4 12" /><rect x="2" y="7" width="20" height="5" /><line x1="12" y1="22" x2="12" y2="7" /><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" /><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
+              </svg>
+            </button>
+          </div>
+          <input type="hidden" id="fund-edit-icon" value="piggy">
+        </div>
+
+        <button type="submit" id="btn-fund-editor-submit" class="btn-green-pill"
+          style="width: 100%; margin-top: 16px;">Lưu quỹ</button>
+
+        <div id="fund-editor-danger-zone" class="repay-danger-zone" hidden>
+          <button type="button" class="btn-repay-delete-borrow" onclick="deleteFundFromEditor()">Xoá quỹ này</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Lịch Sử Nạp Của Từng Quỹ -->
+  <div id="modal-fund-history" class="modal-overlay modal-top" role="dialog" aria-modal="true"
+    aria-labelledby="fund-history-modal-title">
+    <div class="modal-dialog modal-dialog-tall">
+      <div class="modal-header">
+        <h3 id="fund-history-modal-title" class="modal-title">Lịch sử nạp quỹ</h3>
+        <button type="button" class="modal-close" aria-label="Đóng hộp thoại lịch sử nạp quỹ"
+          onclick="closeModal('modal-fund-history')">&times;</button>
+      </div>
+      <div id="fund-history-modal-summary" class="fund-history-modal-summary"></div>
+      <div id="fund-history-scope-tabs" class="borrow-filter-bar font-tabular" role="tablist"
+        aria-label="Lọc lịch sử nạp theo thời gian">
+        <button type="button" class="borrow-filter-pill active" data-scope="all" role="tab" aria-selected="true"
+          onclick="setFundHistoryModalScope('all')">Tất cả (<span id="fund-hist-cnt-all">0</span>)</button>
+        <button type="button" class="borrow-filter-pill" data-scope="month" role="tab" aria-selected="false"
+          onclick="setFundHistoryModalScope('month')">Tháng này (<span id="fund-hist-cnt-month">0</span>)</button>
+      </div>
+      <div id="fund-history-modal-list" class="work-items-stack"></div>
+    </div>
+  </div>
+
+  <script src="/app.js?v=88"></script>
 </body>
 
 </html>

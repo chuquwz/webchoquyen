@@ -25,30 +25,285 @@
     activeTab: 'today'
   };
 
-  // Utility Toast
-  window.showToast = function (msg, isErr = false) {
+  // Utility Toast (hỗ trợ nút Hoàn tác & tạm dừng đếm ngược khi người dùng đang chạm/focus)
+  window.showToast = function (msg, isErrOrOpts = false) {
     const container = document.getElementById('toast-container');
-    if (!container) return;
+    if (!container) return null;
+    const opts = (typeof isErrOrOpts === 'object' && isErrOrOpts !== null)
+      ? isErrOrOpts
+      : { isErr: Boolean(isErrOrOpts) };
+    const isErr = Boolean(opts.isErr);
+    const actionLabel = opts.actionLabel ? String(opts.actionLabel) : '';
+    const stayMs = typeof opts.duration === 'number'
+      ? opts.duration
+      : (isErr ? 4500 : (actionLabel ? 6500 : 3400));
+
     const toast = document.createElement('div');
     toast.className = isErr ? 'toast toast-error' : 'toast';
     toast.setAttribute('role', isErr ? 'alert' : 'status');
     const iconSvg = isErr
       ? '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12.5"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'
       : '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>';
+    const actionHtml = actionLabel
+      ? `<button type="button" class="toast-action-btn">${escapeHtml(actionLabel)}</button>`
+      : '';
     toast.innerHTML = `
       <span class="toast-icon-badge" aria-hidden="true">${iconSvg}</span>
       <span class="toast-msg">${escapeHtml(String(msg == null ? '' : msg))}</span>
-      <button type="button" class="toast-close-btn" aria-label="Đóng thông báo" onclick="const t=this.parentElement;if(t){t.classList.add('is-leaving');setTimeout(()=>t.remove(),180);}">
+      ${actionHtml}
+      <button type="button" class="toast-close-btn" aria-label="Đóng thông báo">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     `;
     container.appendChild(toast);
-    const stayMs = isErr ? 4500 : 3400;
-    setTimeout(() => {
+
+    let closed = false;
+    let timerId = null;
+    let remainingMs = stayMs;
+    let startedAt = Date.now();
+
+    function clearTimer() {
+      if (timerId !== null) {
+        clearTimeout(timerId);
+        timerId = null;
+      }
+    }
+
+    function dismiss(reason = 'close') {
+      if (closed) return;
+      closed = true;
+      clearTimer();
       toast.classList.add('is-leaving');
       setTimeout(() => toast.remove(), 180);
-    }, stayMs);
+      if (typeof opts.onDismiss === 'function') {
+        try { opts.onDismiss(reason); } catch (_) { }
+      }
+    }
+
+    function startTimer(ms) {
+      clearTimer();
+      if (!(ms > 0)) return;
+      startedAt = Date.now();
+      remainingMs = ms;
+      timerId = setTimeout(() => dismiss('timeout'), ms);
+    }
+
+    function pauseTimer() {
+      if (closed || timerId === null) return;
+      clearTimer();
+      remainingMs = Math.max(2000, remainingMs - (Date.now() - startedAt));
+    }
+
+    function resumeTimer() {
+      if (closed || timerId !== null) return;
+      const hovered = typeof toast.matches === 'function' && toast.matches(':hover');
+      const focused = toast.contains(document.activeElement);
+      if (!hovered && !focused) {
+        startTimer(Math.max(2000, remainingMs));
+      }
+    }
+
+    const closeBtn = toast.querySelector('.toast-close-btn');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => dismiss('close'));
+    }
+    const actionBtn = toast.querySelector('.toast-action-btn');
+    if (actionBtn) {
+      actionBtn.addEventListener('click', () => {
+        if (closed) return;
+        dismiss('action');
+        if (typeof opts.onAction === 'function') {
+          try { opts.onAction(); } catch (_) { }
+        }
+      });
+      toast.addEventListener('pointerenter', pauseTimer);
+      toast.addEventListener('pointerleave', resumeTimer);
+      toast.addEventListener('focusin', pauseTimer);
+      toast.addEventListener('focusout', () => setTimeout(resumeTimer, 0));
+    }
+
+    startTimer(stayMs);
+    return { el: toast, dismiss };
   };
+
+  // =========================================================================
+  // GIAO DIỆN SÁNG / TỐI (Hệ thống / Theo giờ / Sáng / Tối)
+  // =========================================================================
+  const THEME_PREF_KEY = 'qh_theme_pref_v1';
+  const THEME_DEFAULT_START = '18:30';
+  const THEME_DEFAULT_END = '06:00';
+  let themeWatchTimer = null;
+  let themeListenersBound = false;
+
+  function parseHMToMinutes(hm, fallbackMins) {
+    const m = /^(\d{2}):(\d{2})$/.exec(String(hm || '').trim());
+    if (!m) return fallbackMins;
+    const h = Number(m[1]);
+    const mn = Number(m[2]);
+    if (h < 0 || h > 23 || mn < 0 || mn > 59) return fallbackMins;
+    return h * 60 + mn;
+  }
+
+  function sanitizeHM(hm, fallback) {
+    return /^([01]\d|2[0-3]):[0-5]\d$/.test(String(hm || '').trim()) ? String(hm).trim() : fallback;
+  }
+
+  function isNowInDarkSchedule(startHM, endHM, nowDate) {
+    const start = parseHMToMinutes(startHM, 18 * 60 + 30);
+    const end = parseHMToMinutes(endHM, 6 * 60);
+    if (start === end) return false;
+    const d = (nowDate && typeof nowDate.getHours === 'function') ? nowDate : new Date();
+    const cur = d.getHours() * 60 + d.getMinutes();
+    return start < end ? (cur >= start && cur < end) : (cur >= start || cur < end);
+  }
+
+  function readThemePref() {
+    try {
+      const raw = localStorage.getItem(THEME_PREF_KEY);
+      const parsed = raw ? JSON.parse(raw) : {};
+      const mode = ['system', 'schedule', 'light', 'dark'].includes(parsed && parsed.mode)
+        ? parsed.mode
+        : 'system';
+      return {
+        mode,
+        darkStart: sanitizeHM(parsed && parsed.darkStart, THEME_DEFAULT_START),
+        darkEnd: sanitizeHM(parsed && parsed.darkEnd, THEME_DEFAULT_END)
+      };
+    } catch (_) {
+      return { mode: 'system', darkStart: THEME_DEFAULT_START, darkEnd: THEME_DEFAULT_END };
+    }
+  }
+
+  function writeThemePref(pref) {
+    try {
+      localStorage.setItem(THEME_PREF_KEY, JSON.stringify(pref));
+    } catch (_) { }
+  }
+
+  function resolveThemeFromPref(pref, nowDate) {
+    if (pref.mode === 'dark') return 'dark';
+    if (pref.mode === 'light') return 'light';
+    if (pref.mode === 'schedule') {
+      return isNowInDarkSchedule(pref.darkStart, pref.darkEnd, nowDate) ? 'dark' : 'light';
+    }
+    return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+  }
+
+  function applyResolvedTheme(resolved, opts = {}) {
+    const root = document.documentElement;
+    const current = root.getAttribute('data-theme');
+    const shouldSuppress = Boolean(opts.suppressTransitions) && current !== resolved;
+    let overrideStyle = null;
+    if (shouldSuppress && document.head) {
+      overrideStyle = document.createElement('style');
+      overrideStyle.appendChild(document.createTextNode('*,*::before,*::after{transition:none !important}'));
+      document.head.appendChild(overrideStyle);
+    }
+
+    root.setAttribute('data-theme', resolved);
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    if (metaTheme) metaTheme.setAttribute('content', resolved === 'dark' ? '#111611' : '#F5F7F4');
+    const metaApple = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+    if (metaApple) metaApple.setAttribute('content', resolved === 'dark' ? 'black-translucent' : 'default');
+
+    if (overrideStyle) {
+      void root.offsetHeight;
+      const cleanup = () => overrideStyle.remove();
+      if (typeof window.requestAnimationFrame === 'function') {
+        window.requestAnimationFrame(() => window.requestAnimationFrame(cleanup));
+      } else {
+        setTimeout(cleanup, 32);
+      }
+    }
+  }
+
+  function syncThemeSettingsUI(pref, resolved) {
+    document.querySelectorAll('.theme-mode-btn').forEach(btn => {
+      const active = btn.getAttribute('data-theme-mode') === pref.mode;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+
+    const schedRow = document.getElementById('theme-schedule-row');
+    if (schedRow) schedRow.hidden = pref.mode !== 'schedule';
+
+    const startInput = document.getElementById('theme-dark-start');
+    if (startInput && startInput.value !== pref.darkStart) startInput.value = pref.darkStart;
+    const endInput = document.getElementById('theme-dark-end');
+    if (endInput && endInput.value !== pref.darkEnd) endInput.value = pref.darkEnd;
+
+    const descEl = document.getElementById('theme-status-desc');
+    if (descEl) {
+      const stateText = resolved === 'dark' ? 'Đang dùng giao diện tối' : 'Đang dùng giao diện sáng';
+      if (pref.mode === 'system') {
+        descEl.textContent = `${stateText} • Tự động theo hệ thống`;
+      } else if (pref.mode === 'schedule') {
+        descEl.textContent = `${stateText} • Bật tối từ ${pref.darkStart} đến ${pref.darkEnd}`;
+      } else if (pref.mode === 'dark') {
+        descEl.textContent = 'Luôn dùng giao diện tối dịu mắt';
+      } else {
+        descEl.textContent = 'Luôn dùng giao diện sáng';
+      }
+    }
+  }
+
+  function evaluateAndApplyTheme(opts = {}) {
+    const pref = readThemePref();
+    const resolved = resolveThemeFromPref(pref);
+    applyResolvedTheme(resolved, opts);
+    syncThemeSettingsUI(pref, resolved);
+  }
+
+  window.setThemeMode = function (mode) {
+    if (!['system', 'schedule', 'light', 'dark'].includes(mode)) return;
+    const pref = readThemePref();
+    pref.mode = mode;
+    writeThemePref(pref);
+    evaluateAndApplyTheme({ suppressTransitions: true });
+  };
+
+  window.onThemeScheduleChange = function () {
+    const startEl = document.getElementById('theme-dark-start');
+    const endEl = document.getElementById('theme-dark-end');
+    const pref = readThemePref();
+    pref.darkStart = sanitizeHM(startEl ? startEl.value : '', pref.darkStart);
+    pref.darkEnd = sanitizeHM(endEl ? endEl.value : '', pref.darkEnd);
+    writeThemePref(pref);
+    evaluateAndApplyTheme({ suppressTransitions: true });
+  };
+
+  function initThemeController() {
+    evaluateAndApplyTheme({ suppressTransitions: false });
+    if (themeListenersBound) return;
+    themeListenersBound = true;
+
+    const mql = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+    if (mql) {
+      const onSystemThemeChange = () => {
+        if (readThemePref().mode === 'system') {
+          evaluateAndApplyTheme({ suppressTransitions: true });
+        }
+      };
+      if (typeof mql.addEventListener === 'function') {
+        mql.addEventListener('change', onSystemThemeChange);
+      } else if (typeof mql.addListener === 'function') {
+        mql.addListener(onSystemThemeChange);
+      }
+    }
+
+    const onScheduleTick = () => {
+      if (readThemePref().mode === 'schedule') {
+        evaluateAndApplyTheme({ suppressTransitions: true });
+      }
+    };
+    if (!themeWatchTimer) {
+      themeWatchTimer = setInterval(onScheduleTick, 30000);
+    }
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') onScheduleTick();
+    });
+    window.addEventListener('focus', onScheduleTick);
+  }
 
   // Đồng bộ đa thiết bị & Hàng đợi offline (Outbox Queue)
   const SYNC_QUEUE_KEY = 'qh_sync_queue_v1';
@@ -257,6 +512,12 @@
           method: 'DELETE',
           silent: true
         });
+      case 'work_fund_upsert':
+        return await api('/api/work/vault', {
+          method: 'POST',
+          body: JSON.stringify({ mode: 'merge', jobs: [], ledger: qItem.payload ? [qItem.payload] : [], tombstones: [] }),
+          silent: true
+        });
       default:
         return { ok: true };
     }
@@ -402,11 +663,11 @@
 
       if (vaultDbMismatch) {
         await syncFinanceVaultOnBoot({ silent: true });
-        if (state.activeTab === 'work' || state.activeTab === 'ledger') {
+        if (state.activeTab === 'work' || state.activeTab === 'ledger' || state.activeTab === 'funds') {
           await loadWorkData(workState.date, { silent: true });
         }
       } else if (workChanged) {
-        if (state.activeTab === 'work' || state.activeTab === 'ledger') {
+        if (state.activeTab === 'work' || state.activeTab === 'ledger' || state.activeTab === 'funds') {
           await loadWorkData(workState.date, { silent: true });
         } else {
           await refreshWorkVaultSnapshotSilently();
@@ -515,11 +776,15 @@
 
   // Khởi tạo & Kiểm tra đăng nhập
   async function init() {
+    initThemeController();
     registerServiceWorker();
     setupHeroGreetingWatcher();
     renderDynamicGreeting();
     setupRouting();
     setupTabSwipeGesture();
+    setupModalSheetGestures();
+    setupWorkJobSwipeGestures();
+    bindPendingDeleteFlushListeners();
     try {
       const me = await api('/api/me');
       if (me && me.ok) {
@@ -673,12 +938,13 @@
     showLoginView();
   };
 
-  // Quản lý Tab: hôm nay, công việc, thu chi, cài đặt
-  const MAIN_TAB_ORDER = ['today', 'work', 'ledger', 'settings'];
+  // Quản lý Tab: hôm nay, công việc, thu chi, quỹ, cài đặt
+  const MAIN_TAB_ORDER = ['today', 'work', 'ledger', 'funds', 'settings'];
   const MAIN_TAB_LABELS = {
     today: 'Hôm nay',
     work: 'Công việc',
     ledger: 'Thu chi',
+    funds: 'Quỹ',
     settings: 'Cài đặt'
   };
   let lastWorkSyncAt = 0;
@@ -772,9 +1038,11 @@
       tabSyncTimer = null;
     }
 
-    if (tabId === 'work' || tabId === 'ledger') {
+    if (tabId === 'work' || tabId === 'ledger' || tabId === 'funds') {
       if (!workState.date && typeof computeWorkFromLocalVault === 'function') {
         computeWorkFromLocalVault(workState.date || state.today);
+      } else if (tabId === 'funds' && typeof renderFundsScreen === 'function') {
+        renderFundsScreen();
       }
     } else if (tabId === 'today') {
       renderDynamicGreeting();
@@ -796,7 +1064,7 @@
     const now = Date.now();
     if (tabId === 'today' && syncState.authenticated) {
       scheduleBgSync(() => checkRemoteSyncState({ silent: true, force: true }));
-    } else if ((tabId === 'work' || tabId === 'ledger') && (now - lastWorkSyncAt >= 3000 || !workState.date)) {
+    } else if ((tabId === 'work' || tabId === 'ledger' || tabId === 'funds') && (now - lastWorkSyncAt >= 3000 || !workState.date)) {
       scheduleBgSync(() => {
         lastWorkSyncAt = Date.now();
         loadWorkData(undefined, { silent: true });
@@ -811,7 +1079,7 @@
 
   function setupRouting() {
     const hash = window.location.hash.replace('#', '');
-    if (['today', 'work', 'ledger', 'settings'].includes(hash)) {
+    if (['today', 'work', 'ledger', 'funds', 'settings'].includes(hash)) {
       switchTab(hash);
     }
   }
@@ -912,8 +1180,10 @@
     }
 
     function ensureWorkDataFor(tab) {
-      if ((tab === 'work' || tab === 'ledger') && !workState.date && typeof computeWorkFromLocalVault === 'function') {
+      if ((tab === 'work' || tab === 'ledger' || tab === 'funds') && !workState.date && typeof computeWorkFromLocalVault === 'function') {
         computeWorkFromLocalVault(workState.date || state.today);
+      } else if (tab === 'funds' && typeof renderFundsScreen === 'function') {
+        renderFundsScreen();
       }
     }
 
@@ -2015,10 +2285,10 @@
           <div style="font-size: 13px; font-weight: 600; color: var(--text-sub); margin-top: 4px;">Điểm tuân thủ bảo vệ sức khoẻ gan & cân nặng</div>
         </div>
         <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
-          <div style="background: #F9FBF8; border: 1px solid var(--border-subtle); border-radius: 14px; padding: 12px 14px;">
+          <div class="score-breakdown-item">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
               <span style="font-weight: 700; font-size: 13.5px; color: var(--text-main); display: inline-flex; align-items: center; gap: 6px;">
-                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#38A3A5" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="var(--blue-accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
                 <span>Uống nước lọc</span>
               </span>
               <span style="font-weight: 800; color: ${waterPts > 0 ? 'var(--color-score-ring)' : 'var(--text-muted)'};" class="font-tabular">${waterPts}/40 đ</span>
@@ -2028,38 +2298,38 @@
             </div>
           </div>
 
-          <div style="background: #F9FBF8; border: 1px solid var(--border-subtle); border-radius: 14px; padding: 12px 14px;">
+          <div class="score-breakdown-item">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
               <span style="font-weight: 700; font-size: 13.5px; color: var(--text-main); display: inline-flex; align-items: center; gap: 6px;">
-                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#5E9447" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/></svg>
+                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="var(--color-score-ring)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/></svg>
                 <span>Thuốc bổ gan</span>
               </span>
               <span style="font-weight: 800; color: ${medPts ? 'var(--color-score-ring)' : 'var(--text-muted)'};" class="font-tabular">${medPts}/30 đ</span>
             </div>
             <div style="font-size: 12.5px;">
               ${medCount >= medTarget
-            ? `<span style="color: #2B5719; font-weight: 600;">Đã uống đủ ${medCount}/${medTarget} lần theo lịch nhắc hôm nay</span>`
-            : `<span style="color: #C2410C;">Đã uống <strong class="font-tabular">${medCount}/${medTarget}</strong> lần (bấm ô Thuốc bổ gan để đánh dấu)</span>`}
+            ? `<span class="text-status-ok" style="font-weight: 600;">Đã uống đủ ${medCount}/${medTarget} lần theo lịch nhắc hôm nay</span>`
+            : `<span class="text-status-warn">Đã uống <strong class="font-tabular">${medCount}/${medTarget}</strong> lần (bấm ô Thuốc bổ gan để đánh dấu)</span>`}
             </div>
           </div>
 
-          <div style="background: #F9FBF8; border: 1px solid var(--border-subtle); border-radius: 14px; padding: 12px 14px;">
+          <div class="score-breakdown-item">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
               <span style="font-weight: 700; font-size: 13.5px; color: var(--text-main); display: inline-flex; align-items: center; gap: 6px;">
-                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#E55B6C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="var(--pink-accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
                 <span>Cân sáng sớm</span>
               </span>
               <span style="font-weight: 800; color: ${weightPts ? 'var(--color-score-ring)' : 'var(--text-muted)'};" class="font-tabular">${weightPts}/15 đ</span>
             </div>
             <div style="font-size: 12.5px;">
-              ${hasWeight ? `<span style="color: #2B5719; font-weight: 600;">Đã ghi nhận: ${state.todayWeight.toFixed(1)} kg</span>` : '<span style="color: #C2410C;">Chưa cân sáng nay (bấm ô Cân nặng để nhập)</span>'}
+              ${hasWeight ? `<span class="text-status-ok" style="font-weight: 600;">Đã ghi nhận: ${state.todayWeight.toFixed(1)} kg</span>` : '<span class="text-status-warn">Chưa cân sáng nay (bấm ô Cân nặng để nhập)</span>'}
             </div>
           </div>
 
-          <div style="background: #F9FBF8; border: 1px solid var(--border-subtle); border-radius: 14px; padding: 12px 14px;">
+          <div class="score-breakdown-item">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
               <span style="font-weight: 700; font-size: 13.5px; color: var(--text-main); display: inline-flex; align-items: center; gap: 6px;">
-                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#2B5719" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="var(--color-score-ring)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
                 <span>Bữa ăn Healthy (3 bữa)</span>
               </span>
               <span style="font-weight: 800; color: ${mealPts ? 'var(--color-score-ring)' : 'var(--text-muted)'};" class="font-tabular">${mealPts}/15 đ</span>
@@ -2477,9 +2747,9 @@
           const prev = list[i - 1];
           const diff = Math.round((item.kg - prev.kg) * 10) / 10;
           if (diff > 0) {
-            diffHtml = `<span style="color: #B91C1C; font-weight: 700; font-size: 12px;">+${diff.toFixed(1)} kg</span>`;
+            diffHtml = `<span class="text-status-danger" style="font-weight: 700; font-size: 12px;">+${diff.toFixed(1)} kg</span>`;
           } else if (diff < 0) {
-            diffHtml = `<span style="color: #2B5719; font-weight: 700; font-size: 12px;">${diff.toFixed(1)} kg</span>`;
+            diffHtml = `<span class="text-status-ok" style="font-weight: 700; font-size: 12px;">${diff.toFixed(1)} kg</span>`;
           } else {
             diffHtml = '<span style="color: var(--text-sub); font-size: 12px;">0.0 kg</span>';
           }
@@ -2489,7 +2759,7 @@
         const baseDate = item.date === state.today ? `Hôm nay (${dm})` : `Ngày ${dm}`;
         const dateLabel = hm ? `${baseDate} • ${hm}` : baseDate;
         html += `
-        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: ${item.date === state.today ? '#EEF7E8' : '#F9FBF8'}; border: 1px solid var(--border-subtle);">
+        <div class="weight-hist-row${item.date === state.today ? ' is-today' : ''}">
           <span class="font-tabular" style="font-size: 12.5px; color: var(--text-sub); font-weight: ${item.date === state.today ? '700' : '500'};">${escapeHtml(dateLabel)}</span>
           <div style="display: flex; align-items: center; gap: 10px;">
             ${diffHtml}
@@ -3138,10 +3408,26 @@
       return div.innerHTML;
     }
 
-    // ================= 5. MODAL HELPERS =================
+    // ================= 5. MODAL HELPERS & BOTTOM-SHEET GESTURES =================
+    function resetModalSheetState(overlay) {
+      if (!overlay) return;
+      if (overlay._sheetTimer) {
+        clearTimeout(overlay._sheetTimer);
+        overlay._sheetTimer = null;
+      }
+      overlay.classList.remove('is-sheet-dragging', 'is-sheet-settling', 'is-sheet-closing');
+      overlay.style.removeProperty('--sheet-backdrop-alpha');
+      const dialog = overlay.querySelector('.modal-dialog');
+      if (dialog) {
+        dialog.classList.remove('is-sheet-dragging', 'is-sheet-settling', 'is-sheet-closing');
+        dialog.style.transform = '';
+      }
+    }
+
     window.openModal = function (id) {
       const el = document.getElementById(id);
       if (el) {
+        resetModalSheetState(el);
         el._prevFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
         el.classList.add('open');
         const firstInput = el.querySelector('input:not([type=hidden]):not([disabled]), button:not(.modal-close):not([disabled])');
@@ -3152,6 +3438,7 @@
     window.closeModal = function (id) {
       const el = document.getElementById(id);
       if (!el) return;
+      resetModalSheetState(el);
       el.classList.remove('open');
       const prev = el._prevFocus;
       el._prevFocus = null;
@@ -3164,10 +3451,272 @@
       el.addEventListener('click', (e) => {
         if (e.target === el) {
           if (el.id) window.closeModal(el.id);
-          else el.classList.remove('open');
+          else {
+            resetModalSheetState(el);
+            el.classList.remove('open');
+          }
         }
       });
     });
+
+    function setupModalSheetGestures() {
+      const scheduleFrame = typeof window.requestAnimationFrame === 'function'
+        ? window.requestAnimationFrame.bind(window)
+        : (fn) => setTimeout(fn, 16);
+      const cancelFrame = typeof window.cancelAnimationFrame === 'function'
+        ? window.cancelAnimationFrame.bind(window)
+        : clearTimeout;
+      const nowMs = () => (window.performance && typeof window.performance.now === 'function')
+        ? window.performance.now()
+        : Date.now();
+
+      function hasScrolledAncestor(target, dialog) {
+        let el = target && target.nodeType === 1 ? target : (target && target.parentElement);
+        while (el && el !== dialog) {
+          if (el.scrollTop > 1) {
+            const overflowY = window.getComputedStyle(el).overflowY;
+            if (/(auto|scroll)/.test(overflowY)) return true;
+          }
+          el = el.parentElement;
+        }
+        return false;
+      }
+
+      function computeVelocityY(samples) {
+        if (!samples || samples.length < 2) return 0;
+        const last = samples[samples.length - 1];
+        let first = null;
+        for (let i = 0; i < samples.length; i++) {
+          if (last.t - samples[i].t <= 100) {
+            first = samples[i];
+            break;
+          }
+        }
+        if (!first || first === last) return 0;
+        const dt = last.t - first.t;
+        return dt > 0 ? (last.y - first.y) / dt : 0;
+      }
+
+      document.querySelectorAll('.modal-overlay').forEach(overlay => {
+        const dialog = overlay.querySelector('.modal-dialog');
+        if (!dialog) return;
+
+        if (!dialog.querySelector('.modal-sheet-handle') && typeof document.createElement === 'function') {
+          const handle = document.createElement('div');
+          handle.className = 'modal-sheet-handle';
+          handle.setAttribute('aria-hidden', 'true');
+          dialog.insertBefore(handle, dialog.firstChild);
+        }
+
+        if (overlay.dataset.sheetBound) return;
+        overlay.dataset.sheetBound = '1';
+
+        let sheet = null;
+        let rafId = 0;
+        let pendingDy = null;
+
+        function cancelSheetFrame() {
+          if (rafId) {
+            cancelFrame(rafId);
+            rafId = 0;
+          }
+          pendingDy = null;
+        }
+
+        function paintSheetDrag(visualDy) {
+          if (!sheet) return;
+          if (!prefersReducedMotion()) {
+            dialog.style.transform = `translate3d(0, ${visualDy.toFixed(1)}px, 0)`;
+          }
+          const alpha = Math.max(0.08, 1 - (Math.max(0, visualDy) / sheet.dialogH) * 0.85);
+          overlay.style.setProperty('--sheet-backdrop-alpha', alpha.toFixed(3));
+          sheet.visualDy = visualDy;
+        }
+
+        function dismissSheet() {
+          if (!sheet) return;
+          const dialogH = sheet.dialogH;
+          sheet = null;
+          if (prefersReducedMotion()) {
+            if (overlay.id) window.closeModal(overlay.id);
+            else {
+              resetModalSheetState(overlay);
+              overlay.classList.remove('open');
+            }
+            return;
+          }
+          overlay.classList.remove('is-sheet-dragging');
+          dialog.classList.remove('is-sheet-dragging');
+          overlay.classList.add('is-sheet-closing');
+          dialog.classList.add('is-sheet-closing');
+          dialog.style.transform = `translate3d(0, ${Math.ceil(dialogH + 36)}px, 0)`;
+          overlay.style.setProperty('--sheet-backdrop-alpha', '0');
+          overlay._sheetTimer = setTimeout(() => {
+            overlay._sheetTimer = null;
+            if (overlay.id) window.closeModal(overlay.id);
+            else {
+              resetModalSheetState(overlay);
+              overlay.classList.remove('open');
+            }
+          }, 210);
+        }
+
+        function reboundSheet() {
+          if (!sheet) return;
+          const hadDrag = sheet.axis === 'y';
+          sheet = null;
+          if (!hadDrag) return;
+          if (prefersReducedMotion()) {
+            resetModalSheetState(overlay);
+            return;
+          }
+          overlay.classList.remove('is-sheet-dragging');
+          dialog.classList.remove('is-sheet-dragging');
+          overlay.classList.add('is-sheet-settling');
+          dialog.classList.add('is-sheet-settling');
+          dialog.style.transform = 'translate3d(0, 0, 0)';
+          overlay.style.setProperty('--sheet-backdrop-alpha', '1');
+          overlay._sheetTimer = setTimeout(() => {
+            overlay._sheetTimer = null;
+            resetModalSheetState(overlay);
+          }, 250);
+        }
+
+        dialog.addEventListener('touchstart', (e) => {
+          cancelSheetFrame();
+          if (!overlay.classList.contains('open')) return;
+          if (overlay.classList.contains('is-sheet-closing')) return;
+          if (!e.touches || e.touches.length !== 1) return;
+
+          const targetEl = e.target && e.target.nodeType === 1 ? e.target : (e.target && e.target.parentElement);
+          if (!targetEl || !dialog.contains(targetEl)) return;
+          if (targetEl.closest('.modal-close, input[type="range"], select')) return;
+
+          if (overlay.classList.contains('is-sheet-settling')) {
+            resetModalSheetState(overlay);
+          }
+
+          const touch = e.touches[0];
+          const rect = typeof dialog.getBoundingClientRect === 'function'
+            ? dialog.getBoundingClientRect()
+            : { height: 400 };
+          sheet = {
+            startX: touch.clientX,
+            startY: touch.clientY,
+            originY: touch.clientY,
+            lastY: touch.clientY,
+            visualDy: 0,
+            axis: null,
+            targetEl,
+            fromHeader: Boolean(targetEl.closest('.modal-sheet-handle, .modal-header')),
+            dialogH: Math.max(240, rect.height || 400),
+            samples: [{ y: touch.clientY, t: nowMs() }]
+          };
+        }, { passive: true });
+
+        dialog.addEventListener('touchmove', (e) => {
+          if (!sheet) return;
+          if (!e.touches || e.touches.length !== 1) {
+            cancelSheetFrame();
+            reboundSheet();
+            return;
+          }
+
+          const touch = e.touches[0];
+          sheet.lastY = touch.clientY;
+
+          if (sheet.axis === null) {
+            const dx = touch.clientX - sheet.startX;
+            const dy = touch.clientY - sheet.startY;
+            const absX = Math.abs(dx);
+            const absY = Math.abs(dy);
+            if (absX < 8 && absY < 8) return;
+
+            if (absX > absY || dy <= 0) {
+              sheet = null;
+              return;
+            }
+            if (absY >= absX * 1.15) {
+              const canPull = sheet.fromHeader || (dialog.scrollTop <= 1 && !hasScrolledAncestor(sheet.targetEl, dialog));
+              if (!canPull) {
+                sheet = null;
+                return;
+              }
+              sheet.axis = 'y';
+              sheet.originY = touch.clientY;
+              sheet.samples = [{ y: touch.clientY, t: nowMs() }];
+              if (document.activeElement && dialog.contains(document.activeElement) && typeof document.activeElement.blur === 'function') {
+                document.activeElement.blur();
+              }
+              overlay.classList.add('is-sheet-dragging');
+              dialog.classList.add('is-sheet-dragging');
+            } else {
+              return;
+            }
+          }
+
+          if (e.cancelable && typeof e.preventDefault === 'function') {
+            e.preventDefault();
+          }
+
+          const t = nowMs();
+          sheet.samples.push({ y: touch.clientY, t });
+          while (sheet.samples.length > 2 && t - sheet.samples[0].t > 100) {
+            sheet.samples.shift();
+          }
+
+          const rawDy = touch.clientY - sheet.originY;
+          const visualDy = rawDy >= 0 ? rawDy : Math.max(-14, rawDy * 0.12);
+          pendingDy = visualDy;
+          if (!rafId) {
+            rafId = scheduleFrame(() => {
+              rafId = 0;
+              if (pendingDy === null || !sheet) return;
+              const val = pendingDy;
+              pendingDy = null;
+              paintSheetDrag(val);
+            });
+          }
+        }, { passive: false });
+
+        dialog.addEventListener('touchend', (e) => {
+          if (!sheet) return;
+          if (pendingDy !== null && sheet.axis === 'y') {
+            const val = pendingDy;
+            cancelSheetFrame();
+            paintSheetDrag(val);
+          } else {
+            cancelSheetFrame();
+          }
+          if (sheet.axis !== 'y') {
+            sheet = null;
+            return;
+          }
+
+          const touch = (e.changedTouches && e.changedTouches[0]) || null;
+          const endY = touch ? touch.clientY : sheet.lastY;
+          const t = nowMs();
+          sheet.samples.push({ y: endY, t });
+          while (sheet.samples.length > 2 && t - sheet.samples[0].t > 100) {
+            sheet.samples.shift();
+          }
+
+          const dy = Math.max(0, endY - sheet.originY);
+          const vy = computeVelocityY(sheet.samples);
+          const shouldClose = dy >= Math.min(130, sheet.dialogH * 0.28) || (vy >= 0.45 && dy >= 28);
+          if (shouldClose) {
+            dismissSheet();
+          } else {
+            reboundSheet();
+          }
+        }, { passive: true });
+
+        dialog.addEventListener('touchcancel', () => {
+          cancelSheetFrame();
+          reboundSheet();
+        }, { passive: true });
+      });
+    }
 
     // =========================================================================
     // KHU VỰC ĐỘNG LỰC: NGƯỜI CON GÁI PHÙNG VĂN QUYỀN YÊU
@@ -4052,8 +4601,8 @@
       const month = (targetMonth && /^\d{4}-\d{2}$/.test(targetMonth))
         ? targetMonth
         : date.slice(0, 7);
-      const allJobs = v.jobs || [];
-      const allLedger = v.ledger || [];
+      const allJobs = (v.jobs || []).filter(j => !isJobPendingDelete(j));
+      const allLedger = (v.ledger || []).filter(l => !isLedgerPendingDelete(l));
 
       const dayJobs = allJobs.filter(j => j.date === date);
       const dayLedger = allLedger.filter(l => l.date === date);
@@ -4509,6 +5058,13 @@
 
         if (reqSeq !== workLoadSeq) return;
 
+        if (pendingJobDeletes.size > 0 || pendingLedgerDeletes.size > 0) {
+          workState.today = data.today || state.today;
+          workState.suggestions = data.suggestions || workState.suggestions;
+          computeWorkFromLocalVault(data.date || dateParam, data.month || monthParam);
+          return;
+        }
+
         workState.date = data.date || state.today;
         workState.month = data.month || workState.date.slice(0, 7);
         workState.calendarMonth = workState.month;
@@ -4584,6 +5140,9 @@
       renderWorkJobsList();
       renderWorkUnpaidGroups();
       renderLedgerScreen();
+      if (typeof renderFundsScreen === 'function') {
+        renderFundsScreen();
+      }
     }
 
     window.setWorkHeroScope = function (scope) {
@@ -4808,6 +5367,38 @@
       }
     };
 
+    const pendingJobDeletes = new Map();
+    const pendingLedgerDeletes = new Map();
+    let activeJobSwipeCloser = null;
+
+    function isJobPendingDelete(j) {
+      if (!j || pendingJobDeletes.size === 0) return false;
+      for (const entry of pendingJobDeletes.values()) {
+        if (entry.uid && j.uid && entry.uid === j.uid) return true;
+        if (entry.id && Number(j.id) === Number(entry.id)) return true;
+      }
+      return false;
+    }
+
+    function isLedgerPendingDelete(l) {
+      if (!l || pendingLedgerDeletes.size === 0) return false;
+      for (const entry of pendingLedgerDeletes.values()) {
+        if (entry.uid && l.uid && entry.uid === l.uid) return true;
+        if (entry.id && Number(l.id) === Number(entry.id)) return true;
+      }
+      return false;
+    }
+
+    function isFundLedgerItem(l) {
+      return Boolean(l && (l.category === 'fund_in' || l.category === 'fund_bal'));
+    }
+
+    window.closeActiveJobSwipeRow = function () {
+      if (typeof activeJobSwipeCloser === 'function') {
+        activeJobSwipeCloser();
+      }
+    };
+
     function renderWorkJobsList() {
       const container = document.getElementById('work-jobs-list');
       const titleEl = document.getElementById('work-day-jobs-title');
@@ -4825,6 +5416,8 @@
       }
       if (!container) return;
 
+      closeActiveJobSwipeRow();
+
       if (jobs.length === 0) {
         container.innerHTML = `<div class="empty-state-box">Chưa có đơn dịch vụ nào trong ngày ${formatVNDate(workState.date)}.</div>`;
         return;
@@ -4841,28 +5434,46 @@
         const partialSub = dt.paid > 0 && isCTT
           ? ` &bull; Đã trả ${formatShortK(dt.paid)}/${formatShortK(dt.orig)}`
           : '';
+        const payCueText = dt.paid > 0
+          ? `Thu tiếp (${formatShortK(dt.remaining)})`
+          : `Thu nhanh (${formatShortK(dt.remaining)})`;
 
         return `
-        <div class="work-job-card ${isCTT ? 'is-unpaid' : ''}">
-          <div class="work-job-top">
-            <div class="work-job-cust-wrap">
-              <span class="work-stt-badge font-tabular">#${idx + 1}</span>
-              <span class="work-ch-badge ${chClass}">${escapeHTML(j.channel)}</span>
-              <span class="work-job-cust-name">${escapeHTML(j.customer)}</span>
-            </div>
-            <span class="work-job-price-val font-tabular">${formatVND(j.price)}</span>
-          </div>
-          <div class="work-job-bottom">
-            <div style="width: 100%; min-width: 0;">
-              <span class="work-job-service-name">${escapeHTML(j.service)}</span>
-              <div class="font-tabular" style="font-size: 11.5px; color: var(--text-sub); margin-top: 2px;">${escapeHTML(formatDayMonthTime(j.date || workState.date, j.ts))}${partialSub}</div>
-            </div>
-            <div class="work-job-actions">
-              <button type="button" class="btn-status-toggle ${stClass}" onclick="${isCTT && dt.paid > 0 ? `openDebtJobPayModal(${j.id})` : `toggleWorkJobStatus(${j.id}, '${isCTT ? 'TT' : 'CTT'}')`}" aria-label="${isCTT && dt.paid > 0 ? 'Trả tiền đơn' : 'Đổi trạng thái thanh toán đơn'} ${escapeHTML(j.customer)}">
-                ${stLabel}
+        <div class="job-swipe-row" data-no-tab-swipe="1" data-job-id="${j.id}" data-job-status="${isCTT ? 'CTT' : 'TT'}" data-job-partial="${dt.paid > 0 ? '1' : '0'}">
+          <div class="job-swipe-rail">
+            ${isCTT ? `<div class="job-swipe-underlay job-swipe-underlay-pay" aria-hidden="true"><span class="job-swipe-cue">${workIconSVG('check', 16)} <span>${payCueText}</span></span></div>` : ''}
+            <div class="job-swipe-underlay job-swipe-underlay-actions" aria-hidden="true" inert>
+              <button type="button" class="job-swipe-action-btn is-edit" tabindex="-1" onclick="closeActiveJobSwipeRow(); openEditWorkJobModal(${j.id})" aria-label="Sửa đơn ${escapeHTML(j.customer)}">
+                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                <span>Sửa</span>
               </button>
-              <button type="button" class="btn-job-icon" onclick="openEditWorkJobModal(${j.id})" aria-label="Sửa đơn ${escapeHTML(j.customer)}">Sửa</button>
-              <button type="button" class="btn-job-icon btn-del" onclick="deleteWorkJob(${j.id})" aria-label="Xoá đơn ${escapeHTML(j.customer)}">Xoá</button>
+              <button type="button" class="job-swipe-action-btn is-delete" tabindex="-1" onclick="closeActiveJobSwipeRow(); deleteWorkJobWithUndo(${j.id})" aria-label="Xoá đơn ${escapeHTML(j.customer)}">
+                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                <span>Xoá</span>
+              </button>
+            </div>
+          </div>
+          <div class="work-job-card ${isCTT ? 'is-unpaid' : ''} job-swipe-surface">
+            <div class="work-job-top">
+              <div class="work-job-cust-wrap">
+                <span class="work-stt-badge font-tabular">#${idx + 1}</span>
+                <span class="work-ch-badge ${chClass}">${escapeHTML(j.channel)}</span>
+                <span class="work-job-cust-name">${escapeHTML(j.customer)}</span>
+              </div>
+              <span class="work-job-price-val font-tabular">${formatVND(j.price)}</span>
+            </div>
+            <div class="work-job-bottom">
+              <div style="width: 100%; min-width: 0;">
+                <span class="work-job-service-name">${escapeHTML(j.service)}</span>
+                <div class="font-tabular" style="font-size: 11.5px; color: var(--text-sub); margin-top: 2px;">${escapeHTML(formatDayMonthTime(j.date || workState.date, j.ts))}${partialSub}</div>
+              </div>
+              <div class="work-job-actions">
+                <button type="button" class="btn-status-toggle ${stClass}" onclick="${isCTT && dt.paid > 0 ? `openDebtJobPayModal(${j.id})` : `toggleWorkJobStatus(${j.id}, '${isCTT ? 'TT' : 'CTT'}')`}" aria-label="${isCTT && dt.paid > 0 ? 'Trả tiền đơn' : 'Đổi trạng thái thanh toán đơn'} ${escapeHTML(j.customer)}">
+                  ${stLabel}
+                </button>
+                <button type="button" class="btn-job-icon" onclick="openEditWorkJobModal(${j.id})" aria-label="Sửa đơn ${escapeHTML(j.customer)}">Sửa</button>
+                <button type="button" class="btn-job-icon btn-del" onclick="deleteWorkJobWithUndo(${j.id})" aria-label="Xoá đơn ${escapeHTML(j.customer)}">Xoá</button>
+              </div>
             </div>
           </div>
         </div>
@@ -4870,11 +5481,15 @@
       }).join('');
     }
 
-    window.toggleWorkJobStatus = async function (jobId, nextStatus) {
+    window.toggleWorkJobStatus = async function (jobId, nextStatus, opts = {}) {
       const existing = findDebtJobById(jobId);
       const jobUid = existing && existing.uid ? existing.uid : '';
       const payload = { uid: jobUid || undefined, status: nextStatus };
       const qs = jobUid ? `?uid=${encodeURIComponent(jobUid)}` : '';
+      const undoablePay = Boolean(opts && opts.undoable && nextStatus === 'TT');
+      const custName = (opts && opts.customer) || (existing && existing.customer) || 'khách';
+      const paidAmt = Number((opts && opts.amount) || (existing && existing.price) || 0);
+
       try {
         const res = await api('/api/work/job/' + jobId + qs, {
           method: 'PUT',
@@ -4884,7 +5499,15 @@
         if (res && typeof res.work_rev === 'number') {
           syncState.workRev = Math.max(syncState.workRev, res.work_rev);
         }
-        showToast(nextStatus === 'TT' ? 'Đã chuyển sang Đã thu tiền (TT)' : 'Đã chuyển sang Khách nợ (CTT)');
+        if (undoablePay) {
+          showToast(`Đã thu ${formatShortK(paidAmt)} • ${custName}`, {
+            actionLabel: 'Hoàn tác',
+            duration: 6500,
+            onAction: () => window.toggleWorkJobStatus(jobId, 'CTT')
+          });
+        } else {
+          showToast(nextStatus === 'TT' ? 'Đã chuyển sang Đã thu tiền (TT)' : 'Đã chuyển sang Khách nợ (CTT)');
+        }
         await loadWorkData(workState.date);
       } catch (e) {
         if (!isQueueableSyncError(e)) return;
@@ -4896,10 +5519,529 @@
           target_uid: jobUid,
           payload
         });
-        showToast(nextStatus === 'TT' ? 'Đã đánh dấu Đã thu (TT) • chờ đồng bộ' : 'Đã đánh dấu Khách nợ (CTT) • chờ đồng bộ');
+        if (undoablePay) {
+          showToast(`Đã thu ${formatShortK(paidAmt)} • ${custName} • chờ đồng bộ`, {
+            actionLabel: 'Hoàn tác',
+            duration: 6500,
+            onAction: () => window.toggleWorkJobStatus(jobId, 'CTT')
+          });
+        } else {
+          showToast(nextStatus === 'TT' ? 'Đã đánh dấu Đã thu (TT) • chờ đồng bộ' : 'Đã đánh dấu Khách nợ (CTT) • chờ đồng bộ');
+        }
         computeWorkFromLocalVault(workState.date);
       }
     };
+
+    window.quickCollectWorkJob = function (jobId) {
+      const job = findDebtJobById(jobId);
+      if (!job || job.status !== 'CTT') return;
+      const dt = getDebtJobTotals(job);
+      if (dt.paid > 0) {
+        window.openDebtJobPayModal(jobId);
+        return;
+      }
+      window.toggleWorkJobStatus(jobId, 'TT', {
+        undoable: true,
+        customer: job.customer,
+        amount: job.price
+      });
+    };
+
+    async function commitPendingJobDelete(key, opts = {}) {
+      const entry = pendingJobDeletes.get(key);
+      if (!entry || entry.committed) return;
+      entry.committed = true;
+      pendingJobDeletes.delete(key);
+      if (entry.toastHandle && typeof entry.toastHandle.dismiss === 'function') {
+        entry.toastHandle.dismiss('commit');
+      }
+
+      removeJobFromLocalVault(entry.id, { dirty: false, tombstone: true });
+      const qs = `?uid=${encodeURIComponent(entry.uid)}&sig=${encodeURIComponent(entry.sig)}`;
+      const isKeepalive = Boolean(opts && opts.keepalive);
+      try {
+        const res = await api('/api/work/job/' + entry.id + qs, {
+          method: 'DELETE',
+          deferQueueToast: true,
+          silent: isKeepalive,
+          keepalive: isKeepalive
+        });
+        if (res && typeof res.work_rev === 'number') {
+          syncState.workRev = Math.max(syncState.workRev, res.work_rev);
+        }
+        if (!isKeepalive && pendingJobDeletes.size === 0 && state.activeTab === 'work') {
+          await loadWorkData(workState.date, { silent: true });
+        }
+      } catch (err) {
+        if (!isQueueableSyncError(err)) return;
+        enqueueSyncOp({
+          domain: 'work',
+          op: 'work_job_del',
+          target_id: entry.id,
+          target_uid: entry.uid,
+          sig: entry.sig
+        });
+        if (!isKeepalive) {
+          computeWorkFromLocalVault(workState.date, workState.calendarMonth);
+        }
+      }
+    }
+
+    function undoPendingJobDelete(key) {
+      const entry = pendingJobDeletes.get(key);
+      if (!entry || entry.committed) return;
+      entry.committed = true;
+      pendingJobDeletes.delete(key);
+      computeWorkFromLocalVault(workState.date, workState.calendarMonth);
+      showToast(`Đã hoàn tác đơn của ${entry.customer}`);
+    }
+
+    window.deleteWorkJobWithUndo = function (jobId) {
+      const job = findDebtJobById(jobId);
+      if (!job) return;
+      const key = job.uid || ('id:' + job.id);
+      if (pendingJobDeletes.has(key)) return;
+
+      closeActiveJobSwipeRow();
+      const entry = {
+        key,
+        id: Number(job.id) || 0,
+        uid: job.uid || '',
+        sig: computeWorkJobSig(job),
+        customer: job.customer || 'khách',
+        committed: false,
+        toastHandle: null
+      };
+      pendingJobDeletes.set(key, entry);
+      computeWorkFromLocalVault(workState.date, workState.calendarMonth);
+
+      entry.toastHandle = showToast(`Đã xoá đơn ${entry.customer} (${formatShortK(job.price)})`, {
+        actionLabel: 'Hoàn tác',
+        duration: 6500,
+        onAction: () => undoPendingJobDelete(key),
+        onDismiss: (reason) => {
+          if (reason !== 'action') {
+            commitPendingJobDelete(key);
+          }
+        }
+      });
+    };
+
+    async function commitPendingLedgerDelete(key, opts = {}) {
+      const entry = pendingLedgerDeletes.get(key);
+      if (!entry || entry.committed) return;
+      entry.committed = true;
+      pendingLedgerDeletes.delete(key);
+      if (entry.toastHandle && typeof entry.toastHandle.dismiss === 'function') {
+        entry.toastHandle.dismiss('commit');
+      }
+
+      removeLedgerFromLocalVault(entry.id, { dirty: false, tombstone: true });
+      const qs = `?uid=${encodeURIComponent(entry.uid)}&sig=${encodeURIComponent(entry.sig)}`;
+      const isKeepalive = Boolean(opts && opts.keepalive);
+      try {
+        const res = await api('/api/work/ledger/' + entry.id + qs, {
+          method: 'DELETE',
+          deferQueueToast: true,
+          silent: isKeepalive,
+          keepalive: isKeepalive
+        });
+        if (res && typeof res.work_rev === 'number') {
+          syncState.workRev = Math.max(syncState.workRev, res.work_rev);
+        }
+        if (!isKeepalive && pendingLedgerDeletes.size === 0 &&
+          (state.activeTab === 'work' || state.activeTab === 'ledger' || state.activeTab === 'funds')) {
+          await loadWorkData(workState.date, { silent: true });
+        }
+      } catch (err) {
+        if (!isQueueableSyncError(err)) return;
+        enqueueSyncOp({
+          domain: 'work',
+          op: 'work_ledger_del',
+          target_id: entry.id,
+          target_uid: entry.uid,
+          sig: entry.sig
+        });
+        if (!isKeepalive) {
+          computeWorkFromLocalVault(workState.date, workState.calendarMonth);
+        }
+      }
+    }
+
+    function undoPendingLedgerDelete(key) {
+      const entry = pendingLedgerDeletes.get(key);
+      if (!entry || entry.committed) return;
+      entry.committed = true;
+      pendingLedgerDeletes.delete(key);
+      computeWorkFromLocalVault(workState.date, workState.calendarMonth);
+      showToast('Đã hoàn tác lần nạp quỹ');
+    }
+
+    window.deleteFundDepositWithUndo = function (ledgerId) {
+      const item = findLedgerItemById(ledgerId);
+      if (!item) return;
+      const key = item.uid || ('id:' + item.id);
+      if (pendingLedgerDeletes.has(key)) return;
+
+      const entry = {
+        key,
+        id: Number(item.id) || 0,
+        uid: item.uid || '',
+        sig: computeWorkLedgerSig(item),
+        committed: false,
+        toastHandle: null
+      };
+      pendingLedgerDeletes.set(key, entry);
+      computeWorkFromLocalVault(workState.date, workState.calendarMonth);
+
+      entry.toastHandle = showToast(`Đã xoá lần nạp ${formatShortK(item.amount)}`, {
+        actionLabel: 'Hoàn tác',
+        duration: 6500,
+        onAction: () => undoPendingLedgerDelete(key),
+        onDismiss: (reason) => {
+          if (reason !== 'action') {
+            commitPendingLedgerDelete(key);
+          }
+        }
+      });
+    };
+
+    let flushPendingDeleteBound = false;
+    function flushAllPendingJobDeletes() {
+      if (pendingJobDeletes.size > 0) {
+        Array.from(pendingJobDeletes.keys()).forEach(key => {
+          commitPendingJobDelete(key, { keepalive: true });
+        });
+      }
+      if (pendingLedgerDeletes.size > 0) {
+        Array.from(pendingLedgerDeletes.keys()).forEach(key => {
+          commitPendingLedgerDelete(key, { keepalive: true });
+        });
+      }
+    }
+
+    function bindPendingDeleteFlushListeners() {
+      if (flushPendingDeleteBound) return;
+      flushPendingDeleteBound = true;
+      window.addEventListener('pagehide', flushAllPendingJobDeletes);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+          flushAllPendingJobDeletes();
+        }
+      });
+    }
+
+    function setupWorkJobSwipeGestures() {
+      const listEl = document.getElementById('work-jobs-list');
+      if (!listEl || listEl.dataset.swipeBound) return;
+      listEl.dataset.swipeBound = '1';
+
+      const EDGE_ZONE_PX = 36;
+      const ACTION_TRAY_W = 144;
+      const PAY_TRIGGER_X = 76;
+      const PAY_MAX_X = 112;
+
+      const scheduleFrame = typeof window.requestAnimationFrame === 'function'
+        ? window.requestAnimationFrame.bind(window)
+        : (fn) => setTimeout(fn, 16);
+      const cancelFrame = typeof window.cancelAnimationFrame === 'function'
+        ? window.cancelAnimationFrame.bind(window)
+        : clearTimeout;
+      const nowMs = () => (window.performance && typeof window.performance.now === 'function')
+        ? window.performance.now()
+        : Date.now();
+
+      let openRow = null;
+      let drag = null;
+      let rafId = 0;
+      let pendingX = null;
+      let suppressClickUntil = 0;
+
+      function setActionsInert(row, isOpen) {
+        const actionsEl = row.querySelector('.job-swipe-underlay-actions');
+        if (!actionsEl) return;
+        actionsEl.inert = !isOpen;
+        actionsEl.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+        actionsEl.querySelectorAll('button').forEach(btn => {
+          btn.setAttribute('tabindex', isOpen ? '0' : '-1');
+        });
+      }
+
+      function clearRowTimer(row) {
+        if (row && row._swipeTimer) {
+          clearTimeout(row._swipeTimer);
+          row._swipeTimer = null;
+        }
+      }
+
+      function setRowOpen(row, open) {
+        if (!row) return;
+        const surface = row.querySelector('.job-swipe-surface');
+        clearRowTimer(row);
+        row.classList.remove('is-swiping-right', 'is-pay-armed');
+        row.classList.toggle('is-actions-open', open);
+        row.classList.toggle('is-swiping-left', open);
+        setActionsInert(row, open);
+
+        if (open) {
+          if (openRow && openRow !== row) setRowOpen(openRow, false);
+          openRow = row;
+        } else if (openRow === row) {
+          openRow = null;
+        }
+
+        if (surface) {
+          surface.classList.remove('is-dragging');
+          surface.classList.add('is-settling');
+          surface.style.transform = open ? `translate3d(-${ACTION_TRAY_W}px, 0, 0)` : 'translate3d(0, 0, 0)';
+          if (prefersReducedMotion()) {
+            surface.classList.remove('is-settling');
+            if (!open) surface.style.transform = '';
+          } else {
+            row._swipeTimer = setTimeout(() => {
+              row._swipeTimer = null;
+              surface.classList.remove('is-settling');
+              if (!open) {
+                surface.style.transform = '';
+                row.classList.remove('is-swiping-left');
+              }
+            }, 250);
+          }
+        }
+      }
+
+      activeJobSwipeCloser = () => {
+        if (openRow && openRow.isConnected) {
+          setRowOpen(openRow, false);
+        } else {
+          openRow = null;
+        }
+      };
+
+      function cancelDragFrame() {
+        if (rafId) {
+          cancelFrame(rafId);
+          rafId = 0;
+        }
+        pendingX = null;
+      }
+
+      function applyDragX(x) {
+        if (!drag) return;
+        const { row, surface, isUnpaid } = drag;
+        drag.lastAppliedX = x;
+        if (surface) {
+          surface.style.transform = `translate3d(${x.toFixed(1)}px, 0, 0)`;
+        }
+        const swipingRight = isUnpaid && x > 4;
+        const swipingLeft = x < -4;
+        const armed = isUnpaid && x >= PAY_TRIGGER_X;
+        row.classList.toggle('is-swiping-right', swipingRight);
+        row.classList.toggle('is-swiping-left', swipingLeft);
+        row.classList.toggle('is-pay-armed', armed);
+        if (armed && !drag.hapticFired) {
+          drag.hapticFired = true;
+          if (typeof navigator.vibrate === 'function') {
+            try { navigator.vibrate(10); } catch (_) { }
+          }
+        } else if (!armed) {
+          drag.hapticFired = false;
+        }
+      }
+
+      function computeVelocityX(samples) {
+        if (!samples || samples.length < 2) return 0;
+        const last = samples[samples.length - 1];
+        let first = null;
+        for (let i = 0; i < samples.length; i++) {
+          if (last.t - samples[i].t <= 100) {
+            first = samples[i];
+            break;
+          }
+        }
+        if (!first || first === last) return 0;
+        const dt = last.t - first.t;
+        return dt > 0 ? (last.x - first.x) / dt : 0;
+      }
+
+      listEl.addEventListener('touchstart', (e) => {
+        cancelDragFrame();
+        if (!e.touches || e.touches.length !== 1) return;
+
+        const touch = e.touches[0];
+        const appView = document.getElementById('app-view');
+        const rect = appView && typeof appView.getBoundingClientRect === 'function'
+          ? appView.getBoundingClientRect()
+          : { left: 0, right: window.innerWidth || 390 };
+        const leftBoundary = Math.max(0, rect.left || 0);
+        const rightBoundary = rect.right && rect.right > 0 ? rect.right : (window.innerWidth || 390);
+        const viewportWidth = window.innerWidth || rightBoundary;
+        if (touch.clientX - leftBoundary <= EDGE_ZONE_PX ||
+          rightBoundary - touch.clientX <= EDGE_ZONE_PX ||
+          touch.clientX <= EDGE_ZONE_PX ||
+          touch.clientX >= viewportWidth - EDGE_ZONE_PX) {
+          return;
+        }
+
+        const targetEl = e.target && e.target.nodeType === 1 ? e.target : (e.target && e.target.parentElement);
+        if (targetEl && targetEl.closest && targetEl.closest('.job-swipe-action-btn')) return;
+        const row = targetEl && targetEl.closest ? targetEl.closest('.job-swipe-row') : null;
+        if (!row) return;
+        const surface = row.querySelector('.job-swipe-surface');
+        if (!surface) return;
+
+        if (openRow && openRow !== row) {
+          setRowOpen(openRow, false);
+        }
+
+        clearRowTimer(row);
+        drag = {
+          row,
+          surface,
+          isUnpaid: row.dataset.jobStatus === 'CTT',
+          baseX: openRow === row ? -ACTION_TRAY_W : 0,
+          startX: touch.clientX,
+          startY: touch.clientY,
+          originX: touch.clientX,
+          lastAppliedX: openRow === row ? -ACTION_TRAY_W : 0,
+          axis: null,
+          hapticFired: false,
+          samples: [{ x: touch.clientX, t: nowMs() }]
+        };
+      }, { passive: true });
+
+      listEl.addEventListener('touchmove', (e) => {
+        if (!drag) return;
+        if (!e.touches || e.touches.length !== 1) {
+          const d = drag;
+          drag = null;
+          cancelDragFrame();
+          setRowOpen(d.row, d.baseX < 0);
+          return;
+        }
+
+        const touch = e.touches[0];
+        if (drag.axis === null) {
+          const dx = touch.clientX - drag.startX;
+          const dy = touch.clientY - drag.startY;
+          const absX = Math.abs(dx);
+          const absY = Math.abs(dy);
+          if (absX < 8 && absY < 8) return;
+
+          if (absY >= absX * 0.9) {
+            drag = null;
+            return;
+          }
+          if (absX >= absY * 1.15) {
+            drag.axis = 'x';
+            drag.originX = touch.clientX;
+            drag.samples = [{ x: touch.clientX, t: nowMs() }];
+            drag.surface.classList.remove('is-settling');
+            drag.surface.classList.add('is-dragging');
+          } else {
+            return;
+          }
+        }
+
+        if (e.cancelable && typeof e.preventDefault === 'function') {
+          e.preventDefault();
+        }
+        suppressClickUntil = Date.now() + 280;
+
+        const t = nowMs();
+        drag.samples.push({ x: touch.clientX, t });
+        while (drag.samples.length > 2 && t - drag.samples[0].t > 100) {
+          drag.samples.shift();
+        }
+
+        const rawX = drag.baseX + (touch.clientX - drag.originX);
+        let visualX = rawX;
+        if (rawX > 0) {
+          if (drag.isUnpaid) {
+            visualX = rawX <= PAY_MAX_X ? rawX : PAY_MAX_X + (rawX - PAY_MAX_X) * 0.2;
+          } else {
+            visualX = Math.min(18, rawX * 0.15);
+          }
+        } else if (rawX < -ACTION_TRAY_W) {
+          visualX = -ACTION_TRAY_W + (rawX + ACTION_TRAY_W) * 0.22;
+        }
+
+        pendingX = visualX;
+        if (!rafId) {
+          rafId = scheduleFrame(() => {
+            rafId = 0;
+            if (pendingX === null || !drag) return;
+            const val = pendingX;
+            pendingX = null;
+            applyDragX(val);
+          });
+        }
+      }, { passive: false });
+
+      function finishDrag(e, isCancel) {
+        if (!drag) return;
+        if (pendingX !== null && drag.axis === 'x') {
+          const val = pendingX;
+          cancelDragFrame();
+          applyDragX(val);
+        } else {
+          cancelDragFrame();
+        }
+        const d = drag;
+        drag = null;
+        if (d.axis !== 'x') return;
+
+        suppressClickUntil = Date.now() + 280;
+        const touch = (e && e.changedTouches && e.changedTouches[0]) || null;
+        if (touch) {
+          const t = nowMs();
+          d.samples.push({ x: touch.clientX, t });
+          while (d.samples.length > 2 && t - d.samples[0].t > 100) {
+            d.samples.shift();
+          }
+        }
+
+        const vx = computeVelocityX(d.samples);
+        const x = d.lastAppliedX;
+
+        if (!isCancel && d.isUnpaid && (x >= PAY_TRIGGER_X || (vx >= 0.35 && x >= 42))) {
+          setRowOpen(d.row, false);
+          window.quickCollectWorkJob(Number(d.row.dataset.jobId));
+          return;
+        }
+        if (!isCancel && (x <= -56 || (vx <= -0.3 && x <= -28))) {
+          setRowOpen(d.row, true);
+          return;
+        }
+        setRowOpen(d.row, false);
+      }
+
+      listEl.addEventListener('touchend', (e) => finishDrag(e, false), { passive: true });
+      listEl.addEventListener('touchcancel', (e) => finishDrag(e, true), { passive: true });
+
+      listEl.addEventListener('click', (e) => {
+        if (Date.now() < suppressClickUntil) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        if (openRow && openRow.isConnected) {
+          const clickedSurface = e.target && e.target.closest && e.target.closest('.job-swipe-surface');
+          if (clickedSurface && openRow.contains(clickedSurface)) {
+            e.preventDefault();
+            e.stopPropagation();
+            setRowOpen(openRow, false);
+          }
+        }
+      }, true);
+
+      document.addEventListener('pointerdown', (e) => {
+        if (!openRow || !openRow.isConnected) return;
+        if (!openRow.contains(e.target)) {
+          setRowOpen(openRow, false);
+        }
+      }, { passive: true });
+    }
 
     window.openEditWorkJobModal = function (jobId) {
       const job = findDebtJobById(jobId);
@@ -5040,16 +6182,15 @@
     function buildLedgerActivityDaysMap(monthStr, ledgerItems) {
       const map = {};
       (ledgerItems || []).forEach(item => {
-        if (!item || !item.date || item.category === 'borrow') return;
+        if (!item || !item.date || item.category === 'borrow' || isFundLedgerItem(item)) return;
         if (!item.date.startsWith(monthStr + '-')) return;
         if (!map[item.date]) {
-          map[item.date] = { date: item.date, count: 0, expense: 0, fund_in: 0, repay: 0 };
+          map[item.date] = { date: item.date, count: 0, expense: 0, repay: 0 };
         }
         const row = map[item.date];
         const amt = Number(item.amount) || 0;
         row.count++;
         if (item.category === 'expense') row.expense += amt;
-        if (item.category === 'fund_in') row.fund_in += amt;
         if (item.category === 'repay') row.repay += amt;
       });
       return map;
@@ -5062,7 +6203,6 @@
     function formatLedgerActivityAria(brief) {
       const parts = [`có ${brief.count} khoản thu chi`];
       if (brief.expense > 0) parts.push(`chi ${formatVND(brief.expense)}`);
-      if (brief.fund_in > 0) parts.push(`nộp quỹ ${formatVND(brief.fund_in)}`);
       if (brief.repay > 0) parts.push(`trả nợ ${formatVND(brief.repay)}`);
       return parts.join(', ');
     }
@@ -5073,7 +6213,7 @@
         ? vault.ledger
         : (workState.ledger || []);
       return monthStr
-        ? allLedger.filter(l => l && l.category !== 'borrow' && (l.date || '').startsWith(monthStr + '-'))
+        ? allLedger.filter(l => l && l.category !== 'borrow' && !isFundLedgerItem(l) && (l.date || '').startsWith(monthStr + '-'))
         : [];
     }
 
@@ -5634,7 +6774,7 @@
       if (groups.length === 0) {
         listEl.innerHTML = `
         <div class="empty-state-box" style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-          <span style="color: #2B5719;">${workIconSVG('shield_ok', 28)}</span>
+          <span style="color: var(--color-score-ring);">${workIconSVG('shield_ok', 28)}</span>
           <span>Chưa có đơn nợ nào (Chưa thanh toán). Tất cả các đơn đều đã thu ngay.</span>
         </div>
       `;
@@ -5891,18 +7031,14 @@
           amtInput.value = defaultVnd / 1000;
         }
       }
-      if (noteText.toLowerCase().includes('nộp quỹ')) {
-        setWorkLedgerCategory('fund_in');
-      } else {
-        setWorkLedgerCategory('expense');
-      }
+      setWorkLedgerCategory('expense');
     };
 
     window.openAddWorkLedgerModal = function (presetCategory) {
       const hidden = document.getElementById('work-ledger-category');
-      if (presetCategory && ['expense', 'fund_in', 'borrow'].includes(presetCategory)) {
+      if (presetCategory && ['expense', 'borrow'].includes(presetCategory)) {
         setWorkLedgerCategory(presetCategory);
-      } else if (hidden && !['expense', 'fund_in', 'borrow'].includes(hidden.value)) {
+      } else if (hidden && !['expense', 'borrow'].includes(hidden.value)) {
         setWorkLedgerCategory('expense');
       }
       openModal('modal-add-work-ledger');
@@ -5997,7 +7133,7 @@
       updateTodayChipButton('btn-ledger-today', curMonth);
 
       const dayLedger = workState.ledger || [];
-      const timedDayLedger = dayLedger.filter(l => l && l.category !== 'borrow');
+      const timedDayLedger = dayLedger.filter(l => l && l.category !== 'borrow' && !isFundLedgerItem(l));
       const timedMonthLedger = getTimedMonthLedgerForMonth(curMonth);
 
       const ds = workState.daySummary || {};
@@ -6037,20 +7173,8 @@
       if (expEl) expEl.classList.toggle('is-long', expStr.length >= 12);
 
       setTxt('ledger-stat-expense', formatShortK(activeSum.expense_amount || 0));
-      setTxt('ledger-stat-fund-in', formatShortK(activeSum.fund_in || 0));
       setTxt('ledger-stat-borrow', formatShortK(globalBorrow.remaining));
       setTxt('ledger-stat-repay', formatShortK(activeSum.repay_amount || 0));
-
-      const fundBalRow = document.getElementById('ledger-stat-fund-bal-row');
-      if (fundBalRow) {
-        if ((activeSum.fund_bal || 0) > 0) {
-          fundBalRow.style.display = 'flex';
-          fundBalRow.innerHTML = `<span class="work-extra-pill font-tabular">${workIconSVG('fund_bal', 13)} <span>Số quỹ: ${formatShortK(activeSum.fund_bal)}</span></span>`;
-        } else {
-          fundBalRow.style.display = 'none';
-          fundBalRow.innerHTML = '';
-        }
-      }
 
       renderBorrowSummaryButton(globalBorrow);
       renderWorkLedgerList();
@@ -6326,8 +7450,8 @@
       const titleEl = document.getElementById('ledger-day-list-title');
       const subEl = document.getElementById('ledger-day-list-sub');
       const curDate = workState.date || '';
-      // Chỉ hiển thị Chi tiêu / Phát sinh, Nộp Quỹ (và mục phát sinh theo thời gian tạo); riêng Mượn nằm cố định trong nút gom toàn thời gian.
-      const list = (workState.ledger || []).filter(item => item && item.category !== 'borrow');
+      // Chỉ hiển thị Chi tiêu / Phát sinh và Trả nợ theo ngày; Nộp quỹ nằm ở tab Quỹ, Mượn nằm trong nút gom toàn thời gian.
+      const list = (workState.ledger || []).filter(item => item && item.category !== 'borrow' && !isFundLedgerItem(item));
       const dm = formatDayMonth(curDate);
 
       if (titleEl) titleEl.textContent = dm ? `Phát sinh ngày ${dm}` : 'Phát sinh trong ngày';
@@ -6335,7 +7459,7 @@
       if (!container) return;
 
       if (list.length === 0) {
-        container.innerHTML = `<div class="empty-state-box">Chưa có khoản chi tiêu hay nộp quỹ nào trong ngày ${dm || formatVNDate(curDate)}.</div>`;
+        container.innerHTML = `<div class="empty-state-box">Chưa có khoản chi tiêu nào trong ngày ${dm || formatVNDate(curDate)}.</div>`;
         return;
       }
 
@@ -6357,6 +7481,985 @@
         </div>
       `).join('');
     }
+
+    // =========================================================================
+    // PHÂN KHU 4: QUỸ TIẾT KIỆM ĐA QUỸ (CÀI ĐẶT MỤC TIÊU, ANIMATION, LỊCH SỬ)
+    // =========================================================================
+    const FUND_CONFIG_DATE = '2000-01-01';
+    const FUND_CONFIG_PREFIX = '@FUND:';
+    const FUND_COLORS = ['sage', 'emerald', 'sky', 'amber', 'rose', 'violet'];
+    const FUND_ICONS = ['piggy', 'shield', 'bike', 'heart', 'home', 'gift'];
+    const fundsUIState = {
+      filterFundId: 'all',
+      activeHistoryFundId: '',
+      historyModalScope: 'all',
+      lastDepositAnim: null
+    };
+
+    function parseFundConfigRow(row) {
+      if (!row || row.category !== 'fund_bal' || typeof row.note !== 'string' || !row.note.startsWith(FUND_CONFIG_PREFIX)) {
+        return null;
+      }
+      try {
+        const obj = JSON.parse(row.note.slice(FUND_CONFIG_PREFIX.length));
+        if (!obj || typeof obj !== 'object') return null;
+        const fallbackId = typeof row.uid === 'string' && row.uid.startsWith('fcfg_') ? row.uid.slice(5) : '';
+        const id = String(obj.id || fallbackId || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 36);
+        if (!id) return null;
+        const name = String(obj.n || obj.name || '').trim().slice(0, 40) || 'Quỹ tiết kiệm';
+        const rawTarget = Number(obj.t || obj.target || row.amount) || 5000000;
+        const target = Math.min(500000000, Math.max(1000, Math.round(rawTarget)));
+        const color = FUND_COLORS.includes(obj.c) ? obj.c : 'sage';
+        const icon = FUND_ICONS.includes(obj.ic) ? obj.ic : 'piggy';
+        const sortOrder = Number.isFinite(Number(obj.s)) ? Number(obj.s) : 0;
+        return {
+          id,
+          name,
+          target,
+          color,
+          icon,
+          sortOrder,
+          isVirtual: false,
+          ledgerId: Number(row.id) || 0,
+          uid: row.uid || ('fcfg_' + id),
+          ts: Number(row.ts) || 0,
+          updatedAt: Number(row.updated_at || row.ts) || 0,
+          rawRow: row
+        };
+      } catch (_) {
+        return null;
+      }
+    }
+
+    function encodeFundConfigNote(cfg) {
+      const id = String(cfg && cfg.id ? cfg.id : 'default').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 36) || 'default';
+      let safeName = String(cfg && cfg.name ? cfg.name : 'Quỹ tiết kiệm').trim().slice(0, 40) || 'Quỹ tiết kiệm';
+      const target = Math.min(500000000, Math.max(1000, Math.round(Number(cfg && cfg.target) || 5000000)));
+      const color = FUND_COLORS.includes(cfg && cfg.color) ? cfg.color : 'sage';
+      const icon = FUND_ICONS.includes(cfg && cfg.icon) ? cfg.icon : 'piggy';
+      const sortOrder = Number.isFinite(Number(cfg && cfg.sortOrder)) ? Math.round(Number(cfg.sortOrder)) : 0;
+
+      let encoded = FUND_CONFIG_PREFIX + JSON.stringify({ id, n: safeName, t: target, c: color, ic: icon, s: sortOrder });
+      while (encoded.length > 300 && safeName.length > 1) {
+        safeName = safeName.slice(0, safeName.length - 1);
+        encoded = FUND_CONFIG_PREFIX + JSON.stringify({ id, n: safeName, t: target, c: color, ic: icon, s: sortOrder });
+      }
+      return encoded;
+    }
+
+    function parseFundDepositRow(row) {
+      const rawNote = String((row && row.note) || '').trim();
+      const match = /^\[Q:([a-zA-Z0-9_-]{1,36})\]\s*(.*)$/.exec(rawNote);
+      if (match) {
+        return {
+          fundId: match[1],
+          displayNote: (match[2] || '').trim() || 'Nộp quỹ'
+        };
+      }
+      return {
+        fundId: 'default',
+        displayNote: rawNote || 'Nộp quỹ'
+      };
+    }
+
+    function encodeFundDepositNote(fundId, fundName, userNote) {
+      const cleanId = String(fundId || 'default').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 36) || 'default';
+      const fallback = `Nạp ${String(fundName || 'Quỹ').trim() || 'Quỹ'}`;
+      const cleanNote = String(userNote || '').trim() || fallback;
+      return (`[Q:${cleanId}] ${cleanNote}`).slice(0, 280);
+    }
+
+    function getAllLedgerRowsForFunds() {
+      const v = readFinanceVaultSync();
+      const rows = (Array.isArray(v.ledger) && v.ledger.length > 0) ? v.ledger : (workState.ledger || []);
+      return rows.filter(l => l && !isLedgerPendingDelete(l));
+    }
+
+    function computeFundsModel(ledgerInput, monthInput) {
+      const allLedger = Array.isArray(ledgerInput) ? ledgerInput : getAllLedgerRowsForFunds();
+      const curMonth = monthInput || workState.month || (workState.date || state.today || new Date().toISOString().slice(0, 10)).slice(0, 7);
+
+      const cfgMap = new Map();
+      allLedger.forEach(row => {
+        const parsed = parseFundConfigRow(row);
+        if (!parsed) return;
+        const prev = cfgMap.get(parsed.id);
+        if (!prev || parsed.updatedAt > prev.updatedAt ||
+          (parsed.updatedAt === prev.updatedAt && (parsed.ts > prev.ts || parsed.ledgerId > prev.ledgerId))) {
+          cfgMap.set(parsed.id, parsed);
+        }
+      });
+
+      let funds = Array.from(cfgMap.values()).sort((a, b) => {
+        if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+        if (a.ts !== b.ts) return a.ts - b.ts;
+        return a.ledgerId - b.ledgerId;
+      });
+
+      if (funds.length === 0) {
+        funds = [{
+          id: 'default',
+          name: 'Quỹ tiết kiệm',
+          target: 5000000,
+          color: 'sage',
+          icon: 'piggy',
+          sortOrder: 0,
+          isVirtual: true,
+          ledgerId: 0,
+          uid: 'fcfg_default',
+          ts: 0,
+          updatedAt: 0,
+          rawRow: null
+        }];
+      }
+
+      const byId = new Map();
+      funds.forEach(f => {
+        f.deposits = [];
+        f.saved = 0;
+        f.monthSaved = 0;
+        byId.set(f.id, f);
+      });
+
+      const allDeposits = [];
+      allLedger.forEach(row => {
+        if (!row || row.category !== 'fund_in') return;
+        const amt = Math.max(0, Number(row.amount) || 0);
+        if (amt <= 0) return;
+        const parsed = parseFundDepositRow(row);
+        const owner = byId.get(parsed.fundId) || funds[0];
+        const dep = {
+          id: Number(row.id) || 0,
+          uid: row.uid || '',
+          date: row.date || '',
+          amount: amt,
+          note: row.note || '',
+          displayNote: parsed.displayNote,
+          fundId: owner.id,
+          fundName: owner.name,
+          fundColor: owner.color,
+          ts: Number(row.ts) || 0
+        };
+        owner.deposits.push(dep);
+        owner.saved += amt;
+        if (curMonth && dep.date.startsWith(curMonth + '-')) {
+          owner.monthSaved += amt;
+        }
+        allDeposits.push(dep);
+      });
+
+      const sortDepsDesc = (a, b) => {
+        if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+        if (a.ts !== b.ts) return b.ts - a.ts;
+        return b.id - a.id;
+      };
+      allDeposits.sort(sortDepsDesc);
+
+      let totalSaved = 0;
+      let totalTarget = 0;
+      let completedCount = 0;
+
+      funds.forEach(f => {
+        f.deposits.sort(sortDepsDesc);
+        f.depositCount = f.deposits.length;
+        f.avgDeposit = f.depositCount > 0 ? Math.round(f.saved / f.depositCount) : 0;
+        f.pctRaw = f.target > 0 ? Math.round((f.saved / f.target) * 100) : 0;
+        f.pctClamped = f.target > 0 ? Math.min(100, Math.max(0, Math.round((f.saved / f.target) * 100))) : 0;
+        f.remaining = Math.max(0, f.target - f.saved);
+        f.excess = Math.max(0, f.saved - f.target);
+        f.reachedGoal = f.target > 0 && f.saved >= f.target;
+        totalSaved += f.saved;
+        totalTarget += f.target;
+        if (f.reachedGoal) completedCount++;
+      });
+
+      const overallPct = totalTarget > 0 ? Math.round((totalSaved / totalTarget) * 100) : 0;
+      const overallPctClamped = totalTarget > 0 ? Math.min(100, Math.max(0, overallPct)) : 0;
+      const totalRemaining = Math.max(0, totalTarget - totalSaved);
+
+      return {
+        funds,
+        byId,
+        allDeposits,
+        totalSaved,
+        totalTarget,
+        overallPct,
+        overallPctClamped,
+        totalRemaining,
+        fundCount: funds.length,
+        completedCount
+      };
+    }
+
+    function fundIconSVG(iconKey, size = 18) {
+      const paths = {
+        piggy: '<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6"/><path d="M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/>',
+        shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
+        bike: '<circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5V14l-3-3 4-3 2 3h2"/>',
+        heart: '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>',
+        home: '<path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1V9.5z"/>',
+        gift: '<polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>'
+      };
+      const body = paths[iconKey] || paths.piggy;
+      return `<svg class="ui-inline-svg" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
+    }
+
+    function animateCountUp(el, fromVal, toVal, durationMs, fmtFn) {
+      if (!el || typeof fmtFn !== 'function') return;
+      if (prefersReducedMotion() || typeof window.requestAnimationFrame !== 'function' || fromVal === toVal) {
+        el.textContent = fmtFn(toVal);
+        return;
+      }
+      const startT = (window.performance && typeof window.performance.now === 'function')
+        ? window.performance.now()
+        : Date.now();
+      const step = () => {
+        const now = (window.performance && typeof window.performance.now === 'function')
+          ? window.performance.now()
+          : Date.now();
+        const t = Math.min(1, Math.max(0, (now - startT) / durationMs));
+        const eased = 1 - Math.pow(1 - t, 3);
+        const cur = Math.round(fromVal + (toVal - fromVal) * eased);
+        el.textContent = fmtFn(cur);
+        if (t < 1) {
+          window.requestAnimationFrame(step);
+        } else {
+          el.textContent = fmtFn(toVal);
+        }
+      };
+      window.requestAnimationFrame(step);
+    }
+
+    function triggerFundCelebration(cardEl, addedAmount, crossedGoal) {
+      if (!cardEl || prefersReducedMotion()) return;
+      const badge = document.createElement('span');
+      badge.className = 'fund-deposit-float font-tabular';
+      badge.textContent = `+${formatShortK(addedAmount)}`;
+      cardEl.appendChild(badge);
+      setTimeout(() => badge.remove(), 950);
+
+      const vectors = crossedGoal
+        ? [[-26, -24], [24, -28], [-38, 4], [34, 8], [-16, 26], [20, 24], [0, -34], [-40, -10]]
+        : [[-22, -20], [20, -24], [-28, 8], [26, 10], [0, -28]];
+      vectors.forEach(([sx, sy]) => {
+        const dot = document.createElement('span');
+        dot.className = crossedGoal ? 'fund-sparkle-dot is-gold' : 'fund-sparkle-dot';
+        dot.style.right = '44px';
+        dot.style.top = '34px';
+        dot.style.setProperty('--sx', `${sx}px`);
+        dot.style.setProperty('--sy', `${sy}px`);
+        cardEl.appendChild(dot);
+        setTimeout(() => dot.remove(), 900);
+      });
+    }
+
+    function buildFundHistoryRowHTML(dep, showFundBadge) {
+      const safeNote = escapeHTML(dep.displayNote || 'Nộp quỹ');
+      const safeFund = escapeHTML(dep.fundName || 'Quỹ tiết kiệm');
+      const badgeClass = dep.fundColor && dep.fundColor !== 'sage' ? ` is-${dep.fundColor}` : '';
+      const timeLabel = formatDayMonthTime(dep.date, dep.ts) || formatVNDate(dep.date);
+      return `
+        <div class="work-job-card fund-history-item-card">
+          <div class="work-job-top">
+            <div style="min-width: 0; flex: 1;">
+              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                ${showFundBadge ? `<span class="fund-tag-badge${badgeClass}">${safeFund}</span>` : ''}
+                <span class="font-tabular" style="font-size: 11.5px; color: var(--text-sub);">${escapeHTML(timeLabel)}</span>
+              </div>
+              <div class="work-job-cust-name work-ledger-note">${safeNote}</div>
+            </div>
+            <div class="work-ledger-right">
+              <span class="work-job-price-val is-settled-amt font-tabular">+${formatVND(dep.amount)}</span>
+              <button type="button" class="btn-job-icon btn-del" onclick="deleteFundDepositWithUndo(${Number(dep.id)})"
+                aria-label="Xoá lần nạp ${safeNote} ${formatVND(dep.amount)}">Xoá</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderFundsScreen() {
+      const cardsList = document.getElementById('funds-cards-list');
+      if (!cardsList) return;
+
+      const model = computeFundsModel();
+      if (fundsUIState.filterFundId !== 'all' && !model.byId.has(fundsUIState.filterFundId)) {
+        fundsUIState.filterFundId = 'all';
+      }
+
+      const setTxt = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val;
+      };
+
+      setTxt('funds-hero-count-pill', `${model.fundCount} quỹ`);
+      const heroTotalEl = document.getElementById('funds-hero-total');
+      if (heroTotalEl) {
+        heroTotalEl.textContent = formatVND(model.totalSaved);
+        heroTotalEl.classList.toggle('is-long', heroTotalEl.textContent.length >= 12);
+      }
+      setTxt('funds-hero-pct-pill', `${model.overallPct}%`);
+      setTxt('funds-hero-target', formatVND(model.totalTarget));
+      setTxt('funds-hero-remaining', model.totalRemaining > 0
+        ? `Còn thiếu ${formatShortK(model.totalRemaining)}`
+        : 'Đã đạt mục tiêu tổng!');
+      setTxt('funds-goal-done-sub', `${model.completedCount}/${model.fundCount} đạt mục tiêu`);
+
+      const heroBar = document.getElementById('funds-hero-bar-fill');
+      if (heroBar) heroBar.style.width = `${model.overallPctClamped}%`;
+
+      const RING_CIRC = 163.36;
+      cardsList.innerHTML = model.funds.map(f => {
+        const safeName = escapeHTML(f.name);
+        const offset = (RING_CIRC * (1 - f.pctClamped / 100)).toFixed(2);
+        let statusLine = '';
+        if (f.reachedGoal) {
+          statusLine = f.excess > 0
+            ? `Vượt mục tiêu +${formatShortK(f.excess)}`
+            : 'Đã hoàn thành mục tiêu!';
+        } else if (f.pctRaw >= 80) {
+          statusLine = `Sắp cán đích • còn ${formatShortK(f.remaining)}`;
+        } else {
+          statusLine = `Còn thiếu ${formatShortK(f.remaining)}`;
+        }
+
+        return `
+          <div class="fund-goal-card fund-theme-${escapeHTML(f.color)}${f.reachedGoal ? ' is-goal-reached' : ''}" data-fund-card="${escapeHTML(f.id)}">
+            <div class="fund-card-bg" aria-hidden="true">
+              <div class="fund-wave-level" style="--fund-level: ${f.pctClamped}%;">
+                <span class="fund-wave-back"></span>
+                <span class="fund-wave-front"></span>
+              </div>
+            </div>
+            <div class="fund-card-body">
+              <div class="fund-card-top">
+                <div class="fund-card-identity">
+                  <div class="fund-card-icon-badge">${fundIconSVG(f.icon, 20)}</div>
+                  <div class="fund-card-title-wrap">
+                    <div class="fund-card-name-row">
+                      <span class="fund-card-name">${safeName}</span>
+                      ${f.reachedGoal ? `<span class="fund-goal-done-badge">${workIconSVG('check', 11)} Đạt đích</span>` : ''}
+                    </div>
+                    <div class="fund-card-status-line font-tabular">${escapeHTML(statusLine)}</div>
+                  </div>
+                </div>
+                <div class="fund-card-top-right">
+                  <div class="fund-ring-wrap" aria-label="Tiến độ quỹ ${safeName}: ${f.pctRaw}%">
+                    <svg class="fund-ring-svg" viewBox="0 0 64 64">
+                      <circle class="fund-ring-track" cx="32" cy="32" r="26" />
+                      <circle class="fund-ring-fill" cx="32" cy="32" r="26"
+                        stroke-dasharray="${RING_CIRC}" stroke-dashoffset="${offset}" />
+                    </svg>
+                    <span class="fund-ring-pct font-tabular">${f.pctRaw}%</span>
+                  </div>
+                  <button type="button" class="btn-fund-edit-gear" onclick="openFundEditorModal('${escapeHTML(f.id)}')"
+                    aria-label="Cài đặt quỹ ${safeName}" title="Cài đặt tên & mục tiêu quỹ">
+                    <svg class="ui-inline-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="fund-money-row font-tabular">
+                <strong class="fund-saved-val">${formatVND(f.saved)}</strong>
+                <span class="fund-target-val">Mục tiêu ${formatVND(f.target)}</span>
+              </div>
+
+              <div class="fund-progress-track" aria-hidden="true">
+                <div class="fund-progress-fill" style="width: ${f.pctClamped}%;"></div>
+                <span class="fund-progress-tick" style="left: 25%;"></span>
+                <span class="fund-progress-tick" style="left: 50%;"></span>
+                <span class="fund-progress-tick" style="left: 75%;"></span>
+              </div>
+
+              <div class="fund-card-actions">
+                <button type="button" class="btn-fund-deposit-sm" onclick="openFundDepositModal('${escapeHTML(f.id)}')">
+                  + Nạp quỹ
+                </button>
+                <button type="button" class="btn-fund-history-sm font-tabular" onclick="openFundHistoryModal('${escapeHTML(f.id)}')">
+                  Lịch sử (${f.depositCount})
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Hiệu ứng động ăn mừng vừa nạp quỹ (từ vị trí % cũ -> mới + đếm số + pháo sáng)
+      const anim = fundsUIState.lastDepositAnim;
+      if (anim && (Date.now() - anim.at) < 2500) {
+        fundsUIState.lastDepositAnim = null;
+        const targetFund = model.byId.get(anim.fundId);
+        const cardEl = Array.from(cardsList.querySelectorAll('.fund-goal-card'))
+          .find(el => el.getAttribute('data-fund-card') === anim.fundId);
+        if (targetFund && cardEl) {
+          const crossedGoal = anim.prevSaved < targetFund.target && targetFund.saved >= targetFund.target;
+          if (!prefersReducedMotion()) {
+            const prevPct = targetFund.target > 0
+              ? Math.min(100, Math.max(0, Math.round((anim.prevSaved / targetFund.target) * 100)))
+              : 0;
+            const prevOffset = (RING_CIRC * (1 - prevPct / 100)).toFixed(2);
+            const newOffset = (RING_CIRC * (1 - targetFund.pctClamped / 100)).toFixed(2);
+            const waveEl = cardEl.querySelector('.fund-wave-level');
+            const barEl = cardEl.querySelector('.fund-progress-fill');
+            const ringEl = cardEl.querySelector('.fund-ring-fill');
+            if (waveEl) waveEl.style.setProperty('--fund-level', `${prevPct}%`);
+            if (barEl) barEl.style.width = `${prevPct}%`;
+            if (ringEl) ringEl.style.strokeDashoffset = prevOffset;
+            void cardEl.offsetWidth;
+            if (waveEl) waveEl.style.setProperty('--fund-level', `${targetFund.pctClamped}%`);
+            if (barEl) barEl.style.width = `${targetFund.pctClamped}%`;
+            if (ringEl) ringEl.style.strokeDashoffset = newOffset;
+
+            const savedValEl = cardEl.querySelector('.fund-saved-val');
+            animateCountUp(savedValEl, anim.prevSaved, targetFund.saved, 480, formatVND);
+            const prevTotal = Math.max(0, model.totalSaved - anim.added);
+            animateCountUp(heroTotalEl, prevTotal, model.totalSaved, 480, formatVND);
+          }
+          triggerFundCelebration(cardEl, anim.added, crossedGoal);
+        }
+      }
+
+      // Thanh lọc lịch sử theo từng quỹ
+      const filterBar = document.getElementById('funds-history-filter-bar');
+      if (filterBar) {
+        const allBtn = `<button type="button" class="fund-filter-pill${fundsUIState.filterFundId === 'all' ? ' active' : ''}" role="tab" aria-selected="${fundsUIState.filterFundId === 'all' ? 'true' : 'false'}" onclick="setFundsInlineFilter('all')">Tất cả (${model.allDeposits.length})</button>`;
+        const fundBtns = model.funds.map(f => {
+          const isAct = fundsUIState.filterFundId === f.id;
+          return `<button type="button" class="fund-filter-pill${isAct ? ' active' : ''}" role="tab" aria-selected="${isAct ? 'true' : 'false'}" onclick="setFundsInlineFilter('${escapeHTML(f.id)}')">${escapeHTML(f.name)} (${f.depositCount})</button>`;
+        }).join('');
+        filterBar.innerHTML = allBtn + fundBtns;
+      }
+
+      // Danh sách lịch sử nạp quỹ
+      const filteredDeps = fundsUIState.filterFundId === 'all'
+        ? model.allDeposits
+        : ((model.byId.get(fundsUIState.filterFundId) && model.byId.get(fundsUIState.filterFundId).deposits) || []);
+      setTxt('funds-history-count-sub', `${filteredDeps.length} lần nạp`);
+
+      const histList = document.getElementById('funds-history-list');
+      if (histList) {
+        if (filteredDeps.length === 0) {
+          histList.innerHTML = `<div class="empty-state-box">Chưa có lịch sử nạp quỹ nào${fundsUIState.filterFundId !== 'all' ? ' cho quỹ này' : ''}.</div>`;
+        } else {
+          histList.innerHTML = filteredDeps.map(dep => buildFundHistoryRowHTML(dep, fundsUIState.filterFundId === 'all')).join('');
+        }
+      }
+
+      const histModalEl = document.getElementById('modal-fund-history');
+      if (histModalEl && histModalEl.classList.contains('open') && fundsUIState.activeHistoryFundId) {
+        renderFundHistoryModal();
+      }
+    }
+
+    window.setFundsInlineFilter = function (fundId) {
+      fundsUIState.filterFundId = fundId || 'all';
+      renderFundsScreen();
+    };
+
+    // --- POPUP NẠP TIỀN VÀO QUỸ ---
+    function renderDepositFundChips(selectedId) {
+      const wrap = document.getElementById('fund-deposit-fund-chips');
+      const hidden = document.getElementById('fund-deposit-fund-id');
+      const model = computeFundsModel();
+      const chosen = (selectedId && model.byId.has(selectedId)) ? selectedId : model.funds[0].id;
+      if (hidden) hidden.value = chosen;
+      if (!wrap) return;
+      wrap.innerHTML = model.funds.map(f => {
+        const active = f.id === chosen;
+        return `<button type="button" class="fund-filter-pill${active ? ' active' : ''}" role="radio" aria-checked="${active ? 'true' : 'false'}" onclick="selectDepositFund('${escapeHTML(f.id)}')">${escapeHTML(f.name)} (${formatShortK(f.saved)}/${formatShortK(f.target)})</button>`;
+      }).join('');
+    }
+
+    window.selectDepositFund = function (fundId) {
+      renderDepositFundChips(fundId);
+      window.updateFundDepositPreview();
+    };
+
+    window.openFundDepositModal = function (fundId) {
+      const model = computeFundsModel();
+      const defaultId = (fundId && model.byId.has(fundId))
+        ? fundId
+        : (fundsUIState.filterFundId !== 'all' && model.byId.has(fundsUIState.filterFundId) ? fundsUIState.filterFundId : model.funds[0].id);
+
+      renderDepositFundChips(defaultId);
+      const dateInput = document.getElementById('fund-deposit-date');
+      const amtInput = document.getElementById('fund-deposit-amount');
+      const noteInput = document.getElementById('fund-deposit-note');
+      if (dateInput) dateInput.value = workState.date || state.today || new Date().toISOString().slice(0, 10);
+      if (amtInput) amtInput.value = '';
+      if (noteInput) noteInput.value = '';
+      document.querySelectorAll('#fund-deposit-form .btn-price-chip').forEach(b => b.classList.remove('active'));
+      window.updateFundDepositPreview();
+      openModal('modal-fund-deposit');
+      setTimeout(() => {
+        if (amtInput) amtInput.focus();
+      }, 80);
+    };
+
+    window.setFundDepositAmount = function (vnd) {
+      const amtInput = document.getElementById('fund-deposit-amount');
+      if (amtInput) amtInput.value = Math.round(vnd / 1000);
+      document.querySelectorAll('#fund-deposit-form .btn-price-chip:not(.is-pay-all)').forEach(b => b.classList.remove('active'));
+      window.updateFundDepositPreview();
+    };
+
+    window.fillFundDepositToGoal = function () {
+      const hidden = document.getElementById('fund-deposit-fund-id');
+      const model = computeFundsModel();
+      const f = (hidden && model.byId.get(hidden.value)) || model.funds[0];
+      if (!f || f.remaining <= 0) return;
+      const amtInput = document.getElementById('fund-deposit-amount');
+      if (amtInput) {
+        amtInput.value = f.remaining >= 1000 && f.remaining % 1000 === 0 ? (f.remaining / 1000) : f.remaining;
+      }
+      window.updateFundDepositPreview();
+    };
+
+    window.setFundDepositNote = function (text, defaultVnd) {
+      const noteInput = document.getElementById('fund-deposit-note');
+      if (noteInput) noteInput.value = text;
+      const amtInput = document.getElementById('fund-deposit-amount');
+      if (defaultVnd > 0 && amtInput && !amtInput.value) {
+        amtInput.value = Math.round(defaultVnd / 1000);
+      }
+      window.updateFundDepositPreview();
+    };
+
+    window.updateFundDepositPreview = function () {
+      const hidden = document.getElementById('fund-deposit-fund-id');
+      const amtInput = document.getElementById('fund-deposit-amount');
+      const prevEl = document.getElementById('fund-deposit-amount-preview');
+      const afterEl = document.getElementById('fund-deposit-after-preview');
+      const fillBtn = document.getElementById('btn-fund-deposit-fill-goal');
+
+      const model = computeFundsModel();
+      const f = (hidden && model.byId.get(hidden.value)) || model.funds[0];
+
+      if (fillBtn) {
+        if (f && f.remaining >= 1000 && f.remaining <= 500000000) {
+          fillBtn.hidden = false;
+          fillBtn.textContent = `Đủ mục tiêu (${formatShortK(f.remaining)})`;
+        } else {
+          fillBtn.hidden = true;
+        }
+      }
+
+      const raw = amtInput ? Number(String(amtInput.value || '').trim()) : 0;
+      const vnd = (Number.isFinite(raw) && raw > 0) ? (raw < 1000 ? Math.round(raw * 1000) : Math.round(raw)) : 0;
+      if (prevEl) prevEl.textContent = vnd > 0 ? formatVND(vnd) : '';
+      if (afterEl && f) {
+        if (vnd > 0) {
+          const nextSaved = f.saved + vnd;
+          const nextPct = f.target > 0 ? Math.round((nextSaved / f.target) * 100) : 0;
+          afterEl.textContent = `Sau khi nạp: ${formatShortK(nextSaved)} / ${formatShortK(f.target)} (${nextPct}%)`;
+        } else {
+          afterEl.textContent = `Hiện có: ${formatVND(f.saved)} / ${formatVND(f.target)} (${f.pctRaw}%)`;
+        }
+      }
+    };
+
+    window.submitFundDeposit = async function (e) {
+      e.preventDefault();
+      const hidden = document.getElementById('fund-deposit-fund-id');
+      const dateInput = document.getElementById('fund-deposit-date');
+      const amtInput = document.getElementById('fund-deposit-amount');
+      const noteInput = document.getElementById('fund-deposit-note');
+
+      const model = computeFundsModel();
+      const fund = (hidden && model.byId.get(hidden.value)) || model.funds[0];
+      const rawAmt = amtInput ? Number(String(amtInput.value || '').trim()) : 0;
+      const amount = (Number.isFinite(rawAmt) && rawAmt > 0) ? (rawAmt < 1000 ? Math.round(rawAmt * 1000) : Math.round(rawAmt)) : 0;
+
+      if (!amount || amount < 1000 || amount > 500000000) {
+        showToast('Số tiền nạp phải từ 1.000đ đến 500.000.000đ', true);
+        if (amtInput) amtInput.focus();
+        return;
+      }
+
+      const depositDate = (dateInput && dateInput.value) || workState.date || state.today || new Date().toISOString().slice(0, 10);
+      const userNote = noteInput ? noteInput.value.trim() : '';
+      const encodedNote = encodeFundDepositNote(fund.id, fund.name, userNote);
+      const clientUid = genClientUID('ldg');
+      const nowTs = Math.floor(Date.now() / 1000);
+
+      fundsUIState.lastDepositAnim = {
+        fundId: fund.id,
+        prevSaved: fund.saved,
+        added: amount,
+        at: Date.now()
+      };
+
+      const bodyPayload = {
+        uid: clientUid,
+        date: depositDate,
+        category: 'fund_in',
+        amount,
+        note: encodedNote,
+        ts: nowTs
+      };
+
+      try {
+        const res = await api('/api/work/ledger', {
+          method: 'POST',
+          deferQueueToast: true,
+          body: JSON.stringify(bodyPayload)
+        });
+        if (res && typeof res.work_rev === 'number') {
+          syncState.workRev = Math.max(syncState.workRev, res.work_rev);
+        }
+        closeModal('modal-fund-deposit');
+        const reachedNow = fund.saved < fund.target && (fund.saved + amount) >= fund.target;
+        showToast(reachedNow ? `Chúc mừng! "${fund.name}" đã đạt mục tiêu!` : `Đã nạp ${formatShortK(amount)} vào ${fund.name}`);
+        await loadWorkData(workState.date || depositDate, { month: workState.calendarMonth });
+      } catch (err) {
+        if (!isQueueableSyncError(err)) return;
+        const v = readFinanceVaultSync();
+        v.ledger.push({
+          id: Date.now(),
+          uid: clientUid,
+          date: depositDate,
+          category: 'fund_in',
+          amount,
+          note: encodedNote,
+          ts: nowTs,
+          updated_at: nowTs
+        });
+        saveFinanceVaultToDevice(v);
+        enqueueSyncOp({
+          domain: 'work',
+          op: 'work_ledger_add',
+          payload: bodyPayload
+        });
+        closeModal('modal-fund-deposit');
+        showToast(`Đã nạp ${formatShortK(amount)} vào ${fund.name} (chờ đồng bộ)`);
+        computeWorkFromLocalVault(workState.date || depositDate, workState.calendarMonth);
+      }
+    };
+
+    // --- POPUP TẠO / CÀI ĐẶT / XOÁ QUỸ ---
+    window.setFundEditTarget = function (vnd) {
+      const targetInp = document.getElementById('fund-edit-target');
+      if (targetInp) targetInp.value = Math.round(vnd / 1000);
+      window.updateFundTargetPreview();
+    };
+
+    window.updateFundTargetPreview = function () {
+      const targetInp = document.getElementById('fund-edit-target');
+      const prevEl = document.getElementById('fund-edit-target-preview');
+      if (!prevEl) return;
+      const raw = targetInp ? Number(String(targetInp.value || '').trim()) : 0;
+      const vnd = (Number.isFinite(raw) && raw > 0) ? (raw < 1000 ? Math.round(raw * 1000) : Math.round(raw)) : 0;
+      prevEl.textContent = vnd > 0 ? formatVND(vnd) : '';
+    };
+
+    window.setFundEditColor = function (color) {
+      const chosen = FUND_COLORS.includes(color) ? color : 'sage';
+      const hidden = document.getElementById('fund-edit-color');
+      if (hidden) hidden.value = chosen;
+      document.querySelectorAll('#fund-edit-color-grid .fund-color-swatch').forEach(btn => {
+        const active = btn.getAttribute('data-fund-color') === chosen;
+        btn.classList.toggle('active', active);
+        btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+      });
+    };
+
+    window.setFundEditIcon = function (icon) {
+      const chosen = FUND_ICONS.includes(icon) ? icon : 'piggy';
+      const hidden = document.getElementById('fund-edit-icon');
+      if (hidden) hidden.value = chosen;
+      document.querySelectorAll('#fund-edit-icon-grid .fund-icon-opt').forEach(btn => {
+        const active = btn.getAttribute('data-fund-icon') === chosen;
+        btn.classList.toggle('active', active);
+        btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+      });
+    };
+
+    window.openFundEditorModal = function (fundId) {
+      const model = computeFundsModel();
+      const existing = fundId ? model.byId.get(fundId) : null;
+      const isEdit = Boolean(existing);
+
+      const titleEl = document.getElementById('modal-fund-editor-title');
+      const submitEl = document.getElementById('btn-fund-editor-submit');
+      const idEl = document.getElementById('fund-edit-id');
+      const nameEl = document.getElementById('fund-edit-name');
+      const targetEl = document.getElementById('fund-edit-target');
+      const dangerEl = document.getElementById('fund-editor-danger-zone');
+
+      if (titleEl) titleEl.textContent = isEdit ? `Cài đặt: ${existing.name}` : 'Tạo quỹ mới';
+      if (submitEl) submitEl.textContent = isEdit ? 'Lưu thay đổi' : 'Tạo quỹ mới';
+      if (idEl) idEl.value = isEdit ? existing.id : '';
+
+      if (isEdit) {
+        if (nameEl) nameEl.value = existing.name;
+        if (targetEl) targetEl.value = existing.target >= 1000 && existing.target % 1000 === 0 ? Math.round(existing.target / 1000) : existing.target;
+        window.setFundEditColor(existing.color);
+        window.setFundEditIcon(existing.icon);
+      } else {
+        if (nameEl) nameEl.value = '';
+        if (targetEl) targetEl.value = 5000;
+        const usedColors = new Set(model.funds.map(f => f.color));
+        const nextColor = FUND_COLORS.find(c => !usedColors.has(c)) || FUND_COLORS[model.funds.length % FUND_COLORS.length];
+        const nextIcon = FUND_ICONS[model.funds.length % FUND_ICONS.length];
+        window.setFundEditColor(nextColor);
+        window.setFundEditIcon(nextIcon);
+      }
+
+      if (dangerEl) {
+        dangerEl.hidden = !isEdit || (existing.isVirtual && model.funds.length === 1);
+      }
+
+      window.updateFundTargetPreview();
+      openModal('modal-fund-editor');
+      setTimeout(() => {
+        if (nameEl) nameEl.focus();
+      }, 80);
+    };
+
+    window.submitFundEditor = async function (e) {
+      e.preventDefault();
+      const idEl = document.getElementById('fund-edit-id');
+      const nameEl = document.getElementById('fund-edit-name');
+      const targetEl = document.getElementById('fund-edit-target');
+      const colorEl = document.getElementById('fund-edit-color');
+      const iconEl = document.getElementById('fund-edit-icon');
+
+      const name = nameEl ? nameEl.value.trim() : '';
+      const rawTarget = targetEl ? Number(String(targetEl.value || '').trim()) : 0;
+      const target = (Number.isFinite(rawTarget) && rawTarget > 0)
+        ? (rawTarget < 1000 ? Math.round(rawTarget * 1000) : Math.round(rawTarget))
+        : 0;
+
+      if (!name) {
+        showToast('Nhập tên quỹ trước khi lưu', true);
+        if (nameEl) nameEl.focus();
+        return;
+      }
+      if (!target || target < 1000 || target > 500000000) {
+        showToast('Mục tiêu quỹ phải từ 1.000đ đến 500.000.000đ', true);
+        if (targetEl) targetEl.focus();
+        return;
+      }
+
+      const model = computeFundsModel();
+      const editId = idEl ? idEl.value.trim() : '';
+      const existing = editId ? model.byId.get(editId) : null;
+      const fundId = existing ? existing.id : ('f_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 5));
+      const color = colorEl ? colorEl.value : 'sage';
+      const icon = iconEl ? iconEl.value : 'piggy';
+      const sortOrder = existing
+        ? existing.sortOrder
+        : (model.funds.reduce((mx, x) => Math.max(mx, x.sortOrder || 0), -1) + 1);
+      const nowSec = Math.floor(Date.now() / 1000);
+      const prevUpd = existing ? Math.max(existing.updatedAt || 0, existing.ts || 0) : 0;
+      const updatedAt = Math.max(prevUpd + 1, nowSec);
+      const cfgUid = (existing && existing.uid) || ('fcfg_' + fundId);
+      const encodedNote = encodeFundConfigNote({ id: fundId, name, target, color, icon, sortOrder });
+
+      const cfgRow = {
+        uid: cfgUid,
+        date: FUND_CONFIG_DATE,
+        category: 'fund_bal',
+        amount: target,
+        note: encodedNote,
+        ts: (existing && existing.ts > 0) ? existing.ts : nowSec,
+        updated_at: updatedAt
+      };
+
+      try {
+        const res = await api('/api/work/vault', {
+          method: 'POST',
+          deferQueueToast: true,
+          body: JSON.stringify({
+            mode: 'merge',
+            jobs: [],
+            ledger: [cfgRow],
+            tombstones: []
+          })
+        });
+        if (res && typeof res.work_rev === 'number') {
+          syncState.workRev = Math.max(syncState.workRev, res.work_rev);
+        }
+        const curVault = readFinanceVaultSync();
+        saveFinanceVaultToDevice({
+          db_id: res.db_id || curVault.db_id,
+          dirty: false,
+          jobs: Array.isArray(res.jobs) ? res.jobs : curVault.jobs,
+          ledger: Array.isArray(res.ledger) ? res.ledger : curVault.ledger,
+          tombstones: Array.isArray(res.tombstones) ? res.tombstones : curVault.tombstones
+        });
+        closeModal('modal-fund-editor');
+        showToast(existing ? `Đã cập nhật quỹ "${name}"` : `Đã tạo quỹ "${name}"`);
+        computeWorkFromLocalVault(workState.date, workState.calendarMonth);
+      } catch (err) {
+        if (!isQueueableSyncError(err)) return;
+        const v = readFinanceVaultSync();
+        const idx = (v.ledger || []).findIndex(l => l && l.uid === cfgUid);
+        const localRow = Object.assign({ id: (existing && existing.ledgerId) || Date.now() }, cfgRow);
+        if (idx >= 0) v.ledger[idx] = Object.assign({}, v.ledger[idx], localRow);
+        else v.ledger.push(localRow);
+        saveFinanceVaultToDevice(v);
+        enqueueSyncOp({
+          domain: 'work',
+          op: 'work_fund_upsert',
+          payload: cfgRow
+        });
+        closeModal('modal-fund-editor');
+        showToast(existing ? `Đã cập nhật "${name}" (chờ đồng bộ)` : `Đã tạo "${name}" trên máy này (chờ đồng bộ)`);
+        computeWorkFromLocalVault(workState.date, workState.calendarMonth);
+      }
+    };
+
+    window.deleteFundFromEditor = async function () {
+      const idEl = document.getElementById('fund-edit-id');
+      const fundId = idEl ? idEl.value.trim() : '';
+      if (!fundId) return;
+
+      const model = computeFundsModel();
+      const fund = model.byId.get(fundId);
+      if (!fund || (fund.isVirtual && model.funds.length === 1)) return;
+
+      const msg = fund.depositCount > 0
+        ? `Xoá quỹ "${fund.name}" cùng ${fund.depositCount} lần nạp (${formatVND(fund.saved)})? Thao tác này không thể hoàn tác.`
+        : `Xoá quỹ "${fund.name}"? Thao tác này không thể hoàn tác.`;
+      if (!confirm(msg)) return;
+
+      const targets = [];
+      fund.deposits.forEach(dep => {
+        const raw = findLedgerItemById(dep.id);
+        targets.push(raw || {
+          id: dep.id,
+          uid: dep.uid,
+          date: dep.date,
+          category: 'fund_in',
+          amount: dep.amount,
+          note: dep.note,
+          ts: dep.ts
+        });
+      });
+      if (!fund.isVirtual && fund.rawRow) {
+        targets.push(fund.rawRow);
+      }
+
+      targets.forEach(item => {
+        const key = item.uid || ('id:' + item.id);
+        const pending = pendingLedgerDeletes.get(key);
+        if (pending) {
+          pending.committed = true;
+          pendingLedgerDeletes.delete(key);
+          if (pending.toastHandle && typeof pending.toastHandle.dismiss === 'function') {
+            pending.toastHandle.dismiss('commit');
+          }
+        }
+      });
+
+      let queuedCount = 0;
+      for (const item of targets) {
+        const ldgId = Number(item.id) || 0;
+        const ldgUid = item.uid || '';
+        const ldgSig = computeWorkLedgerSig(item);
+        const qs = `?uid=${encodeURIComponent(ldgUid)}&sig=${encodeURIComponent(ldgSig)}`;
+        removeLedgerFromLocalVault(ldgId, { dirty: false, tombstone: true });
+        try {
+          const res = await api('/api/work/ledger/' + ldgId + qs, { method: 'DELETE', deferQueueToast: true, silent: true });
+          if (res && typeof res.work_rev === 'number') {
+            syncState.workRev = Math.max(syncState.workRev, res.work_rev);
+          }
+        } catch (err) {
+          if (isQueueableSyncError(err)) {
+            queuedCount++;
+            enqueueSyncOp({
+              domain: 'work',
+              op: 'work_ledger_del',
+              target_id: ldgId,
+              target_uid: ldgUid,
+              sig: ldgSig
+            });
+          }
+        }
+      }
+
+      if (fundsUIState.filterFundId === fund.id) fundsUIState.filterFundId = 'all';
+      closeModal('modal-fund-editor');
+      if (fundsUIState.activeHistoryFundId === fund.id) {
+        fundsUIState.activeHistoryFundId = '';
+        closeModal('modal-fund-history');
+      }
+      showToast(queuedCount > 0 ? `Đã xoá quỹ "${fund.name}" (chờ đồng bộ)` : `Đã xoá quỹ "${fund.name}"`);
+      if (queuedCount === 0) {
+        await loadWorkData(workState.date, { silent: true });
+      } else {
+        computeWorkFromLocalVault(workState.date, workState.calendarMonth);
+      }
+    };
+
+    // --- POPUP LỊCH SỬ NẠP CỦA TỪNG QUỸ ---
+    function renderFundHistoryModal() {
+      const model = computeFundsModel();
+      const fund = model.byId.get(fundsUIState.activeHistoryFundId) || model.funds[0];
+      if (!fund) return;
+      fundsUIState.activeHistoryFundId = fund.id;
+
+      const titleEl = document.getElementById('fund-history-modal-title');
+      if (titleEl) titleEl.textContent = `Lịch sử: ${fund.name}`;
+
+      const curMonth = workState.month || (workState.date || state.today || new Date().toISOString().slice(0, 10)).slice(0, 7);
+      const monthDeps = fund.deposits.filter(d => curMonth && d.date.startsWith(curMonth + '-'));
+      const scope = fundsUIState.historyModalScope === 'month' ? 'month' : 'all';
+
+      const setTxt = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val;
+      };
+      setTxt('fund-hist-cnt-all', String(fund.deposits.length));
+      setTxt('fund-hist-cnt-month', String(monthDeps.length));
+
+      document.querySelectorAll('#fund-history-scope-tabs .borrow-filter-pill').forEach(btn => {
+        const act = btn.getAttribute('data-scope') === scope;
+        btn.classList.toggle('active', act);
+        btn.setAttribute('aria-selected', act ? 'true' : 'false');
+      });
+
+      const summaryEl = document.getElementById('fund-history-modal-summary');
+      if (summaryEl) {
+        summaryEl.innerHTML = `
+          <div class="work-bank-header-row" style="margin-bottom: 6px;">
+            <span style="font-size: 13px; font-weight: 800; color: var(--text-main);">Đã tích luỹ: <span class="font-tabular">${formatVND(fund.saved)}</span></span>
+            <span class="work-job-count-pill font-tabular">${fund.pctRaw}%</span>
+          </div>
+          <div class="fund-progress-track" style="margin-bottom: 8px;" aria-hidden="true">
+            <div class="fund-progress-fill" style="width: ${fund.pctClamped}%;"></div>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--text-sub);">
+            <span class="font-tabular">Mục tiêu ${formatShortK(fund.target)} &bull; Trung bình ${formatShortK(fund.avgDeposit)}/lần</span>
+            <button type="button" class="btn-green-pill btn-sm" onclick="closeModal('modal-fund-history'); openFundDepositModal('${escapeHTML(fund.id)}')">+ Nạp thêm</button>
+          </div>
+        `;
+      }
+
+      const listEl = document.getElementById('fund-history-modal-list');
+      if (!listEl) return;
+      const items = scope === 'month' ? monthDeps : fund.deposits;
+      if (items.length === 0) {
+        listEl.innerHTML = `<div class="empty-state-box">${scope === 'month' ? 'Tháng này chưa có lần nạp nào cho quỹ này.' : 'Chưa có lần nạp nào cho quỹ này.'}</div>`;
+        return;
+      }
+      listEl.innerHTML = items.map(dep => buildFundHistoryRowHTML(dep, false)).join('');
+    }
+
+    window.setFundHistoryModalScope = function (scope) {
+      fundsUIState.historyModalScope = scope === 'month' ? 'month' : 'all';
+      renderFundHistoryModal();
+    };
+
+    window.openFundHistoryModal = function (fundId) {
+      fundsUIState.activeHistoryFundId = fundId || '';
+      fundsUIState.historyModalScope = 'all';
+      renderFundHistoryModal();
+      openModal('modal-fund-history');
+    };
 
     let activeRepayLedgerId = null;
     let repaySubmitting = false;

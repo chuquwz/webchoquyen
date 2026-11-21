@@ -357,6 +357,7 @@ a:focus-visible,
   height: 42px;
   border-radius: 50%;
   background-color: #FFFFFF;
+  color: var(--text-main);
   border: 1px solid var(--border-card);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
   display: flex;
@@ -1723,6 +1724,28 @@ input[type="time"].form-input {
   stroke: var(--color-pill-text);
 }
 
+@media (max-width: 390px) {
+  .mockup-bottom-nav {
+    padding: 8px 8px calc(8px + var(--safe-bottom));
+  }
+
+  .nav-pill-btn {
+    padding: 8px;
+    gap: 5px;
+    min-width: 40px;
+    min-height: 40px;
+    justify-content: center;
+  }
+
+  .nav-pill-btn.active {
+    padding: 8px 12px;
+  }
+
+  .nav-label {
+    font-size: 12px;
+  }
+}
+
 /* --------------------------------------------------------------------------
    Login View Styling
    -------------------------------------------------------------------------- */
@@ -1986,6 +2009,41 @@ body:not(.is-logged-in) #app-bottom-nav {
   transform: scale(0.96);
 }
 
+.toast-action-btn {
+  min-height: 32px;
+  padding: 4px 11px;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-tile-mint);
+  color: var(--color-tile-text);
+  border: 1px solid rgba(94, 148, 71, 0.28);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+  flex-shrink: 0;
+  align-self: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.15s ease-out, border-color 0.15s ease-out, transform 0.15s ease-out;
+}
+
+@media (hover: hover) {
+  .toast-action-btn:hover {
+    background-color: #DFF0D4;
+    border-color: rgba(94, 148, 71, 0.45);
+  }
+}
+
+.toast-action-btn:focus-visible {
+  outline: 2px solid var(--color-score-ring);
+  outline-offset: 2px;
+}
+
+.toast-action-btn:not(:disabled):active {
+  transform: scale(0.96);
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .toast {
     animation: slideDownToast 0.22s cubic-bezier(0.2, 0, 0, 1);
@@ -2015,7 +2073,8 @@ body:not(.is-logged-in) #app-bottom-nav {
   display: none;
   position: fixed;
   inset: 0;
-  background-color: rgba(28, 31, 27, 0.45);
+  --sheet-backdrop-alpha: 1;
+  background-color: rgba(28, 31, 27, calc(0.45 * var(--sheet-backdrop-alpha, 1)));
   backdrop-filter: blur(4px);
   z-index: 200;
   align-items: flex-end;
@@ -2048,6 +2107,41 @@ body:not(.is-logged-in) #app-bottom-nav {
   overflow-y: auto;
   overscroll-behavior: contain;
   animation: slideUpSheet 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-sheet-handle {
+  width: 38px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background-color: #889384;
+  margin: -12px auto 14px;
+  pointer-events: none;
+}
+
+.modal-dialog.is-sheet-dragging {
+  animation: none !important;
+  transition: none !important;
+  will-change: transform;
+  user-select: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .modal-dialog.is-sheet-settling {
+    animation: none !important;
+    transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1) !important;
+    will-change: transform;
+  }
+
+  .modal-dialog.is-sheet-closing {
+    animation: none !important;
+    transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1) !important;
+    will-change: transform;
+  }
+
+  .modal-overlay.is-sheet-settling,
+  .modal-overlay.is-sheet-closing {
+    transition: background-color 0.2s ease-out;
+  }
 }
 
 @keyframes slideUpSheet {
@@ -2915,7 +3009,8 @@ body:not(.is-logged-in) #app-bottom-nav {
   white-space: nowrap;
 }
 
-.work-month-grid-4 {
+.work-month-grid-4,
+.work-month-grid-3 {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
@@ -2923,6 +3018,10 @@ body:not(.is-logged-in) #app-bottom-nav {
   border: 1px solid #E6EFE3;
   border-radius: 12px;
   padding: 8px 9px;
+}
+
+.work-month-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .work-month-cell {
@@ -3605,6 +3704,136 @@ body:not(.is-logged-in) #app-bottom-nav {
   color: #B91C1C;
   background-color: #FEF2F2;
   border-color: #FECACA;
+}
+
+/* Swipeable Day Job Cards */
+.job-swipe-row {
+  position: relative;
+  border-radius: 20px;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.job-swipe-rail {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.job-swipe-underlay-pay {
+  display: flex;
+  align-items: center;
+  padding: 0 18px;
+  flex: 1;
+  background-color: #2E6B22;
+  color: #FFFFFF;
+  opacity: 0;
+  transition: background-color 0.14s ease-out, opacity 0.12s ease-out;
+}
+
+.job-swipe-row.is-swiping-right .job-swipe-underlay-pay {
+  opacity: 1;
+}
+
+.job-swipe-row.is-pay-armed .job-swipe-underlay-pay {
+  background-color: #1F7A38;
+}
+
+.job-swipe-cue {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+  transform: scale(0.95);
+  transition: transform 0.14s ease-out;
+}
+
+.job-swipe-row.is-pay-armed .job-swipe-cue {
+  transform: scale(1.03);
+}
+
+.job-swipe-underlay-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: stretch;
+  width: 144px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease-out;
+}
+
+.job-swipe-row.is-swiping-left .job-swipe-underlay-actions,
+.job-swipe-row.is-actions-open .job-swipe-underlay-actions {
+  opacity: 1;
+}
+
+.job-swipe-row.is-actions-open .job-swipe-underlay-actions {
+  pointer-events: auto;
+}
+
+.job-swipe-action-btn {
+  width: 72px;
+  min-height: 44px;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 800;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: filter 0.12s ease-out, transform 0.15s ease-out;
+}
+
+.job-swipe-action-btn.is-edit {
+  background-color: #2E5F8A;
+  color: #FFFFFF;
+}
+
+.job-swipe-action-btn.is-delete {
+  background-color: #C92A2A;
+  color: #FFFFFF;
+}
+
+@media (hover: hover) {
+  .job-swipe-action-btn:hover {
+    filter: brightness(1.08);
+  }
+}
+
+.job-swipe-action-btn:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.job-swipe-action-btn:focus-visible {
+  outline: 2px solid #FFFFFF;
+  outline-offset: -3px;
+}
+
+.job-swipe-surface {
+  position: relative;
+  z-index: 1;
+}
+
+.job-swipe-surface.is-dragging {
+  transition: none !important;
+  will-change: transform;
+  user-select: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .job-swipe-surface.is-settling {
+    transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
+  }
 }
 
 /* Unpaid Customer Groups (Sổ Nợ CTT) */
@@ -4569,7 +4798,8 @@ body:not(.is-logged-in) #app-bottom-nav {
 }
 
 #tab-work.active ~ .btn-fab-plus[data-fab-for="work"],
-#tab-ledger.active ~ .btn-fab-plus[data-fab-for="ledger"] {
+#tab-ledger.active ~ .btn-fab-plus[data-fab-for="ledger"],
+#tab-funds.active ~ .btn-fab-plus[data-fab-for="funds"] {
   display: inline-flex;
 }
 
@@ -6267,6 +6497,1680 @@ body:not(.is-logged-in) #app-bottom-nav {
 
   .work-borrow-btn-total {
     font-size: 13.5px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Theme Selector (Hệ thống / Theo giờ / Sáng / Tối) & Status Utilities
+   -------------------------------------------------------------------------- */
+.theme-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 12px;
+  padding: 4px;
+  border-radius: 16px;
+  background-color: var(--bg-subtle);
+  border: 1px solid var(--border-card);
+}
+
+@media (max-width: 350px) {
+  .theme-mode-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.theme-mode-btn {
+  min-height: 44px;
+  padding: 6px 4px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text-sub);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.15s ease-out, color 0.15s ease-out, transform 0.15s ease-out;
+}
+
+@media (hover: hover) {
+  .theme-mode-btn:not(.active):hover {
+    background-color: rgba(128, 150, 120, 0.12);
+    color: var(--text-main);
+  }
+}
+
+.theme-mode-btn.active {
+  background-color: var(--color-pill-green);
+  color: var(--color-pill-text);
+  box-shadow: 0 2px 8px rgba(94, 148, 71, 0.22);
+}
+
+.theme-mode-btn:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.theme-schedule-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border-card);
+}
+
+.theme-schedule-row[hidden] {
+  display: none;
+}
+
+.score-breakdown-item {
+  background-color: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+.weight-hist-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background-color: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+}
+
+.weight-hist-row.is-today {
+  background-color: #EEF7E8;
+}
+
+.text-status-ok {
+  color: #2B5719;
+}
+
+.text-status-warn {
+  color: #C2410C;
+}
+
+.text-status-danger {
+  color: #B91C1C;
+}
+
+/* --------------------------------------------------------------------------
+   Dark Mode (Sage-Charcoal Surface Tokens + Full Component Overrides)
+   -------------------------------------------------------------------------- */
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --color-pill-green: #86C75A;
+  --color-pill-green-hover: #96D36B;
+  --color-pill-text: #0F2208;
+  --color-score-ring: #7CC256;
+  --color-score-track: #263523;
+  --color-tile-mint: #1E2E1A;
+  --color-tile-text: #B7E59A;
+
+  --bg-desktop-canvas: #0A0D0A;
+  --bg-app: #111611;
+  --bg-subtle: #1E271E;
+  --border-card: #2C382C;
+  --border-subtle: #232E23;
+
+  --text-main: #EFF4ED;
+  --text-sub: #B2BEB0;
+  --text-muted: #9BA998;
+  --text-light: #7E8B7B;
+
+  --pink-accent: #FB7185;
+  --pink-tint: #2D1A20;
+  --pink-text: #FDA4AF;
+
+  --blue-accent: #56C6C8;
+  --blue-tint: #15282E;
+  --blue-text: #7DD3FC;
+
+  --badge-normal-bg: #1B3018;
+  --badge-normal-text: #A7E484;
+  --badge-low-bg: #33191B;
+  --badge-low-text: #FCA5A5;
+  --badge-good-bg: #33191B;
+  --badge-good-text: #FCA5A5;
+
+  --shadow-card: 0 6px 24px rgba(0, 0, 0, 0.34), 0 1px 3px rgba(0, 0, 0, 0.22);
+  --shadow-nav: 0 -4px 28px rgba(0, 0, 0, 0.45);
+  --shadow-phone: 0 24px 64px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.35);
+  --shadow-btn: 0 4px 14px rgba(134, 199, 90, 0.25);
+}
+
+html[data-theme="dark"] .device-phone-frame {
+  border-color: #242B24;
+}
+
+html[data-theme="dark"] .mockup-bottom-nav {
+  background-color: rgba(19, 25, 19, 0.94);
+  border-top-color: #2A352A;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.45);
+}
+
+html[data-theme="dark"] .nav-pill-btn {
+  color: #9BA998;
+}
+
+html[data-theme="dark"] .nav-pill-btn.active {
+  box-shadow: 0 2px 10px rgba(134, 199, 90, 0.25);
+}
+
+html[data-theme="dark"] .login-container,
+html[data-theme="dark"] .login-brand-icon,
+html[data-theme="dark"] .user-avatar-circle,
+html[data-theme="dark"] .profile-avatar-large,
+html[data-theme="dark"] .btn-circle-action,
+html[data-theme="dark"] .btn-secondary-pill,
+html[data-theme="dark"] .btn-water-custom,
+html[data-theme="dark"] .day-capsule,
+html[data-theme="dark"] .modal-dialog,
+html[data-theme="dark"] .motivation-hero-card,
+html[data-theme="dark"] .work-calendar-card,
+html[data-theme="dark"] .work-summary-hero-card,
+html[data-theme="dark"] .work-quick-card,
+html[data-theme="dark"] .work-job-card,
+html[data-theme="dark"] .work-debt-group-card,
+html[data-theme="dark"] .work-debt-item-row.is-debt-settled,
+html[data-theme="dark"] .meal-history-row,
+html[data-theme="dark"] .btn-meal-reset,
+html[data-theme="dark"] .repay-metrics-3,
+html[data-theme="dark"] .work-borrow-summary-btn,
+html[data-theme="dark"] .btn-borrow-add-inline,
+html[data-theme="dark"] .btn-search-reset {
+  background-color: #171E17;
+  border-color: #2E3A2E;
+}
+
+html[data-theme="dark"] .btn-circle-action,
+html[data-theme="dark"] .btn-secondary-pill,
+html[data-theme="dark"] .btn-water-custom,
+html[data-theme="dark"] .btn-meal-reset,
+html[data-theme="dark"] .btn-borrow-add-inline,
+html[data-theme="dark"] .btn-search-reset,
+html[data-theme="dark"] .work-borrow-summary-btn {
+  border-color: #647563;
+  color: var(--text-main);
+}
+
+html[data-theme="dark"] .form-input,
+html[data-theme="dark"] .pin-input,
+html[data-theme="dark"] .pin-input:focus,
+html[data-theme="dark"] .work-search-input,
+html[data-theme="dark"] .work-time-mode-pill,
+html[data-theme="dark"] .work-time-detail-row .form-input {
+  background-color: #1B231B;
+  border-color: #647563;
+  color: var(--text-main);
+}
+
+html[data-theme="dark"] .work-search-input::placeholder,
+html[data-theme="dark"] .pin-input::placeholder,
+html[data-theme="dark"] .pin-input::-webkit-input-placeholder {
+  color: #8F9D8B;
+}
+
+html[data-theme="dark"] .form-input[aria-invalid="true"] {
+  background-color: #2D1719;
+  border-color: #F87171;
+}
+
+html[data-theme="dark"] .modal-overlay {
+  background-color: rgba(4, 7, 4, calc(0.72 * var(--sheet-backdrop-alpha, 1)));
+}
+
+html[data-theme="dark"] .modal-dialog {
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.6);
+}
+
+html[data-theme="dark"] .modal-sheet-handle {
+  background-color: #5D705C;
+}
+
+html[data-theme="dark"] .toast {
+  background-color: rgba(25, 33, 25, 0.96);
+  border-color: #364536;
+  color: var(--text-main);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.48), 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+html[data-theme="dark"] .toast.toast-error {
+  background-color: rgba(42, 22, 24, 0.97);
+  border-color: #993A3A;
+}
+
+html[data-theme="dark"] .toast-icon-badge {
+  background-color: #1F361A;
+  color: #A7E484;
+}
+
+html[data-theme="dark"] .toast.toast-error .toast-icon-badge {
+  background-color: #451E21;
+  color: #FCA5A5;
+}
+
+html[data-theme="dark"] .toast-close-btn {
+  color: #B2BEB0;
+}
+
+html[data-theme="dark"] .toast-action-btn {
+  background-color: #21371C;
+  color: #B7E59A;
+  border-color: #4E8A38;
+}
+
+html[data-theme="dark"] .hero-time-chip.hero-slot-early_morning {
+  background-color: #2D2115;
+  border-color: #9A5524;
+  color: #FDBA74;
+}
+
+html[data-theme="dark"] .hero-time-chip,
+html[data-theme="dark"] .hero-time-chip.hero-slot-morning {
+  background-color: #1A2B18;
+  border-color: #4A7D39;
+  color: #A7E484;
+}
+
+html[data-theme="dark"] .hero-time-chip.hero-slot-noon {
+  background-color: #2B2514;
+  border-color: #9A7724;
+  color: #FDE047;
+}
+
+html[data-theme="dark"] .hero-time-chip.hero-slot-afternoon {
+  background-color: #142632;
+  border-color: #387D9E;
+  color: #7DD3FC;
+}
+
+html[data-theme="dark"] .hero-time-chip.hero-slot-evening {
+  background-color: #1E203C;
+  border-color: #5C62C2;
+  color: #C7D2FE;
+}
+
+html[data-theme="dark"] .hero-time-chip.hero-slot-night {
+  background-color: #1C2430;
+  border-color: #58697E;
+  color: #CBD5E1;
+}
+
+html[data-theme="dark"] .daily-score-card {
+  background: linear-gradient(135deg, #161F15 0%, #1C291A 100%);
+  border-color: #2D402B;
+}
+
+html[data-theme="dark"] .daily-score-card.is-score-complete {
+  border-color: #54923D;
+}
+
+html[data-theme="dark"] .score-label {
+  color: var(--text-sub);
+}
+
+html[data-theme="dark"] .score-track {
+  stroke: var(--color-score-track);
+}
+
+html[data-theme="dark"] .card-pink-tint {
+  background-color: #26171C;
+  border-color: #462831;
+}
+
+html[data-theme="dark"] .card-green-tint {
+  background-color: #172416;
+  border-color: #2B4229;
+}
+
+html[data-theme="dark"] .card-blue-tint {
+  background-color: #142228;
+  border-color: #243E4A;
+}
+
+html[data-theme="dark"] .card-amber-tint {
+  background-color: #271E14;
+  border-color: #493822;
+}
+
+html[data-theme="dark"] .icon-amber {
+  background-color: #3D2B16;
+  color: #FDBA74;
+}
+
+html[data-theme="dark"] .water-wave-card .summary-card-label {
+  color: #BAE6FD;
+}
+
+html[data-theme="dark"] .water-wave-card .summary-val-num {
+  color: #F0F9FF;
+}
+
+html[data-theme="dark"] .water-wave-card .summary-val-unit {
+  color: #93C5FD;
+}
+
+html[data-theme="dark"] .weight-theme-card .summary-card-label {
+  color: #FECDD3;
+}
+
+html[data-theme="dark"] .weight-theme-card .summary-val-num {
+  color: #FFF1F2;
+}
+
+html[data-theme="dark"] .weight-theme-card .summary-val-unit {
+  color: #FDA4AF;
+}
+
+html[data-theme="dark"] .med-theme-card .summary-card-label {
+  color: #BBF7D0;
+}
+
+html[data-theme="dark"] .meals-theme-card .summary-card-label,
+html[data-theme="dark"] .card-amber-tint .summary-card-label {
+  color: #FDE68A;
+}
+
+html[data-theme="dark"] .motivation-heart-badge {
+  background-color: #2E1920;
+  border-color: #6B3242;
+  color: #FDA4AF;
+}
+
+html[data-theme="dark"] .motivation-image-container {
+  background-color: #1B231B;
+}
+
+html[data-theme="dark"] .motivation-thumbs-strip {
+  background-color: #151C15;
+}
+
+html[data-theme="dark"] .weight-hist-row.is-today {
+  background-color: #1B2D19;
+  border-color: #3E6D33;
+}
+
+html[data-theme="dark"] .text-status-ok {
+  color: #A7E484;
+}
+
+html[data-theme="dark"] .text-status-warn {
+  color: #FDBA74;
+}
+
+html[data-theme="dark"] .text-status-danger {
+  color: #FCA5A5;
+}
+
+html[data-theme="dark"] .badge-dev-tag,
+html[data-theme="dark"] .work-job-count-pill,
+html[data-theme="dark"] .work-subtab-count,
+html[data-theme="dark"] .work-vault-badge,
+html[data-theme="dark"] .work-borrow-settled-badge,
+html[data-theme="dark"] .work-borrow-btn-badge.is-settled,
+html[data-theme="dark"] .work-debt-status-badge.is-settled,
+html[data-theme="dark"] .btn-status-toggle.st-tt,
+html[data-theme="dark"] .repay-settled-banner,
+html[data-theme="dark"] .btn-price-chip.is-pay-all,
+html[data-theme="dark"] .btn-ledger-repay,
+html[data-theme="dark"] .work-search-status,
+html[data-theme="dark"] .btn-work-today-chip.is-at-today,
+html[data-theme="dark"] .work-status-opt.active-tt,
+html[data-theme="dark"] .btn-data-action.is-linked {
+  background-color: #1C3119;
+  border-color: #4E8A38;
+  color: #A7E484;
+}
+
+html[data-theme="dark"] .work-subtab-count.badge-alert {
+  background-color: #DC2626;
+  color: #FFFFFF;
+}
+
+html[data-theme="dark"] .work-job-count-pill.badge-alert,
+html[data-theme="dark"] .btn-job-icon.btn-del,
+html[data-theme="dark"] .btn-repay-delete-borrow,
+html[data-theme="dark"] .btn-settings-logout {
+  background-color: #33191B;
+  border-color: #C05252;
+  color: #FCA5A5;
+}
+
+html[data-theme="dark"] .btn-danger-link,
+html[data-theme="dark"] .repay-error-text {
+  color: #FCA5A5;
+}
+
+html[data-theme="dark"] .log-progress-track,
+html[data-theme="dark"] .borrow-repay-progress-track,
+html[data-theme="dark"] .work-stt-badge {
+  background-color: #253125;
+  color: var(--text-sub);
+}
+
+html[data-theme="dark"] .btn-water-chip,
+html[data-theme="dark"] .btn-med-chip,
+html[data-theme="dark"] .btn-stepper-pill,
+html[data-theme="dark"] .btn-chip-tag,
+html[data-theme="dark"] .btn-slot-act,
+html[data-theme="dark"] .time-chip,
+html[data-theme="dark"] .ios-guide-step,
+html[data-theme="dark"] .weight-modal-display,
+html[data-theme="dark"] .btn-work-cal-nav,
+html[data-theme="dark"] .work-extra-pill,
+html[data-theme="dark"] .work-hero-scope-toggle,
+html[data-theme="dark"] .work-month-grid-4,
+html[data-theme="dark"] .work-month-grid-3,
+html[data-theme="dark"] .settings-data-group,
+html[data-theme="dark"] .work-subtab-bar,
+html[data-theme="dark"] .work-channel-toggle,
+html[data-theme="dark"] .work-suggest-chip,
+html[data-theme="dark"] .btn-price-chip,
+html[data-theme="dark"] .work-status-opt,
+html[data-theme="dark"] .btn-job-icon,
+html[data-theme="dark"] .work-cat-chip,
+html[data-theme="dark"] .btn-med-schedule-pill,
+html[data-theme="dark"] .btn-med-dose-pill,
+html[data-theme="dark"] .meal-status-pill.is-pending,
+html[data-theme="dark"] .btn-meal-food-chip,
+html[data-theme="dark"] .btn-meal-action,
+html[data-theme="dark"] .meal-hist-pill.is-pending,
+html[data-theme="dark"] .btn-ledger-repay.is-settled,
+html[data-theme="dark"] .borrow-repay-log-row,
+html[data-theme="dark"] .repay-summary-box,
+html[data-theme="dark"] .repay-history-empty,
+html[data-theme="dark"] .repay-history-row,
+html[data-theme="dark"] .borrow-filter-pill,
+html[data-theme="dark"] .work-search-card {
+  background-color: #1D261D;
+  border-color: #364536;
+  color: var(--text-main);
+}
+
+html[data-theme="dark"] .btn-water-chip,
+html[data-theme="dark"] .btn-med-chip,
+html[data-theme="dark"] .btn-stepper-pill,
+html[data-theme="dark"] .btn-work-cal-nav,
+html[data-theme="dark"] .work-suggest-chip,
+html[data-theme="dark"] .btn-price-chip,
+html[data-theme="dark"] .work-status-opt,
+html[data-theme="dark"] .btn-job-icon,
+html[data-theme="dark"] .work-cat-chip,
+html[data-theme="dark"] .btn-med-dose-pill,
+html[data-theme="dark"] .btn-meal-food-chip,
+html[data-theme="dark"] .btn-meal-action,
+html[data-theme="dark"] .borrow-filter-pill,
+html[data-theme="dark"] .btn-work-cal-toggle,
+html[data-theme="dark"] .btn-debt-copy {
+  border-color: #677A66;
+}
+
+html[data-theme="dark"] .btn-work-cal-toggle,
+html[data-theme="dark"] .btn-debt-copy {
+  background-color: #1B2B19;
+  color: #B7E59A;
+}
+
+html[data-theme="dark"] .work-cal-weekdays span,
+html[data-theme="dark"] .work-cal-legend-item,
+html[data-theme="dark"] .work-cal-day-btn.is-outside,
+html[data-theme="dark"] .work-stat-mini-label,
+html[data-theme="dark"] .work-scope-btn,
+html[data-theme="dark"] .work-subtab-btn,
+html[data-theme="dark"] .work-ch-btn,
+html[data-theme="dark"] .work-job-service-name,
+html[data-theme="dark"] .work-debt-item-meta,
+html[data-theme="dark"] .work-borrow-orig-sub,
+html[data-theme="dark"] .borrow-repay-progress-head,
+html[data-theme="dark"] .borrow-repay-log-meta,
+html[data-theme="dark"] .borrow-repay-log-note,
+html[data-theme="dark"] .repay-borrow-date,
+html[data-theme="dark"] .repay-metric-lbl,
+html[data-theme="dark"] .repay-history-empty,
+html[data-theme="dark"] .repay-history-note,
+html[data-theme="dark"] .work-borrow-btn-chevron,
+html[data-theme="dark"] .borrow-list-subtitle,
+html[data-theme="dark"] .work-search-label,
+html[data-theme="dark"] .work-search-icon,
+html[data-theme="dark"] .work-search-clear,
+html[data-theme="dark"] .work-time-sub-label,
+html[data-theme="dark"] .settings-data-group-label {
+  color: var(--text-sub);
+}
+
+html[data-theme="dark"] .work-cal-month-stats,
+html[data-theme="dark"] .work-month-sub-badge,
+html[data-theme="dark"] .work-month-cell-val.is-net,
+html[data-theme="dark"] .work-vault-shield,
+html[data-theme="dark"] .work-price-preview,
+html[data-theme="dark"] .work-debt-group-card.is-debt-settled .work-debt-total-val,
+html[data-theme="dark"] .work-debt-item-amt.is-settled,
+html[data-theme="dark"] .work-job-price-val.is-settled-amt,
+html[data-theme="dark"] .borrow-repay-step,
+html[data-theme="dark"] .borrow-repay-log-amt,
+html[data-theme="dark"] .repay-metric-val.is-paid,
+html[data-theme="dark"] .repay-after-hint,
+html[data-theme="dark"] .repay-history-amt,
+html[data-theme="dark"] .work-borrow-btn-total,
+html[data-theme="dark"] .ios-step-text strong,
+html[data-theme="dark"] .ios-pwa-tip-banner,
+html[data-theme="dark"] .giant-meals-sub,
+html[data-theme="dark"] .med-dose-time {
+  color: #A7E484;
+}
+
+html[data-theme="dark"] .ios-pwa-tip-banner {
+  background-color: #1A2818;
+  border-color: #5E9447;
+}
+
+html[data-theme="dark"] .work-cal-footer,
+html[data-theme="dark"] .work-extra-badges-row,
+html[data-theme="dark"] .work-month-bank-footer,
+html[data-theme="dark"] .work-hero-scope-bar,
+html[data-theme="dark"] .work-job-bottom,
+html[data-theme="dark"] .borrow-repay-card-foot,
+html[data-theme="dark"] .repay-history-section,
+html[data-theme="dark"] .repay-danger-zone {
+  border-color: #2A352A;
+}
+
+html[data-theme="dark"] .work-cal-day-btn.is-selected {
+  background-color: #22361F;
+  border-color: #7CC256;
+}
+
+html[data-theme="dark"] .work-cal-day-btn.has-activity:not(.is-today) .work-cal-day-circle,
+html[data-theme="dark"] .work-cal-swatch.is-order {
+  background-color: #1D3319;
+  border-color: #6BB44A;
+  color: #BCEF9B;
+}
+
+html[data-theme="dark"] .work-cal-day-btn.is-today .work-cal-day-circle,
+html[data-theme="dark"] .work-cal-swatch.is-today {
+  background-color: #A62C46;
+  border-color: #A62C46;
+  color: #FFFFFF;
+}
+
+html[data-theme="dark"] .work-cal-day-btn.is-today.has-activity .work-cal-day-circle::after {
+  border-color: #7CC256;
+}
+
+html[data-theme="dark"] .work-scope-btn.active,
+html[data-theme="dark"] .work-subtab-btn.active {
+  background-color: #243322;
+  color: #EFF4ED;
+}
+
+html[data-theme="dark"] .work-stat-mini-box.stat-paid {
+  background-color: #182916;
+  border-color: #3D6C31;
+}
+
+html[data-theme="dark"] .stat-paid .work-stat-mini-val {
+  color: #A7E484;
+}
+
+html[data-theme="dark"] .work-stat-mini-box.stat-unpaid,
+html[data-theme="dark"] .work-unpaid-banner,
+html[data-theme="dark"] .work-job-card.is-unpaid,
+html[data-theme="dark"] .work-debt-item-row,
+html[data-theme="dark"] .work-status-opt.active-ctt,
+html[data-theme="dark"] .btn-status-toggle.st-ctt,
+html[data-theme="dark"] .work-debt-status-badge,
+html[data-theme="dark"] .work-borrow-btn-badge,
+html[data-theme="dark"] .work-search-status.is-empty-result,
+html[data-theme="dark"] .btn-debt-items-toggle {
+  background-color: #291E13;
+  border-color: #B46324;
+  color: #FDBA74;
+}
+
+html[data-theme="dark"] .stat-unpaid .work-stat-mini-val,
+html[data-theme="dark"] .work-unpaid-banner-label,
+html[data-theme="dark"] .work-unpaid-banner-val,
+html[data-theme="dark"] .work-debt-total-val,
+html[data-theme="dark"] .work-debt-item-amt,
+html[data-theme="dark"] .repay-metric-val.is-remaining {
+  color: #FDBA74;
+}
+
+html[data-theme="dark"] .work-debt-group-card {
+  border-color: #8D4E1D;
+}
+
+html[data-theme="dark"] .work-debt-group-header {
+  border-bottom-color: #422D1C;
+}
+
+html[data-theme="dark"] .work-debt-group-card.is-debt-settled,
+html[data-theme="dark"] .work-job-card.is-borrow-settled,
+html[data-theme="dark"] .work-borrow-summary-btn.is-all-settled,
+html[data-theme="dark"] .work-debt-group-card.is-debt-settled .btn-debt-items-toggle {
+  background-color: #162215;
+  border-color: #3E6A34;
+}
+
+html[data-theme="dark"] .work-debt-group-card.is-debt-settled .btn-debt-items-toggle {
+  color: #A7E484;
+}
+
+html[data-theme="dark"] .work-debt-group-card.is-debt-settled .work-debt-group-header {
+  border-bottom-color: #2A3C29;
+}
+
+html[data-theme="dark"] .work-ch-badge.ch-zl {
+  background-color: #172845;
+  color: #93C5FD;
+}
+
+html[data-theme="dark"] .work-ch-badge.ch-fb {
+  background-color: #132B3C;
+  color: #7DD3FC;
+}
+
+html[data-theme="dark"] .work-vault-badge.is-pending,
+html[data-theme="dark"] .btn-slot-act.active-diff,
+html[data-theme="dark"] .btn-med-dose-pill.next-dose,
+html[data-theme="dark"] .btn-med-dose-pill.next-dose .med-dose-time,
+html[data-theme="dark"] .btn-meal-dose-pill.swapped,
+html[data-theme="dark"] .btn-meal-dose-pill.swapped .med-dose-time,
+html[data-theme="dark"] .meal-checklist-card.is-swapped,
+html[data-theme="dark"] .meal-status-pill.is-swapped,
+html[data-theme="dark"] .meal-note-banner.is-swapped,
+html[data-theme="dark"] .btn-meal-diff.active,
+html[data-theme="dark"] .meal-hist-pill.is-swapped {
+  background-color: #2B2212;
+  border-color: #B47B24;
+  color: #FDE68A;
+}
+
+html[data-theme="dark"] .btn-med-dose-pill.next-dose .med-dose-status,
+html[data-theme="dark"] .btn-meal-dose-pill.swapped .med-dose-status {
+  color: #FDE68A;
+}
+
+html[data-theme="dark"] .btn-med-dose-pill.done,
+html[data-theme="dark"] .btn-med-dose-pill.done .med-dose-time,
+html[data-theme="dark"] .btn-med-dose-pill.done .med-dose-status,
+html[data-theme="dark"] .meal-checklist-card.is-done,
+html[data-theme="dark"] .meal-status-pill.is-done,
+html[data-theme="dark"] .meal-note-banner.is-done,
+html[data-theme="dark"] .btn-meal-food-chip.active,
+html[data-theme="dark"] .diet-guide-col.is-good,
+html[data-theme="dark"] .diet-guide-col.is-good .diet-guide-col-title,
+html[data-theme="dark"] .meal-history-row.active,
+html[data-theme="dark"] .meal-hist-pill.is-done {
+  background-color: #162B19;
+  border-color: #3D7D47;
+  color: #9EE8A6;
+}
+
+html[data-theme="dark"] .diet-guide-col.is-avoid,
+html[data-theme="dark"] .diet-guide-col.is-avoid .diet-guide-col-title {
+  background-color: #2B181A;
+  border-color: #913D38;
+  color: #FCA5A5;
+}
+
+html[data-theme="dark"] .btn-data-action.btn-data-primary {
+  border-color: #548E3D;
+  color: #B7E59A;
+}
+
+html[data-theme="dark"] .btn-data-action.btn-data-cloud {
+  background-color: #142B3A;
+  border-color: #3B82A6;
+  color: #7DD3FC;
+}
+
+html[data-theme="dark"] .work-borrow-btn-icon {
+  background-color: #1E311B;
+  border-color: #467837;
+  color: #A7E484;
+}
+
+html[data-theme="dark"] .borrow-filter-pill.active,
+html[data-theme="dark"] .work-time-mode-pill.active {
+  background-color: var(--color-pill-green);
+  border-color: var(--color-pill-green);
+  color: var(--color-pill-text);
+}
+
+html[data-theme="dark"] .btn-fab-plus {
+  background-color: #4E8A38;
+  border-color: #1A221A;
+  color: #FFFFFF;
+}
+
+@media (hover: hover) {
+  html[data-theme="dark"] .btn-circle-action:hover,
+  html[data-theme="dark"] .day-capsule:hover,
+  html[data-theme="dark"] .btn-data-action.btn-data-neutral:hover,
+  html[data-theme="dark"] .meal-history-row:hover,
+  html[data-theme="dark"] .work-cal-day-btn:not(.is-selected):hover {
+    background-color: #222C22;
+  }
+
+  html[data-theme="dark"] .toast-close-btn:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: var(--text-main);
+  }
+
+  html[data-theme="dark"] .toast-action-btn:hover {
+    background-color: #294623;
+    border-color: #6BB44A;
+  }
+
+  html[data-theme="dark"] .quick-action-tile:hover,
+  html[data-theme="dark"] .ios-pwa-tip-banner:hover,
+  html[data-theme="dark"] .btn-data-action:hover,
+  html[data-theme="dark"] .btn-price-chip:hover,
+  html[data-theme="dark"] .btn-ledger-repay:hover,
+  html[data-theme="dark"] .btn-borrow-add-inline:hover,
+  html[data-theme="dark"] .btn-meal-food-chip:hover,
+  html[data-theme="dark"] .btn-meal-action:hover,
+  html[data-theme="dark"] .work-time-mode-pill:not(.active):hover,
+  html[data-theme="dark"] .btn-search-reset:hover,
+  html[data-theme="dark"] .btn-work-cal-nav:hover,
+  html[data-theme="dark"] .btn-work-cal-toggle:hover,
+  html[data-theme="dark"] .work-debt-group-card.is-debt-settled .btn-debt-items-toggle:hover {
+    background-color: #243821;
+    border-color: #6BB44A;
+  }
+
+  html[data-theme="dark"] .btn-ledger-repay.is-settled:hover {
+    background-color: #263226;
+  }
+
+  html[data-theme="dark"] .work-borrow-summary-btn:hover {
+    background-color: #1D2A1C;
+    border-color: #54923D;
+  }
+
+  html[data-theme="dark"] .btn-data-action.btn-data-cloud:hover {
+    background-color: #1B394D;
+    border-color: #5BB0D8;
+  }
+
+  html[data-theme="dark"] .btn-settings-logout:hover {
+    background-color: #462124;
+    border-color: #CC5C5C;
+  }
+
+  html[data-theme="dark"] .btn-debt-items-toggle:hover {
+    background-color: #362718;
+  }
+
+  html[data-theme="dark"] .work-search-clear:hover {
+    background-color: #2A362A;
+    color: var(--text-main);
+  }
+
+  html[data-theme="dark"] .btn-fab-plus:hover {
+    background-color: #5EA244;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Tab Quỹ Tiết Kiệm (Đa quỹ, Mục tiêu, Animation sóng/vòng/ăn mừng, Lịch sử)
+   -------------------------------------------------------------------------- */
+.btn-funds-header-add {
+  color: var(--color-pill-text);
+  background-color: var(--color-pill-green);
+  border-color: #84C757;
+}
+
+.funds-hero-card {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: linear-gradient(140deg, #FAFDFA 0%, #EEF7E8 100%);
+  border: 1.5px solid #CFE3C6;
+  border-radius: 26px;
+  padding: 18px 16px 16px;
+  box-shadow: var(--shadow-card);
+}
+
+.funds-hero-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.funds-hero-orb {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.funds-hero-orb.orb-1 {
+  width: 160px;
+  height: 160px;
+  right: -36px;
+  top: -54px;
+  background: radial-gradient(circle, rgba(164, 219, 122, 0.32) 0%, rgba(164, 219, 122, 0) 70%);
+}
+
+.funds-hero-orb.orb-2 {
+  width: 120px;
+  height: 120px;
+  left: -30px;
+  bottom: -44px;
+  background: radial-gradient(circle, rgba(94, 148, 71, 0.18) 0%, rgba(94, 148, 71, 0) 72%);
+}
+
+.funds-hero-wave {
+  position: absolute;
+  left: 0;
+  bottom: -6px;
+  width: 200%;
+  height: 36px;
+  background-repeat: repeat-x;
+  background-size: 50% 100%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 40' preserveAspectRatio='none'%3E%3Cpath d='M0,16 Q30,4 60,16 T120,16 L120,40 L0,40 Z' fill='%23A4DB7A' fill-opacity='0.22'/%3E%3C/svg%3E");
+}
+
+.funds-hero-content {
+  position: relative;
+  z-index: 2;
+}
+
+.funds-hero-balance-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 6px 0 4px;
+}
+
+.funds-hero-pct-pill {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background-color: #E2F2D6;
+  border: 1px solid #A8D88E;
+  color: #1E4611;
+  font-size: 12.5px;
+  font-weight: 800;
+}
+
+.funds-hero-target-sub {
+  font-size: 12.5px;
+  color: var(--text-sub);
+  margin-bottom: 10px;
+}
+
+.funds-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.funds-hero-actions .btn-green-pill,
+.funds-hero-actions .btn-secondary-pill {
+  flex: 1;
+  min-width: 120px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.funds-cards-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Fund Themes */
+.fund-goal-card {
+  --fund-bg: #F3FAF0;
+  --fund-border: #BFE2AF;
+  --fund-accent: #3F7A2C;
+  --fund-btn-fg: #FFFFFF;
+  --fund-text-strong: #1E4611;
+  --fund-badge-bg: #E1F3D5;
+  --fund-track: rgba(63, 122, 44, 0.14);
+  --fund-wave-1: rgba(132, 204, 92, 0.24);
+  --fund-wave-2: rgba(94, 148, 71, 0.14);
+
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background-color: var(--fund-bg);
+  border: 1.5px solid var(--fund-border);
+  border-radius: 24px;
+  padding: 15px 15px 14px;
+  box-shadow: var(--shadow-card);
+  transition: border-color 0.25s ease-out, box-shadow 0.25s ease-out;
+}
+
+.fund-goal-card.fund-theme-emerald {
+  --fund-bg: #EFFBF6;
+  --fund-border: #A7E3CA;
+  --fund-accent: #107856;
+  --fund-text-strong: #0D4A36;
+  --fund-badge-bg: #D5F5E7;
+  --fund-track: rgba(16, 120, 86, 0.14);
+  --fund-wave-1: rgba(52, 211, 153, 0.24);
+  --fund-wave-2: rgba(16, 185, 129, 0.14);
+}
+
+.fund-goal-card.fund-theme-sky {
+  --fund-bg: #EFF7FD;
+  --fund-border: #B3D9F7;
+  --fund-accent: #1565A8;
+  --fund-text-strong: #0F406E;
+  --fund-badge-bg: #D8ECFC;
+  --fund-track: rgba(21, 101, 168, 0.14);
+  --fund-wave-1: rgba(56, 189, 248, 0.24);
+  --fund-wave-2: rgba(14, 165, 233, 0.14);
+}
+
+.fund-goal-card.fund-theme-amber {
+  --fund-bg: #FFF9EE;
+  --fund-border: #F5CE8A;
+  --fund-accent: #A15208;
+  --fund-text-strong: #78350F;
+  --fund-badge-bg: #FDEAC8;
+  --fund-track: rgba(161, 82, 8, 0.14);
+  --fund-wave-1: rgba(251, 191, 36, 0.24);
+  --fund-wave-2: rgba(245, 158, 11, 0.14);
+}
+
+.fund-goal-card.fund-theme-rose {
+  --fund-bg: #FDF2F4;
+  --fund-border: #F5BFC9;
+  --fund-accent: #B82942;
+  --fund-text-strong: #7F1D32;
+  --fund-badge-bg: #FCE0E6;
+  --fund-track: rgba(184, 41, 66, 0.14);
+  --fund-wave-1: rgba(251, 113, 133, 0.22);
+  --fund-wave-2: rgba(244, 63, 94, 0.14);
+}
+
+.fund-goal-card.fund-theme-violet {
+  --fund-bg: #F6F3FD;
+  --fund-border: #CEC0F5;
+  --fund-accent: #623BB8;
+  --fund-text-strong: #3E2180;
+  --fund-badge-bg: #EAE2FC;
+  --fund-track: rgba(98, 59, 184, 0.14);
+  --fund-wave-1: rgba(167, 139, 250, 0.24);
+  --fund-wave-2: rgba(139, 92, 246, 0.14);
+}
+
+.fund-goal-card.is-goal-reached {
+  box-shadow: 0 8px 24px rgba(63, 122, 44, 0.14), 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+/* Animated Liquid Wave Background Inside Each Fund Card */
+.fund-card-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.fund-wave-level {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -14px;
+  height: calc(var(--fund-level, 0%) + 14px);
+  max-height: calc(100% + 14px);
+  transition: height 0.72s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.fund-wave-back,
+.fund-wave-front {
+  position: absolute;
+  left: 0;
+  width: 200%;
+  height: 100%;
+  border-radius: 38% 42% 0 0 / 18px 20px 0 0;
+}
+
+.fund-wave-back {
+  top: 0;
+  background: var(--fund-wave-2);
+}
+
+.fund-wave-front {
+  top: 5px;
+  background: var(--fund-wave-1);
+}
+
+.fund-card-body {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fund-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.fund-card-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.fund-card-icon-badge {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  background-color: var(--fund-badge-bg);
+  color: var(--fund-text-strong);
+  border: 1px solid var(--fund-border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.fund-card-title-wrap {
+  min-width: 0;
+  flex: 1;
+}
+
+.fund-card-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.fund-card-name {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-main);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.fund-goal-done-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10.5px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  background-color: var(--fund-accent);
+  color: var(--fund-btn-fg);
+}
+
+.fund-card-status-line {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fund-text-strong);
+  margin-top: 2px;
+}
+
+.fund-card-top-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.fund-ring-wrap {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.fund-ring-svg {
+  width: 56px;
+  height: 56px;
+  transform: rotate(-90deg);
+}
+
+.fund-ring-track {
+  fill: none;
+  stroke: var(--fund-track);
+  stroke-width: 5.5;
+}
+
+.fund-ring-fill {
+  fill: none;
+  stroke: var(--fund-accent);
+  stroke-width: 5.5;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.72s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.fund-ring-pct {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--fund-text-strong);
+}
+
+.btn-fund-edit-gear {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 12px;
+  border: 1px solid var(--fund-border);
+  background-color: rgba(255, 255, 255, 0.72);
+  color: var(--fund-text-strong);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.15s ease-out, background-color 0.15s ease-out;
+}
+
+.btn-fund-edit-gear:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.fund-money-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.fund-saved-val {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: -0.02em;
+}
+
+.fund-target-val {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-sub);
+}
+
+/* Shimmer Progress Bar & Milestone Ticks */
+.fund-progress-track {
+  position: relative;
+  width: 100%;
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background-color: var(--fund-track);
+  overflow: hidden;
+}
+
+.fund-progress-track.is-hero {
+  height: 11px;
+  background-color: rgba(63, 122, 44, 0.14);
+}
+
+.fund-progress-fill {
+  position: relative;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, var(--fund-accent, #5E9447), #7BC950);
+  transition: width 0.72s cubic-bezier(0.22, 1, 0.36, 1);
+  overflow: hidden;
+}
+
+.fund-goal-card .fund-progress-fill {
+  background: var(--fund-accent);
+}
+
+.fund-progress-tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1.5px;
+  background-color: rgba(255, 255, 255, 0.55);
+  pointer-events: none;
+}
+
+.fund-card-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.btn-fund-deposit-sm,
+.btn-fund-history-sm {
+  min-height: 44px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: transform 0.15s ease-out, filter 0.15s ease-out, background-color 0.15s ease-out;
+}
+
+.btn-fund-deposit-sm {
+  border: none;
+  background-color: var(--fund-accent);
+  color: var(--fund-btn-fg);
+}
+
+.btn-fund-history-sm {
+  border: 1.5px solid var(--fund-border);
+  background-color: rgba(255, 255, 255, 0.85);
+  color: var(--fund-text-strong);
+}
+
+.btn-fund-deposit-sm:not(:disabled):active,
+.btn-fund-history-sm:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+/* Deposit Floating +Amount & Sparkles */
+.fund-deposit-float {
+  position: absolute;
+  right: 18px;
+  top: 14px;
+  z-index: 4;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background-color: var(--fund-accent);
+  color: var(--fund-btn-fg);
+  font-size: 12.5px;
+  font-weight: 800;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.16);
+  pointer-events: none;
+}
+
+.fund-sparkle-dot {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--fund-accent);
+  z-index: 4;
+  pointer-events: none;
+}
+
+.fund-sparkle-dot.is-gold {
+  background-color: #F59E0B;
+  width: 8px;
+  height: 8px;
+}
+
+/* History Filter Pills & Items */
+.fund-filter-pill {
+  flex-shrink: 0;
+  min-height: 36px;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid #D8E6D2;
+  background-color: #F4F8F2;
+  color: #254516;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform 0.15s ease-out, background-color 0.15s ease-out, color 0.15s ease-out;
+}
+
+.fund-filter-pill.active {
+  background-color: var(--color-pill-green);
+  border-color: #6CA844;
+  color: var(--color-pill-text);
+}
+
+.fund-filter-pill:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.fund-tag-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background-color: #E8F6DE;
+  color: #1E4611;
+}
+
+.fund-tag-badge.is-sky { background-color: #D8ECFC; color: #0F406E; }
+.fund-tag-badge.is-emerald { background-color: #D5F5E7; color: #0D4A36; }
+.fund-tag-badge.is-amber { background-color: #FDEAC8; color: #78350F; }
+.fund-tag-badge.is-rose { background-color: #FCE0E6; color: #7F1D32; }
+.fund-tag-badge.is-violet { background-color: #EAE2FC; color: #3E2180; }
+
+.fund-history-modal-summary {
+  background-color: var(--bg-subtle);
+  border: 1px solid var(--border-card);
+  border-radius: 18px;
+  padding: 13px 14px;
+  margin-bottom: 12px;
+}
+
+/* Color & Icon Pickers in Editor Modal */
+.fund-color-grid,
+.fund-icon-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (max-width: 340px) {
+  .fund-color-grid,
+  .fund-icon-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.fund-color-swatch,
+.fund-icon-opt {
+  min-height: 44px;
+  border-radius: 12px;
+  border: 1.5px solid #DCE5D8;
+  background-color: #F8FAF7;
+  color: var(--text-main);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.15s ease-out, border-color 0.15s ease-out, background-color 0.15s ease-out;
+}
+
+.fund-swatch-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+}
+
+.fund-color-swatch.is-sage .fund-swatch-dot { background-color: #5E9447; }
+.fund-color-swatch.is-emerald .fund-swatch-dot { background-color: #10B981; }
+.fund-color-swatch.is-sky .fund-swatch-dot { background-color: #0EA5E9; }
+.fund-color-swatch.is-amber .fund-swatch-dot { background-color: #F59E0B; }
+.fund-color-swatch.is-rose .fund-swatch-dot { background-color: #F43F5E; }
+.fund-color-swatch.is-violet .fund-swatch-dot { background-color: #8B5CF6; }
+
+.fund-color-swatch.active,
+.fund-icon-opt.active {
+  border-color: var(--color-score-ring);
+  background-color: #E8F6DE;
+  color: #1E4611;
+  box-shadow: 0 0 0 2px rgba(94, 148, 71, 0.25);
+}
+
+.fund-color-swatch:not(:disabled):active,
+.fund-icon-opt:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+@media (hover: hover) {
+  .btn-fund-edit-gear:hover,
+  .btn-fund-history-sm:hover {
+    background-color: #FFFFFF;
+  }
+
+  .btn-fund-deposit-sm:hover {
+    filter: brightness(1.06);
+  }
+
+  .fund-filter-pill:not(.active):hover {
+    background-color: #E8F3E2;
+  }
+}
+
+/* Reduced-Motion Safe Fund Animations */
+@media (prefers-reduced-motion: no-preference) {
+  .funds-hero-wave {
+    animation: waterWaveFlow 7.5s linear infinite;
+  }
+
+  .fund-wave-back {
+    animation: fundWaveSway 6.2s ease-in-out infinite alternate;
+  }
+
+  .fund-wave-front {
+    animation: fundWaveSway 4.4s ease-in-out infinite alternate-reverse;
+  }
+
+  .fund-progress-fill::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.38) 50%, transparent 100%);
+    transform: translateX(-100%);
+    animation: fundBarShimmer 2.8s ease-in-out infinite;
+  }
+
+  .fund-deposit-float {
+    animation: fundFloatUp 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  .fund-sparkle-dot {
+    animation: fundSparklePop 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+}
+
+@keyframes fundWaveSway {
+  from {
+    transform: translateX(0) translateY(0);
+  }
+
+  to {
+    transform: translateX(-22%) translateY(-2px);
+  }
+}
+
+@keyframes fundBarShimmer {
+  0%,
+  35% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+@keyframes fundFloatUp {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.85);
+  }
+
+  20% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-28px) scale(0.96);
+  }
+}
+
+@keyframes fundSparklePop {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(0.4);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(var(--sx, 16px), var(--sy, -22px)) scale(1.1);
+  }
+}
+
+/* Dark Mode Overrides for Quỹ Tiết Kiệm */
+html[data-theme="dark"] .btn-funds-header-add {
+  background-color: var(--color-pill-green);
+  color: var(--color-pill-text);
+  border-color: #6BB44A;
+}
+
+html[data-theme="dark"] .funds-hero-card {
+  background: linear-gradient(140deg, #161F15 0%, #1C2A1A 100%);
+  border-color: #365033;
+}
+
+html[data-theme="dark"] .funds-hero-pct-pill {
+  background-color: #1D341A;
+  border-color: #4E8A38;
+  color: #A7E484;
+}
+
+html[data-theme="dark"] .fund-progress-track.is-hero {
+  background-color: rgba(134, 199, 90, 0.16);
+}
+
+html[data-theme="dark"] .fund-goal-card {
+  --fund-bg: #172416;
+  --fund-border: #4D8639;
+  --fund-accent: #8ED162;
+  --fund-btn-fg: #0E1710;
+  --fund-text-strong: #B6EE92;
+  --fund-badge-bg: #20351D;
+  --fund-track: rgba(134, 199, 90, 0.18);
+  --fund-wave-1: rgba(134, 199, 90, 0.18);
+  --fund-wave-2: rgba(94, 148, 71, 0.12);
+}
+
+html[data-theme="dark"] .fund-goal-card.fund-theme-emerald {
+  --fund-bg: #13251F;
+  --fund-border: #338366;
+  --fund-accent: #5EEAD4;
+  --fund-text-strong: #A7F3D0;
+  --fund-badge-bg: #1B362D;
+  --fund-track: rgba(94, 234, 212, 0.16);
+  --fund-wave-1: rgba(52, 211, 153, 0.18);
+  --fund-wave-2: rgba(16, 185, 129, 0.12);
+}
+
+html[data-theme="dark"] .fund-goal-card.fund-theme-sky {
+  --fund-bg: #13222E;
+  --fund-border: #3B78A6;
+  --fund-accent: #7DD3FC;
+  --fund-text-strong: #BAE6FD;
+  --fund-badge-bg: #193142;
+  --fund-track: rgba(125, 211, 252, 0.16);
+  --fund-wave-1: rgba(56, 189, 248, 0.18);
+  --fund-wave-2: rgba(14, 165, 233, 0.12);
+}
+
+html[data-theme="dark"] .fund-goal-card.fund-theme-amber {
+  --fund-bg: #271E12;
+  --fund-border: #A86A22;
+  --fund-accent: #FBBF24;
+  --fund-text-strong: #FDE68A;
+  --fund-badge-bg: #362816;
+  --fund-track: rgba(251, 191, 36, 0.16);
+  --fund-wave-1: rgba(251, 191, 36, 0.18);
+  --fund-wave-2: rgba(245, 158, 11, 0.12);
+}
+
+html[data-theme="dark"] .fund-goal-card.fund-theme-rose {
+  --fund-bg: #29161C;
+  --fund-border: #BA526C;
+  --fund-accent: #FDA4AF;
+  --fund-text-strong: #FECDD3;
+  --fund-badge-bg: #3B1E27;
+  --fund-track: rgba(253, 164, 175, 0.16);
+  --fund-wave-1: rgba(251, 113, 133, 0.18);
+  --fund-wave-2: rgba(244, 63, 94, 0.12);
+}
+
+html[data-theme="dark"] .fund-goal-card.fund-theme-violet {
+  --fund-bg: #1F192E;
+  --fund-border: #765BB3;
+  --fund-accent: #C4B5FD;
+  --fund-text-strong: #DDD6FE;
+  --fund-badge-bg: #2C2342;
+  --fund-track: rgba(196, 181, 253, 0.16);
+  --fund-wave-1: rgba(167, 139, 250, 0.18);
+  --fund-wave-2: rgba(139, 92, 246, 0.12);
+}
+
+html[data-theme="dark"] .btn-fund-edit-gear,
+html[data-theme="dark"] .btn-fund-history-sm {
+  background-color: rgba(17, 22, 17, 0.65);
+  border-color: var(--fund-border);
+  color: var(--fund-text-strong);
+}
+
+html[data-theme="dark"] .fund-filter-pill,
+html[data-theme="dark"] .fund-color-swatch,
+html[data-theme="dark"] .fund-icon-opt {
+  background-color: #1D261D;
+  border-color: #647563;
+  color: var(--text-main);
+}
+
+html[data-theme="dark"] .fund-filter-pill.active,
+html[data-theme="dark"] .fund-color-swatch.active,
+html[data-theme="dark"] .fund-icon-opt.active {
+  background-color: #1E331A;
+  border-color: #7CC256;
+  color: #B7E59A;
+}
+
+html[data-theme="dark"] .fund-filter-pill.active {
+  background-color: var(--color-pill-green);
+  color: var(--color-pill-text);
+}
+
+html[data-theme="dark"] .fund-tag-badge { background-color: #1C3119; color: #A7E484; }
+html[data-theme="dark"] .fund-tag-badge.is-sky { background-color: #152B3C; color: #BAE6FD; }
+html[data-theme="dark"] .fund-tag-badge.is-emerald { background-color: #153027; color: #A7F3D0; }
+html[data-theme="dark"] .fund-tag-badge.is-amber { background-color: #332512; color: #FDE68A; }
+html[data-theme="dark"] .fund-tag-badge.is-rose { background-color: #361A22; color: #FECDD3; }
+html[data-theme="dark"] .fund-tag-badge.is-violet { background-color: #28203D; color: #DDD6FE; }
+
+@media (hover: hover) {
+  html[data-theme="dark"] .btn-fund-edit-gear:hover,
+  html[data-theme="dark"] .btn-fund-history-sm:hover {
+    background-color: rgba(25, 34, 25, 0.9);
+  }
+
+  html[data-theme="dark"] .fund-filter-pill:not(.active):hover {
+    background-color: #243322;
   }
 }
 
