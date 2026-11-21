@@ -853,92 +853,206 @@
     if (!appView || appView.dataset.swipeBound) return;
     appView.dataset.swipeBound = '1';
 
+    // Pager kiểu Instagram:
+    // - Trang bám 1:1 theo ngón tay, trang kế bên trượt vào sát cạnh.
+    // - Ở tab đầu/cuối kéo có lực cản "cao su" thay vì dừng cứng.
+    // - Thả tay: quyết định theo vận tốc 100ms cuối + vị trí dự phóng (quá nửa trang là sang).
+    // - Về vị trí bằng lò xo vật lý mang theo vận tốc thả tay; chạm vào giữa chừng để "chụp" lại trang.
+    // - Thanh điều hướng đổi tab ngay khi trang kéo qua một nửa.
     const EDGE_ZONE_PX = 36;
-    const SWIPE_MAX_DURATION_MS = 680;
-    const FLICK_MAX_DURATION_MS = 280;
-    const FLICK_MIN_VELOCITY = 0.28;
-    const MAX_VERTICAL_DRIFT_PX = 84;
-    const SETTLE_DURATION_MS = 220;
+    const VELOCITY_WINDOW_MS = 100;
+    const FLING_MIN_VELOCITY = 0.3; // px/ms
+    const MAX_RELEASE_VELOCITY = 6; // px/ms
+    const PROJECTION_MS = 200;
+    const SPRING_STIFFNESS = 380;
+    const SPRING_DAMPING_RATIO = 0.82;
+    const SPRING_MAX_MS = 900;
+    const RUBBER_COEFF = 0.55;
     const EDITABLE_SELECTOR = 'input, textarea, select, [contenteditable="true"]';
     const HORIZ_IGNORE_SELECTOR = '.motivation-thumbs-strip, .work-chips-scroll, .calendar-days-strip, [data-no-tab-swipe]';
 
     const scheduleFrame = typeof window.requestAnimationFrame === 'function'
       ? window.requestAnimationFrame.bind(window)
-      : (fn) => setTimeout(fn, 0);
+      : (fn) => setTimeout(fn, 16);
     const cancelFrame = typeof window.cancelAnimationFrame === 'function'
       ? window.cancelAnimationFrame.bind(window)
       : clearTimeout;
+    const nowMs = () => (window.performance && typeof window.performance.now === 'function')
+      ? window.performance.now()
+      : Date.now();
 
     let gesture = null;
-    let rafId = 0;
-    let pendingDrag = null;
-    let pendingSettle = null;
+    let dragRaf = 0;
+    let pendingOffset = null;
+    let settle = null;
+    let navHintTab = '';
 
     function getActivePane() {
       return document.getElementById('tab-' + state.activeTab);
     }
 
-    function getOrCreateEdgePill() {
-      let pill = document.getElementById('tab-swipe-edge-pill');
-      if (!pill && typeof document.createElement === 'function' && document.body) {
-        pill = document.createElement('div');
-        pill.id = 'tab-swipe-edge-pill';
-        pill.className = 'tab-swipe-edge-pill';
-        pill.setAttribute('aria-hidden', 'true');
-        document.body.appendChild(pill);
+    function getStride() {
+      return Math.max(240, appView.clientWidth || window.innerWidth || 390);
+    }
+
+    // side: 1 = tab kế tiếp (vuốt sang trái), -1 = tab trước (vuốt sang phải)
+    function getNeighborTab(side) {
+      const curIdx = MAIN_TAB_ORDER.indexOf(state.activeTab);
+      if (curIdx === -1 || !side) return '';
+      return MAIN_TAB_ORDER[curIdx + side] || '';
+    }
+
+    function rubberBand(distance, dimension) {
+      return (1 - 1 / ((distance * RUBBER_COEFF / dimension) + 1)) * dimension;
+    }
+
+    function inverseRubberBand(offset, dimension) {
+      const ratio = Math.min(0.95, Math.abs(offset) / dimension);
+      return (dimension / RUBBER_COEFF) * (1 / (1 - ratio) - 1);
+    }
+
+    function ensureWorkDataFor(tab) {
+      if ((tab === 'work' || tab === 'ledger') && !workState.date && typeof computeWorkFromLocalVault === 'function') {
+        computeWorkFromLocalVault(workState.date || state.today);
       }
-      return pill;
     }
 
-    function hideEdgePill() {
-      const pill = document.getElementById('tab-swipe-edge-pill');
-      if (!pill) return;
-      pill.classList.remove('is-visible', 'is-ready');
+    function setNavHint(tab) {
+      if (!tab || navHintTab === tab) return;
+      navHintTab = tab;
+      updateNavPillSelection(tab);
     }
 
-    function updateEdgePill(side, label, isReady) {
-      const pill = getOrCreateEdgePill();
-      if (!pill) return;
-      pill.setAttribute('data-side', side);
-      pill.textContent = side === 'left' ? `← ${label}` : `${label} →`;
-      pill.classList.add('is-visible');
-      pill.classList.toggle('is-ready', Boolean(isReady));
+    function clearCtx(ctx) {
+      if (!ctx) return;
+      clearPaneSwipeStyles(ctx.activePane);
+      if (ctx.previewPane) clearPaneSwipeStyles(ctx.previewPane);
     }
 
-    function cancelPendingFrame() {
-      if (rafId) {
-        cancelFrame(rafId);
-        rafId = 0;
+    function paint(ctx) {
+      if (ctx.activePane) {
+        ctx.activePane.classList.add('is-swipe-dragging');
+        ctx.activePane.style.transform = `translate3d(${ctx.x.toFixed(2)}px, 0, 0)`;
       }
-      pendingDrag = null;
+      if (ctx.previewPane) {
+        const px = ctx.x + ctx.previewSide * ctx.stride;
+        ctx.previewPane.style.transform = `translate3d(${px.toFixed(2)}px, 0, 0)`;
+      }
+      setNavHint(ctx.previewTab && Math.abs(ctx.x) > ctx.stride / 2 ? ctx.previewTab : state.activeTab);
     }
 
-    function flushPendingSettle() {
-      if (!pendingSettle) return;
-      const s = pendingSettle;
-      pendingSettle = null;
-      if (s.timerId) clearTimeout(s.timerId);
-      if (s.isSwitch && s.targetTab) {
-        switchTab(s.targetTab, { viaSwipeSettled: true, fromSwipeFlush: true });
+    // Đặt 2 trang theo độ dịch thô của ngón tay (rawOffset), gồm chọn trang xem trước và lực cản ở mép.
+    function renderPager(ctx, rawOffset) {
+      const side = rawOffset < 0 ? 1 : (rawOffset > 0 ? -1 : 0);
+      const tab = getNeighborTab(side);
+      const pane = tab ? document.getElementById('tab-' + tab) : null;
+
+      if (ctx.previewPane && ctx.previewPane !== pane) {
+        clearPaneSwipeStyles(ctx.previewPane);
+        ctx.previewPane = null;
+        ctx.previewTab = '';
+        ctx.previewSide = 0;
+      }
+
+      if (pane) {
+        if (!ctx.previewPane) {
+          ensureWorkDataFor(tab);
+          pane.style.setProperty('--swipe-scroll-y', `${ctx.scrollY}px`);
+          pane.classList.add('is-swipe-preview', 'is-swipe-dragging');
+          ctx.previewPane = pane;
+          ctx.previewTab = tab;
+          ctx.previewSide = side;
+        }
+        ctx.x = Math.max(-ctx.stride, Math.min(ctx.stride, rawOffset));
       } else {
-        clearPaneSwipeStyles(s.activePane);
-        if (s.previewPane) clearPaneSwipeStyles(s.previewPane);
+        ctx.x = rawOffset === 0 ? 0 : Math.sign(rawOffset) * rubberBand(Math.abs(rawOffset), ctx.stride);
       }
+      paint(ctx);
+    }
+
+    function finishSettle(ctx, commitTab) {
+      navHintTab = '';
+      if (commitTab) {
+        switchTab(commitTab, { viaSwipeSettled: true, fromSwipeFlush: true });
+      } else {
+        clearCtx(ctx);
+        updateNavPillSelection(state.activeTab);
+      }
+    }
+
+    // Lò xo giảm chấn (semi-implicit Euler, bước 1/240s) — mang theo vận tốc thả tay.
+    function startSettle(ctx, targetX, velocityPxPerMs, commitTab) {
+      if (prefersReducedMotion() || !ctx.activePane) {
+        finishSettle(ctx, commitTab);
+        return;
+      }
+      const omega = Math.sqrt(SPRING_STIFFNESS);
+      const damping = 2 * SPRING_DAMPING_RATIO * omega;
+      const startT = nowMs();
+      const s = {
+        ctx,
+        targetX,
+        commitTab,
+        v: Math.max(-MAX_RELEASE_VELOCITY, Math.min(MAX_RELEASE_VELOCITY, velocityPxPerMs || 0)) * 1000,
+        lastT: startT,
+        startT,
+        rafId: 0
+      };
+      settle = s;
+
+      const step = () => {
+        if (settle !== s) return;
+        const t = nowMs();
+        let dt = Math.min(0.064, Math.max(0, (t - s.lastT) / 1000));
+        s.lastT = t;
+        while (dt > 0) {
+          const h = Math.min(dt, 1 / 240);
+          const accel = -SPRING_STIFFNESS * (s.ctx.x - s.targetX) - damping * s.v;
+          s.v += accel * h;
+          s.ctx.x += s.v * h;
+          dt -= h;
+          // Không cho trang vượt quá một bề rộng (tránh hở khoảng trắng khi lò xo nảy).
+          if (s.ctx.previewPane && Math.abs(s.ctx.x) > s.ctx.stride) {
+            s.ctx.x = Math.sign(s.ctx.x) * s.ctx.stride;
+            s.v = 0;
+          }
+        }
+        const atRest = Math.abs(s.ctx.x - s.targetX) < 0.5 && Math.abs(s.v) < 30;
+        if (atRest || (t - s.startT) > SPRING_MAX_MS) {
+          s.ctx.x = s.targetX;
+          paint(s.ctx);
+          settle = null;
+          finishSettle(s.ctx, s.commitTab);
+          return;
+        }
+        paint(s.ctx);
+        s.rafId = scheduleFrame(step);
+      };
+      s.rafId = scheduleFrame(step);
+    }
+
+    function cancelDragFrame() {
+      if (dragRaf) {
+        cancelFrame(dragRaf);
+        dragRaf = 0;
+      }
+      pendingOffset = null;
+    }
+
+    function releaseGestureToRest(g) {
+      if (g && g.ctx) startSettle(g.ctx, 0, 0, '');
     }
 
     cancelSwipeSessionFn = function () {
-      cancelPendingFrame();
-      hideEdgePill();
-      if (pendingSettle) {
-        if (pendingSettle.timerId) clearTimeout(pendingSettle.timerId);
-        clearPaneSwipeStyles(pendingSettle.activePane);
-        if (pendingSettle.previewPane) clearPaneSwipeStyles(pendingSettle.previewPane);
-        pendingSettle = null;
+      cancelDragFrame();
+      if (settle) {
+        cancelFrame(settle.rafId);
+        clearCtx(settle.ctx);
+        settle = null;
       }
-      if (gesture && gesture.previewPane) {
-        clearPaneSwipeStyles(gesture.previewPane);
-      }
+      if (gesture && gesture.ctx) clearCtx(gesture.ctx);
       gesture = null;
+      navHintTab = '';
     };
 
     function hasHorizontalScrollableAncestor(target) {
@@ -955,131 +1069,77 @@
       return false;
     }
 
-    function getSwipeThresholds(isEdgeSwipe) {
-      return isEdgeSwipe
-        ? { lockThreshold: 6, lockRatio: 1.15, minDistance: 40, flickMinDistance: 28, endRatio: 1.2 }
-        : { lockThreshold: 10, lockRatio: 1.35, minDistance: 52, flickMinDistance: 38, endRatio: 1.4 };
+    function pushSample(g, x) {
+      const t = nowMs();
+      g.samples.push({ x, t });
+      while (g.samples.length > 2 && t - g.samples[0].t > VELOCITY_WINDOW_MS) {
+        g.samples.shift();
+      }
     }
 
-    function applyDragFrame(dx, isEdgeSwipe) {
-      if (!gesture || gesture.axis !== 'x') return;
-      const curIdx = MAIN_TAB_ORDER.indexOf(state.activeTab);
-      if (curIdx === -1) return;
-
-      const activePane = getActivePane();
-      if (!activePane) return;
-
-      const stride = Math.max(240, appView.clientWidth || window.innerWidth || 390);
-      const targetIdx = dx < 0 ? curIdx + 1 : (dx > 0 ? curIdx - 1 : -1);
-      const hasTarget = targetIdx >= 0 && targetIdx < MAIN_TAB_ORDER.length;
-      const targetTab = hasTarget ? MAIN_TAB_ORDER[targetIdx] : '';
-      const previewPane = targetTab ? document.getElementById('tab-' + targetTab) : null;
-
-      if (gesture.previewPane && gesture.previewPane !== previewPane) {
-        clearPaneSwipeStyles(gesture.previewPane);
-        gesture.previewPane = null;
-      }
-
-      const cfg = getSwipeThresholds(isEdgeSwipe);
-      const absX = Math.abs(dx);
-      gesture.stride = stride;
-
-      if (!prefersReducedMotion()) {
-        if (hasTarget && previewPane) {
-          if ((targetTab === 'work' || targetTab === 'ledger') && !workState.date && typeof computeWorkFromLocalVault === 'function') {
-            computeWorkFromLocalVault(workState.date || state.today);
-          }
-          const clampedDx = Math.max(-stride, Math.min(stride, dx));
-          const previewX = clampedDx < 0 ? (stride + clampedDx) : (-stride + clampedDx);
-
-          activePane.classList.add('is-swipe-dragging');
-          activePane.style.transform = `translate3d(${clampedDx.toFixed(1)}px, 0, 0)`;
-
-          if (!previewPane.classList.contains('is-swipe-preview')) {
-            previewPane.style.setProperty('--swipe-scroll-y', `${gesture.scrollY}px`);
-            previewPane.classList.add('is-swipe-preview');
-          }
-          previewPane.classList.add('is-swipe-dragging');
-          previewPane.style.transform = `translate3d(${previewX.toFixed(1)}px, 0, 0)`;
-
-          gesture.previewPane = previewPane;
-          gesture.lastClampedDx = clampedDx;
-        } else {
-          const dampedDx = Math.max(-44, Math.min(44, dx * 0.22));
-          activePane.classList.add('is-swipe-dragging');
-          activePane.style.transform = `translate3d(${dampedDx.toFixed(1)}px, 0, 0)`;
-          gesture.lastClampedDx = dampedDx;
+    function computeVelocity(samples) {
+      if (!samples || samples.length < 2) return 0;
+      const last = samples[samples.length - 1];
+      let first = null;
+      for (let i = 0; i < samples.length; i++) {
+        if (last.t - samples[i].t <= VELOCITY_WINDOW_MS) {
+          first = samples[i];
+          break;
         }
       }
-
-      if (hasTarget) {
-        const side = dx < 0 ? 'right' : 'left';
-        updateEdgePill(side, MAIN_TAB_LABELS[targetTab] || targetTab, absX >= cfg.minDistance);
-      } else {
-        hideEdgePill();
-      }
+      if (!first || first === last) return 0;
+      const dt = last.t - first.t;
+      return dt > 0 ? (last.x - first.x) / dt : 0;
     }
 
-    function startRebound(activePane, previewPane, clampedDx, stride) {
-      if (prefersReducedMotion() || !activePane) {
-        clearPaneSwipeStyles(activePane);
-        if (previewPane) clearPaneSwipeStyles(previewPane);
-        return;
-      }
-      const hasDrag = activePane.classList.contains('is-swipe-dragging') || Boolean(previewPane);
-      if (!hasDrag) {
-        clearPaneSwipeStyles(activePane);
-        if (previewPane) clearPaneSwipeStyles(previewPane);
-        return;
-      }
-
-      activePane.classList.remove('is-swipe-dragging');
-      activePane.classList.add('is-swipe-settling');
-      activePane.style.transform = 'translate3d(0, 0, 0)';
-
-      if (previewPane) {
-        const outX = clampedDx < 0 ? stride : -stride;
-        previewPane.classList.remove('is-swipe-dragging');
-        previewPane.classList.add('is-swipe-settling');
-        previewPane.style.transform = `translate3d(${outX}px, 0, 0)`;
-      }
-
-      pendingSettle = {
-        isSwitch: false,
-        activePane,
-        previewPane,
-        timerId: setTimeout(flushPendingSettle, SETTLE_DURATION_MS + 10)
-      };
-    }
-
-    function cancelAndRebound() {
-      cancelPendingFrame();
-      hideEdgePill();
-      if (!gesture) return;
-      const g = gesture;
-      gesture = null;
-      if (g.axis === 'x') {
-        startRebound(getActivePane(), g.previewPane, g.lastClampedDx || 0, g.stride || 390);
-      }
+    function isSwipeAllowed() {
+      return document.body.classList.contains('is-logged-in') && !document.querySelector('.modal-overlay.open');
     }
 
     appView.addEventListener('touchstart', (e) => {
-      flushPendingSettle();
-      cancelAndRebound();
-      if (!document.body.classList.contains('is-logged-in')) return;
-      if (!e.touches || e.touches.length !== 1) return;
-      if (document.querySelector('.modal-overlay.open')) return;
+      cancelDragFrame();
+      if (gesture) {
+        const stale = gesture;
+        gesture = null;
+        releaseGestureToRest(stale);
+      }
 
-      const touch = e.touches[0];
+      const singleTouch = Boolean(e.touches && e.touches.length === 1);
+      const touch = singleTouch ? e.touches[0] : null;
+
+      // Chạm vào khi trang đang trượt: "chụp" lại trang và kéo tiếp từ vị trí hiện tại.
+      if (settle) {
+        const s = settle;
+        cancelFrame(s.rafId);
+        settle = null;
+        if (touch && isSwipeAllowed()) {
+          const ctx = s.ctx;
+          const baseOffset = ctx.previewPane ? ctx.x : Math.sign(ctx.x) * inverseRubberBand(ctx.x, ctx.stride);
+          gesture = {
+            originX: touch.clientX,
+            startY: touch.clientY,
+            lastX: touch.clientX,
+            isEdgeSwipe: false,
+            axis: 'x',
+            baseOffset,
+            samples: [{ x: touch.clientX, t: nowMs() }],
+            ctx
+          };
+          return;
+        }
+        s.ctx.x = s.targetX;
+        finishSettle(s.ctx, s.commitTab);
+      }
+
+      if (!touch || !isSwipeAllowed()) return;
+
       const rect = typeof appView.getBoundingClientRect === 'function'
         ? appView.getBoundingClientRect()
         : { left: 0, right: window.innerWidth || 390 };
       const leftBoundary = Math.max(0, rect.left || 0);
       const rightBoundary = rect.right && rect.right > 0 ? rect.right : (window.innerWidth || 390);
-      const distLeft = touch.clientX - leftBoundary;
-      const distRight = rightBoundary - touch.clientX;
       const viewportWidth = window.innerWidth || rightBoundary;
-      const isEdgeSwipe = distLeft <= EDGE_ZONE_PX || distRight <= EDGE_ZONE_PX ||
+      const isEdgeSwipe = touch.clientX - leftBoundary <= EDGE_ZONE_PX || rightBoundary - touch.clientX <= EDGE_ZONE_PX ||
         touch.clientX <= EDGE_ZONE_PX || touch.clientX >= viewportWidth - EDGE_ZONE_PX;
 
       const targetEl = e.target && e.target.nodeType === 1 ? e.target : (e.target && e.target.parentElement);
@@ -1089,196 +1149,145 @@
         if (hasHorizontalScrollableAncestor(targetEl)) return;
       }
 
-      const scrollY = (window.scrollY || window.pageYOffset || 0) + (appView.scrollTop || 0);
       gesture = {
         startX: touch.clientX,
         startY: touch.clientY,
+        originX: touch.clientX,
         lastX: touch.clientX,
-        lastY: touch.clientY,
-        startTime: Date.now(),
-        scrollY,
+        scrollY: (window.scrollY || window.pageYOffset || 0) + (appView.scrollTop || 0),
         isEdgeSwipe,
         axis: null,
-        previewPane: null,
-        lastClampedDx: 0,
-        stride: Math.max(240, appView.clientWidth || viewportWidth || 390)
+        baseOffset: 0,
+        samples: [{ x: touch.clientX, t: nowMs() }],
+        ctx: null
       };
     }, { passive: true });
 
     appView.addEventListener('touchmove', (e) => {
       if (!gesture) return;
       if (!e.touches || e.touches.length !== 1) {
-        cancelAndRebound();
+        const g = gesture;
+        gesture = null;
+        cancelDragFrame();
+        releaseGestureToRest(g);
         return;
       }
 
       const touch = e.touches[0];
       gesture.lastX = touch.clientX;
-      gesture.lastY = touch.clientY;
-
-      const dx = touch.clientX - gesture.startX;
-      const dy = touch.clientY - gesture.startY;
-      const absX = Math.abs(dx);
-      const absY = Math.abs(dy);
-      const cfg = getSwipeThresholds(gesture.isEdgeSwipe);
 
       if (gesture.axis === null) {
-        if (absX < cfg.lockThreshold && absY < cfg.lockThreshold) {
-          return;
-        }
-        if (absY >= absX * 0.85) {
-          gesture.axis = 'y';
+        const dx = touch.clientX - gesture.startX;
+        const dy = touch.clientY - gesture.startY;
+        const absX = Math.abs(dx);
+        const absY = Math.abs(dy);
+        const slop = gesture.isEdgeSwipe ? 6 : 8;
+        const lockRatio = gesture.isEdgeSwipe ? 1.0 : 1.2;
+        if (absX < slop && absY < slop) return;
+
+        if (absX >= absY * lockRatio) {
+          const activePane = getActivePane();
+          if (!activePane) {
+            gesture = null;
+            return;
+          }
+          clearPaneSwipeStyles(activePane);
+          activePane.removeAttribute('data-slide-dir');
+          gesture.axis = 'x';
+          // Bắt đầu tính từ điểm khoá trục để trang không bị "giật" một đoạn bằng touch slop.
+          gesture.originX = touch.clientX;
+          gesture.samples = [{ x: touch.clientX, t: nowMs() }];
+          gesture.ctx = {
+            activePane,
+            previewPane: null,
+            previewTab: '',
+            previewSide: 0,
+            scrollY: gesture.scrollY,
+            stride: getStride(),
+            x: 0
+          };
+        } else if (absY >= absX * 0.85) {
           gesture = null;
           return;
-        }
-        if (absX >= absY * cfg.lockRatio) {
-          gesture.axis = 'x';
-          const pane = getActivePane();
-          if (pane) {
-            clearPaneSwipeStyles(pane);
-            pane.removeAttribute('data-slide-dir');
-          }
         } else {
           return;
         }
-      }
-
-      if (gesture.axis !== 'x') return;
-
-      if (absY > MAX_VERTICAL_DRIFT_PX && absY > absX * 0.85) {
-        cancelAndRebound();
-        return;
       }
 
       if (e.cancelable && typeof e.preventDefault === 'function') {
         e.preventDefault();
       }
 
-      pendingDrag = { dx, isEdgeSwipe: gesture.isEdgeSwipe };
-      if (!rafId) {
-        rafId = scheduleFrame(() => {
-          rafId = 0;
-          if (!pendingDrag || !gesture) return;
-          const frame = pendingDrag;
-          pendingDrag = null;
-          applyDragFrame(frame.dx, frame.isEdgeSwipe);
+      pushSample(gesture, touch.clientX);
+      const offset = gesture.baseOffset + (touch.clientX - gesture.originX);
+      if (prefersReducedMotion()) {
+        gesture.ctx.x = offset;
+        return;
+      }
+
+      pendingOffset = offset;
+      if (!dragRaf) {
+        dragRaf = scheduleFrame(() => {
+          dragRaf = 0;
+          if (pendingOffset === null || !gesture || !gesture.ctx) return;
+          const value = pendingOffset;
+          pendingOffset = null;
+          renderPager(gesture.ctx, value);
         });
       }
     }, { passive: false });
 
     appView.addEventListener('touchend', (e) => {
       if (!gesture) return;
-      const touch = (e.changedTouches && e.changedTouches[0]) || null;
-      const endX = touch ? touch.clientX : gesture.lastX;
-      const endY = touch ? touch.clientY : gesture.lastY;
-      const dx = endX - gesture.startX;
-      const dy = endY - gesture.startY;
-
-      if (pendingDrag) {
-        const frame = pendingDrag;
-        cancelPendingFrame();
-        if (gesture.axis === 'x') {
-          applyDragFrame(frame.dx, frame.isEdgeSwipe);
-        }
-      } else {
-        cancelPendingFrame();
-      }
-
       const g = gesture;
       gesture = null;
-      hideEdgePill();
+      cancelDragFrame();
+      if (g.axis !== 'x' || !g.ctx) return;
 
-      const activePane = getActivePane();
-      const absX = Math.abs(dx);
-      const absY = Math.abs(dy);
-      const dt = Math.max(1, Date.now() - g.startTime);
-      const cfg = getSwipeThresholds(g.isEdgeSwipe);
-      const stride = g.stride || Math.max(240, appView.clientWidth || window.innerWidth || 390);
-
-      if (g.axis !== 'x' || !document.body.classList.contains('is-logged-in') || document.querySelector('.modal-overlay.open')) {
-        startRebound(activePane, g.previewPane, g.lastClampedDx || 0, stride);
-        return;
-      }
-
-      if (absX <= absY * cfg.endRatio || absY > MAX_VERTICAL_DRIFT_PX) {
-        startRebound(activePane, g.previewPane, g.lastClampedDx || 0, stride);
-        return;
-      }
-
-      const isNormalSwipe = absX >= cfg.minDistance && dt <= SWIPE_MAX_DURATION_MS;
-      const isFlick = absX >= cfg.flickMinDistance && dt <= FLICK_MAX_DURATION_MS && (absX / dt) >= FLICK_MIN_VELOCITY;
-      if (!isNormalSwipe && !isFlick) {
-        startRebound(activePane, g.previewPane, g.lastClampedDx || 0, stride);
-        return;
-      }
-
-      const curIdx = MAIN_TAB_ORDER.indexOf(state.activeTab);
-      if (curIdx === -1) {
-        startRebound(activePane, g.previewPane, g.lastClampedDx || 0, stride);
-        return;
-      }
-
-      const targetTab = (dx < 0 && curIdx < MAIN_TAB_ORDER.length - 1)
-        ? MAIN_TAB_ORDER[curIdx + 1]
-        : ((dx > 0 && curIdx > 0) ? MAIN_TAB_ORDER[curIdx - 1] : '');
-      const dir = dx < 0 ? 'next' : 'prev';
-
-      if (!targetTab) {
-        startRebound(activePane, g.previewPane, g.lastClampedDx || 0, stride);
-        return;
-      }
-
+      const touch = (e.changedTouches && e.changedTouches[0]) || null;
+      const endX = touch ? touch.clientX : g.lastX;
+      pushSample(g, endX);
+      const ctx = g.ctx;
+      const offset = g.baseOffset + (endX - g.originX);
       if (prefersReducedMotion()) {
-        clearPaneSwipeStyles(activePane);
-        if (g.previewPane) clearPaneSwipeStyles(g.previewPane);
-        switchTab(targetTab, { direction: dir, viaSwipe: true });
+        ctx.x = offset;
+      } else {
+        renderPager(ctx, offset);
+      }
+
+      const velocity = computeVelocity(g.samples);
+      if (!isSwipeAllowed()) {
+        startSettle(ctx, 0, velocity, '');
         return;
       }
 
-      const previewPane = document.getElementById('tab-' + targetTab);
-      if (!activePane || !previewPane) {
-        switchTab(targetTab, { direction: dir, viaSwipe: true });
-        return;
+      const dirSign = Math.sign(ctx.x);
+      const side = dirSign < 0 ? 1 : (dirSign > 0 ? -1 : 0);
+      const targetTab = getNeighborTab(side);
+      let commit = false;
+      if (targetTab) {
+        const isFling = Math.abs(velocity) >= FLING_MIN_VELOCITY;
+        const flingSame = isFling && Math.sign(velocity) === dirSign;
+        const flingOpposite = isFling && Math.sign(velocity) === -dirSign;
+        const projected = ctx.x + velocity * PROJECTION_MS;
+        const pastHalf = Math.sign(projected) === dirSign && Math.abs(projected) >= ctx.stride * 0.5;
+        commit = !flingOpposite && (flingSame || pastHalf);
       }
 
-      if ((targetTab === 'work' || targetTab === 'ledger') && !workState.date && typeof computeWorkFromLocalVault === 'function') {
-        computeWorkFromLocalVault(workState.date || state.today);
+      if (commit) {
+        setNavHint(targetTab);
+        startSettle(ctx, -side * ctx.stride, velocity, targetTab);
+      } else {
+        startSettle(ctx, 0, velocity, '');
       }
-
-      if (g.previewPane && g.previewPane !== previewPane) {
-        clearPaneSwipeStyles(g.previewPane);
-      }
-
-      if (!previewPane.classList.contains('is-swipe-preview')) {
-        const clampedDx = Math.max(-stride, Math.min(stride, dx));
-        const startPreviewX = dir === 'next' ? (stride + clampedDx) : (-stride + clampedDx);
-        previewPane.style.setProperty('--swipe-scroll-y', `${g.scrollY}px`);
-        previewPane.classList.add('is-swipe-preview', 'is-swipe-dragging');
-        previewPane.style.transform = `translate3d(${startPreviewX.toFixed(1)}px, 0, 0)`;
-        void previewPane.offsetWidth;
-      }
-
-      updateNavPillSelection(targetTab);
-
-      const activeOutX = dir === 'next' ? -stride : stride;
-      activePane.classList.remove('is-swipe-dragging');
-      activePane.classList.add('is-swipe-settling');
-      activePane.style.transform = `translate3d(${activeOutX}px, 0, 0)`;
-
-      previewPane.classList.remove('is-swipe-dragging');
-      previewPane.classList.add('is-swipe-settling');
-      previewPane.style.transform = 'translate3d(0, 0, 0)';
-
-      pendingSettle = {
-        isSwitch: true,
-        activePane,
-        previewPane,
-        targetTab,
-        timerId: setTimeout(flushPendingSettle, SETTLE_DURATION_MS + 10)
-      };
     }, { passive: true });
 
-    appView.addEventListener('touchcancel', cancelAndRebound, { passive: true });
+    appView.addEventListener('touchcancel', () => {
+      const g = gesture;
+      gesture = null;
+      cancelDragFrame();
+      releaseGestureToRest(g);
+    }, { passive: true });
   }
 
     // Format ngày tiếng Việt
