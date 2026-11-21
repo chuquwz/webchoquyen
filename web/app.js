@@ -3,6 +3,9 @@
 (function () {
   'use strict';
 
+  if (window.__QUYENANH_APP_BOOTED__) return;
+  window.__QUYENANH_APP_BOOTED__ = true;
+
   // State cục bộ của ứng dụng
   let state = {
     currentUser: localStorage.getItem('qh_user') || 'quyen',
@@ -1132,15 +1135,17 @@
     // - Thanh điều hướng đổi tab ngay khi trang kéo qua một nửa.
     const EDGE_ZONE_PX = 36;
     const VELOCITY_WINDOW_MS = 100;
-    const FLING_MIN_VELOCITY = 0.3; // px/ms
+    const FLING_MIN_VELOCITY = 0.42; // px/ms
+    const MIN_FLING_DISTANCE = 28; // px
+    const COMMIT_DISTANCE_RATIO = 0.4;
     const MAX_RELEASE_VELOCITY = 6; // px/ms
     const PROJECTION_MS = 200;
-    const SPRING_STIFFNESS = 380;
-    const SPRING_DAMPING_RATIO = 0.82;
-    const SPRING_MAX_MS = 900;
+    const SPRING_STIFFNESS = 420;
+    const SPRING_DAMPING_RATIO = 1.0;
+    const SPRING_MAX_MS = 450;
     const RUBBER_COEFF = 0.55;
     const EDITABLE_SELECTOR = 'input, textarea, select, [contenteditable="true"]';
-    const HORIZ_IGNORE_SELECTOR = '.motivation-thumbs-strip, .work-chips-scroll, .calendar-days-strip, [data-no-tab-swipe]';
+    const HORIZ_IGNORE_SELECTOR = '.motivation-thumbs-strip, .work-chips-scroll, .calendar-days-strip, .btn-fab-plus, .funds-fab-menu, .funds-fab-backdrop, [data-no-tab-swipe]';
 
     const scheduleFrame = typeof window.requestAnimationFrame === 'function'
       ? window.requestAnimationFrame.bind(window)
@@ -1159,7 +1164,17 @@
     let navHintTab = '';
 
     function getActivePane() {
-      return document.getElementById('tab-' + state.activeTab);
+      const pane = document.getElementById('tab-' + state.activeTab);
+      if (pane && pane.classList.contains('active')) return pane;
+      const domActive = document.querySelector('.tab-pane.active');
+      if (domActive && domActive.id && domActive.id.startsWith('tab-')) {
+        const syncedId = domActive.id.slice(4);
+        if (MAIN_TAB_ORDER.includes(syncedId)) {
+          state.activeTab = syncedId;
+          return domActive;
+        }
+      }
+      return pane;
     }
 
     function getStride() {
@@ -1216,6 +1231,7 @@
 
     // Đặt 2 trang theo độ dịch thô của ngón tay (rawOffset), gồm chọn trang xem trước và lực cản ở mép.
     function renderPager(ctx, rawOffset) {
+      if (!ctx || ctx.activePane !== getActivePane()) return;
       const side = rawOffset < 0 ? 1 : (rawOffset > 0 ? -1 : 0);
       const tab = getNeighborTab(side);
       const pane = tab ? document.getElementById('tab-' + tab) : null;
@@ -1253,7 +1269,7 @@
       }
     }
 
-    // Lò xo giảm chấn (semi-implicit Euler, bước 1/240s) — mang theo vận tốc thả tay.
+    // Lò xo giảm chấn tới hạn (semi-implicit Euler, bước 1/240s) — không vượt quá vị trí 0 hoặc ±stride.
     function startSettle(ctx, targetX, velocityPxPerMs, commitTab) {
       if (prefersReducedMotion() || !ctx.activePane) {
         finishSettle(ctx, commitTab);
@@ -1262,6 +1278,7 @@
       const omega = Math.sqrt(SPRING_STIFFNESS);
       const damping = 2 * SPRING_DAMPING_RATIO * omega;
       const startT = nowMs();
+      const initialSign = Math.sign(ctx.x);
       const s = {
         ctx,
         targetX,
@@ -1284,13 +1301,18 @@
           s.v += accel * h;
           s.ctx.x += s.v * h;
           dt -= h;
+          if (s.targetX === 0 && initialSign !== 0 && Math.sign(s.ctx.x) === -initialSign) {
+            s.ctx.x = 0;
+            s.v = 0;
+            break;
+          }
           // Không cho trang vượt quá một bề rộng (tránh hở khoảng trắng khi lò xo nảy).
           if (s.ctx.previewPane && Math.abs(s.ctx.x) > s.ctx.stride) {
             s.ctx.x = Math.sign(s.ctx.x) * s.ctx.stride;
             s.v = 0;
           }
         }
-        const atRest = Math.abs(s.ctx.x - s.targetX) < 0.5 && Math.abs(s.v) < 30;
+        const atRest = Math.abs(s.ctx.x - s.targetX) < 1.2 && Math.abs(s.v) < 55;
         if (atRest || (t - s.startT) > SPRING_MAX_MS) {
           s.ctx.x = s.targetX;
           paint(s.ctx);
@@ -1362,7 +1384,7 @@
       }
       if (!first || first === last) return 0;
       const dt = last.t - first.t;
-      return dt > 0 ? (last.x - first.x) / dt : 0;
+      return dt >= 12 ? (last.x - first.x) / dt : 0;
     }
 
     function isSwipeAllowed() {
@@ -1381,19 +1403,25 @@
 
       const singleTouch = Boolean(e.touches && e.touches.length === 1);
       const touch = singleTouch ? e.touches[0] : null;
+      const targetEl = e.target && e.target.nodeType === 1 ? e.target : (e.target && e.target.parentElement);
 
-      // Chạm vào khi trang đang trượt: "chụp" lại trang và kéo tiếp từ vị trí hiện tại.
+      // Khi trang đang trượt sang tab mới hoặc gần về đích: kết thúc dứt điểm để nhận vuốt/chạm kế tiếp mượt.
       if (settle) {
         const s = settle;
         cancelFrame(s.rafId);
         settle = null;
-        if (touch && isSwipeAllowed()) {
+        const nearRest = Math.abs(s.ctx.x - s.targetX) < Math.max(24, s.ctx.stride * 0.25);
+        const targetIgnored = Boolean(
+          targetEl && targetEl.closest && (targetEl.closest(EDITABLE_SELECTOR) || targetEl.closest(HORIZ_IGNORE_SELECTOR))
+        );
+        if (!s.commitTab && !nearRest && !targetIgnored && touch && isSwipeAllowed()) {
           const ctx = s.ctx;
           const baseOffset = ctx.previewPane ? ctx.x : Math.sign(ctx.x) * inverseRubberBand(ctx.x, ctx.stride);
           gesture = {
             originX: touch.clientX,
             startY: touch.clientY,
             lastX: touch.clientX,
+            scrollY: ctx.scrollY || ((window.scrollY || window.pageYOffset || 0) + (appView.scrollTop || 0)),
             isEdgeSwipe: false,
             axis: 'x',
             baseOffset,
@@ -1417,8 +1445,7 @@
       const isEdgeSwipe = touch.clientX - leftBoundary <= EDGE_ZONE_PX || rightBoundary - touch.clientX <= EDGE_ZONE_PX ||
         touch.clientX <= EDGE_ZONE_PX || touch.clientX >= viewportWidth - EDGE_ZONE_PX;
 
-      const targetEl = e.target && e.target.nodeType === 1 ? e.target : (e.target && e.target.parentElement);
-      if (targetEl && targetEl.closest && targetEl.closest(EDITABLE_SELECTOR)) return;
+      if (targetEl && targetEl.closest && (targetEl.closest(EDITABLE_SELECTOR) || targetEl.closest('.btn-fab-plus, .funds-fab-menu, .funds-fab-backdrop'))) return;
       if (!isEdgeSwipe) {
         if (targetEl && targetEl.closest && targetEl.closest(HORIZ_IGNORE_SELECTOR)) return;
         if (hasHorizontalScrollableAncestor(targetEl)) return;
@@ -1456,8 +1483,8 @@
         const dy = touch.clientY - gesture.startY;
         const absX = Math.abs(dx);
         const absY = Math.abs(dy);
-        const slop = gesture.isEdgeSwipe ? 6 : 8;
-        const lockRatio = gesture.isEdgeSwipe ? 1.0 : 1.2;
+        const slop = gesture.isEdgeSwipe ? 8 : 10;
+        const lockRatio = gesture.isEdgeSwipe ? 1.15 : 1.35;
         if (absX < slop && absY < slop) return;
 
         if (absX >= absY * lockRatio) {
@@ -1521,7 +1548,10 @@
 
       const touch = (e.changedTouches && e.changedTouches[0]) || null;
       const endX = touch ? touch.clientX : g.lastX;
-      pushSample(g, endX);
+      const lastSample = g.samples[g.samples.length - 1];
+      if (!lastSample || (nowMs() - lastSample.t) >= 12 || Math.abs(endX - lastSample.x) >= 4) {
+        pushSample(g, endX);
+      }
       const ctx = g.ctx;
       const offset = g.baseOffset + (endX - g.originX);
       if (prefersReducedMotion()) {
@@ -1537,16 +1567,18 @@
       }
 
       const dirSign = Math.sign(ctx.x);
+      const absX = Math.abs(ctx.x);
       const side = dirSign < 0 ? 1 : (dirSign > 0 ? -1 : 0);
       const targetTab = getNeighborTab(side);
       let commit = false;
       if (targetTab) {
-        const isFling = Math.abs(velocity) >= FLING_MIN_VELOCITY;
+        const isFling = Math.abs(velocity) >= FLING_MIN_VELOCITY && absX >= MIN_FLING_DISTANCE;
         const flingSame = isFling && Math.sign(velocity) === dirSign;
-        const flingOpposite = isFling && Math.sign(velocity) === -dirSign;
+        const flingOpposite = Math.abs(velocity) >= FLING_MIN_VELOCITY && Math.sign(velocity) === -dirSign;
         const projected = ctx.x + velocity * PROJECTION_MS;
-        const pastHalf = Math.sign(projected) === dirSign && Math.abs(projected) >= ctx.stride * 0.5;
-        commit = !flingOpposite && (flingSame || pastHalf);
+        const pastDistance = absX >= ctx.stride * COMMIT_DISTANCE_RATIO;
+        const pastHalfProjected = absX >= MIN_FLING_DISTANCE && Math.sign(projected) === dirSign && Math.abs(projected) >= ctx.stride * 0.5;
+        commit = !flingOpposite && (flingSame || pastDistance || pastHalfProjected);
       }
 
       if (commit) {
@@ -1563,6 +1595,26 @@
       cancelDragFrame();
       releaseGestureToRest(g);
     }, { passive: true });
+
+    function flushInterruptedSwipe() {
+      cancelDragFrame();
+      gesture = null;
+      if (settle) {
+        const s = settle;
+        cancelFrame(s.rafId);
+        settle = null;
+        s.ctx.x = s.targetX;
+        finishSettle(s.ctx, s.commitTab);
+      } else {
+        const activePane = getActivePane();
+        if (activePane) clearPaneSwipeStyles(activePane);
+      }
+    }
+
+    window.addEventListener('blur', flushInterruptedSwipe);
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) flushInterruptedSwipe();
+    });
   }
 
     // Format ngày tiếng Việt
@@ -7501,7 +7553,6 @@
     const FUND_COLORS = ['sage', 'emerald', 'sky', 'amber', 'rose', 'violet'];
     const FUND_ICONS = ['piggy', 'shield', 'bike', 'heart', 'home', 'gift'];
     const fundsUIState = {
-      filterFundId: 'all',
       activeHistoryFundId: '',
       historyModalScope: 'all',
       lastDepositAnim: null
@@ -7764,17 +7815,14 @@
       });
     }
 
-    function buildFundHistoryRowHTML(dep, showFundBadge) {
+    function buildFundHistoryRowHTML(dep) {
       const safeNote = escapeHTML(dep.displayNote || 'Nộp quỹ');
-      const safeFund = escapeHTML(dep.fundName || 'Quỹ tiết kiệm');
-      const badgeClass = dep.fundColor && dep.fundColor !== 'sage' ? ` is-${dep.fundColor}` : '';
       const timeLabel = formatDayMonthTime(dep.date, dep.ts) || formatVNDate(dep.date);
       return `
         <div class="work-job-card fund-history-item-card">
           <div class="work-job-top">
             <div style="min-width: 0; flex: 1;">
               <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                ${showFundBadge ? `<span class="fund-tag-badge${badgeClass}">${safeFund}</span>` : ''}
                 <span class="font-tabular" style="font-size: 11.5px; color: var(--text-sub);">${escapeHTML(timeLabel)}</span>
               </div>
               <div class="work-job-cust-name work-ledger-note">${safeNote}</div>
@@ -7794,9 +7842,6 @@
       if (!cardsList) return;
 
       const model = computeFundsModel();
-      if (fundsUIState.filterFundId !== 'all' && !model.byId.has(fundsUIState.filterFundId)) {
-        fundsUIState.filterFundId = 'all';
-      }
 
       const setTxt = (id, val) => {
         const el = document.getElementById(id);
@@ -7805,7 +7850,7 @@
 
       setTxt('funds-count-sub', `${model.fundCount} quỹ`);
 
-      const RING_CIRC = 163.36;
+      const RING_CIRC = 213.63;
       cardsList.innerHTML = model.funds.map(f => {
         const safeName = escapeHTML(f.name);
         const offset = (RING_CIRC * (1 - f.pctClamped / 100)).toFixed(2);
@@ -7820,18 +7865,28 @@
           statusLine = `Còn thiếu ${formatShortK(f.remaining)}`;
         }
 
+        const avgText = f.depositCount > 0 ? `TB ${formatShortK(f.avgDeposit)}/lần` : 'Chưa nạp lần nào';
+        const milestonesHTML = [25, 50, 75, 100].map(m =>
+          `<span class="fund-runway-milestone${f.pctRaw >= m ? ' is-reached' : ''}">${m}%</span>`
+        ).join('');
+
         return `
           <div class="fund-goal-card fund-theme-${escapeHTML(f.color)}${f.reachedGoal ? ' is-goal-reached' : ''}" data-fund-card="${escapeHTML(f.id)}">
             <div class="fund-card-bg" aria-hidden="true">
-              <div class="fund-wave-level" style="--fund-level: ${f.pctClamped}%;">
-                <span class="fund-wave-back"></span>
-                <span class="fund-wave-front"></span>
-              </div>
+              <span class="fund-card-grid-bg"></span>
+              <span class="fund-card-glow"></span>
+              <span class="fund-card-sheen"></span>
+              <span class="fund-motes">
+                <span class="fund-mote m-1"></span>
+                <span class="fund-mote m-2"></span>
+                <span class="fund-mote m-3"></span>
+                <span class="fund-mote m-4"></span>
+              </span>
             </div>
             <div class="fund-card-body">
               <div class="fund-card-top">
                 <div class="fund-card-identity">
-                  <div class="fund-card-icon-badge">${fundIconSVG(f.icon, 20)}</div>
+                  <div class="fund-card-icon-badge">${fundIconSVG(f.icon, 24)}</div>
                   <div class="fund-card-title-wrap">
                     <div class="fund-card-name-row">
                       <span class="fund-card-name">${safeName}</span>
@@ -7840,34 +7895,47 @@
                     <div class="fund-card-status-line font-tabular">${escapeHTML(statusLine)}</div>
                   </div>
                 </div>
-                <div class="fund-card-top-right">
-                  <div class="fund-ring-wrap" aria-label="Tiến độ quỹ ${safeName}: ${f.pctRaw}%">
-                    <svg class="fund-ring-svg" viewBox="0 0 64 64">
-                      <circle class="fund-ring-track" cx="32" cy="32" r="26" />
-                      <circle class="fund-ring-fill" cx="32" cy="32" r="26"
-                        stroke-dasharray="${RING_CIRC}" stroke-dashoffset="${offset}" />
-                    </svg>
-                    <span class="fund-ring-pct font-tabular">${f.pctRaw}%</span>
+                <button type="button" class="btn-fund-edit-gear" onclick="openFundEditorModal('${escapeHTML(f.id)}')"
+                  aria-label="Cài đặt quỹ ${safeName}" title="Cài đặt tên & mục tiêu quỹ">
+                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                  </svg>
+                </button>
+              </div>
+
+              <div class="fund-hero-showcase">
+                <div class="fund-hero-numbers">
+                  <span class="fund-saved-eyebrow">Đã tích luỹ</span>
+                  <strong class="fund-saved-val font-tabular">${formatVND(f.saved)}</strong>
+                  <span class="fund-target-val font-tabular">Mục tiêu ${formatVND(f.target)}</span>
+                  <div class="fund-meta-pills font-tabular">
+                    <span class="fund-meta-pill">Tháng này +${formatShortK(f.monthSaved)}</span>
+                    <span class="fund-meta-pill">${escapeHTML(avgText)}</span>
                   </div>
-                  <button type="button" class="btn-fund-edit-gear" onclick="openFundEditorModal('${escapeHTML(f.id)}')"
-                    aria-label="Cài đặt quỹ ${safeName}" title="Cài đặt tên & mục tiêu quỹ">
-                    <svg class="ui-inline-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                    </svg>
-                  </button>
+                </div>
+                <div class="fund-dial-wrap" aria-label="Tiến độ quỹ ${safeName}: ${f.pctRaw}%">
+                  <span class="fund-dial-halo" aria-hidden="true"></span>
+                  <svg class="fund-dial-svg" viewBox="0 0 88 88" aria-hidden="true">
+                    <circle class="fund-dial-orbit" cx="44" cy="44" r="41" />
+                    <circle class="fund-ring-track" cx="44" cy="44" r="34" />
+                    <circle class="fund-ring-fill" cx="44" cy="44" r="34"
+                      stroke-dasharray="${RING_CIRC}" stroke-dashoffset="${offset}" />
+                  </svg>
+                  <div class="fund-dial-center font-tabular">
+                    <span class="fund-ring-pct">${f.pctRaw}%</span>
+                    <span class="fund-dial-sub">mục tiêu</span>
+                  </div>
                 </div>
               </div>
 
-              <div class="fund-money-row font-tabular">
-                <strong class="fund-saved-val">${formatVND(f.saved)}</strong>
-                <span class="fund-target-val">Mục tiêu ${formatVND(f.target)}</span>
-              </div>
-
-              <div class="fund-progress-track" aria-hidden="true">
-                <div class="fund-progress-fill" style="width: ${f.pctClamped}%;"></div>
-                <span class="fund-progress-tick" style="left: 25%;"></span>
-                <span class="fund-progress-tick" style="left: 50%;"></span>
-                <span class="fund-progress-tick" style="left: 75%;"></span>
+              <div class="fund-runway-wrap">
+                <div class="fund-progress-track" aria-hidden="true">
+                  <div class="fund-progress-fill" style="width: ${f.pctClamped}%;">${f.pctClamped > 0 ? '<span class="fund-progress-beacon"></span>' : ''}</div>
+                  <span class="fund-progress-tick" style="left: 25%;"></span>
+                  <span class="fund-progress-tick" style="left: 50%;"></span>
+                  <span class="fund-progress-tick" style="left: 75%;"></span>
+                </div>
+                <div class="fund-runway-milestones font-tabular" aria-hidden="true">${milestonesHTML}</div>
               </div>
 
               <div class="fund-card-actions">
@@ -7893,60 +7961,28 @@
         if (targetFund && cardEl) {
           const crossedGoal = anim.prevSaved < targetFund.target && targetFund.saved >= targetFund.target;
           if (!prefersReducedMotion()) {
-            const prevPct = targetFund.target > 0
-              ? Math.min(100, Math.max(0, Math.round((anim.prevSaved / targetFund.target) * 100)))
+            const prevPctRaw = targetFund.target > 0
+              ? Math.max(0, Math.round((anim.prevSaved / targetFund.target) * 100))
               : 0;
+            const prevPct = Math.min(100, prevPctRaw);
             const prevOffset = (RING_CIRC * (1 - prevPct / 100)).toFixed(2);
             const newOffset = (RING_CIRC * (1 - targetFund.pctClamped / 100)).toFixed(2);
-            const waveEl = cardEl.querySelector('.fund-wave-level');
             const barEl = cardEl.querySelector('.fund-progress-fill');
             const ringEl = cardEl.querySelector('.fund-ring-fill');
-            if (waveEl) waveEl.style.setProperty('--fund-level', `${prevPct}%`);
             if (barEl) barEl.style.width = `${prevPct}%`;
             if (ringEl) ringEl.style.strokeDashoffset = prevOffset;
             void cardEl.offsetWidth;
-            if (waveEl) waveEl.style.setProperty('--fund-level', `${targetFund.pctClamped}%`);
             if (barEl) barEl.style.width = `${targetFund.pctClamped}%`;
             if (ringEl) ringEl.style.strokeDashoffset = newOffset;
 
             const savedValEl = cardEl.querySelector('.fund-saved-val');
             animateCountUp(savedValEl, anim.prevSaved, targetFund.saved, 480, formatVND);
+            const pctEl = cardEl.querySelector('.fund-ring-pct');
+            animateCountUp(pctEl, prevPctRaw, targetFund.pctRaw, 480, v => `${v}%`);
+            cardEl.classList.add('is-just-deposited');
+            setTimeout(() => cardEl.classList.remove('is-just-deposited'), 900);
           }
           triggerFundCelebration(cardEl, anim.added, crossedGoal);
-        }
-      }
-
-      // Thanh lọc lịch sử theo từng quỹ
-      const filterBar = document.getElementById('funds-history-filter-bar');
-      if (filterBar) {
-        if (model.funds.length <= 1) {
-          const single = model.funds[0];
-          filterBar.innerHTML = single
-            ? `<button type="button" class="fund-filter-pill active" role="tab" aria-selected="true" onclick="setFundsInlineFilter('${escapeHTML(single.id)}')">${escapeHTML(single.name)} (${single.depositCount})</button>`
-            : '';
-        } else {
-          const allBtn = `<button type="button" class="fund-filter-pill${fundsUIState.filterFundId === 'all' ? ' active' : ''}" role="tab" aria-selected="${fundsUIState.filterFundId === 'all' ? 'true' : 'false'}" onclick="setFundsInlineFilter('all')">Tất cả (${model.allDeposits.length})</button>`;
-          const fundBtns = model.funds.map(f => {
-            const isAct = fundsUIState.filterFundId === f.id;
-            return `<button type="button" class="fund-filter-pill${isAct ? ' active' : ''}" role="tab" aria-selected="${isAct ? 'true' : 'false'}" onclick="setFundsInlineFilter('${escapeHTML(f.id)}')">${escapeHTML(f.name)} (${f.depositCount})</button>`;
-          }).join('');
-          filterBar.innerHTML = allBtn + fundBtns;
-        }
-      }
-
-      // Danh sách lịch sử nạp quỹ
-      const filteredDeps = fundsUIState.filterFundId === 'all'
-        ? model.allDeposits
-        : ((model.byId.get(fundsUIState.filterFundId) && model.byId.get(fundsUIState.filterFundId).deposits) || []);
-      setTxt('funds-history-count-sub', `${filteredDeps.length} lần nạp`);
-
-      const histList = document.getElementById('funds-history-list');
-      if (histList) {
-        if (filteredDeps.length === 0) {
-          histList.innerHTML = `<div class="empty-state-box">Chưa có lịch sử nạp quỹ nào${fundsUIState.filterFundId !== 'all' ? ' cho quỹ này' : ''}.</div>`;
-        } else {
-          const showBadge = model.funds.length > 1 && fundsUIState.filterFundId === 'all';
-          histList.innerHTML = filteredDeps.map(dep => buildFundHistoryRowHTML(dep, showBadge)).join('');
         }
       }
 
@@ -8047,11 +8083,6 @@
       }
     };
 
-    window.setFundsInlineFilter = function (fundId) {
-      fundsUIState.filterFundId = fundId || 'all';
-      renderFundsScreen();
-    };
-
     // --- POPUP NẠP TIỀN VÀO QUỸ ---
     function renderDepositFundChips(selectedId) {
       const wrap = document.getElementById('fund-deposit-fund-chips');
@@ -8073,9 +8104,7 @@
 
     window.openFundDepositModal = function (fundId) {
       const model = computeFundsModel();
-      const defaultId = (fundId && model.byId.has(fundId))
-        ? fundId
-        : (fundsUIState.filterFundId !== 'all' && model.byId.has(fundsUIState.filterFundId) ? fundsUIState.filterFundId : model.funds[0].id);
+      const defaultId = (fundId && model.byId.has(fundId)) ? fundId : model.funds[0].id;
 
       renderDepositFundChips(defaultId);
       const dateInput = document.getElementById('fund-deposit-date');
@@ -8475,7 +8504,6 @@
         }
       }
 
-      if (fundsUIState.filterFundId === fund.id) fundsUIState.filterFundId = 'all';
       closeModal('modal-fund-editor');
       if (fundsUIState.activeHistoryFundId === fund.id) {
         fundsUIState.activeHistoryFundId = '';
@@ -8540,7 +8568,7 @@
         listEl.innerHTML = `<div class="empty-state-box">${scope === 'month' ? 'Tháng này chưa có lần nạp nào cho quỹ này.' : 'Chưa có lần nạp nào cho quỹ này.'}</div>`;
         return;
       }
-      listEl.innerHTML = items.map(dep => buildFundHistoryRowHTML(dep, false)).join('');
+      listEl.innerHTML = items.map(dep => buildFundHistoryRowHTML(dep)).join('');
     }
 
     window.setFundHistoryModalScope = function (scope) {

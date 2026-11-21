@@ -7349,7 +7349,7 @@ html[data-theme="dark"] .btn-fab-plus {
   display: none;
 }
 
-#tab-funds.active ~ .funds-fab-backdrop.open {
+#tab-funds.active~.funds-fab-backdrop.open {
   display: block;
 }
 
@@ -7365,7 +7365,7 @@ html[data-theme="dark"] .btn-fab-plus {
   max-width: calc(100vw - 36px);
 }
 
-#tab-funds.active ~ .funds-fab-menu.open:not([hidden]) {
+#tab-funds.active~.funds-fab-menu.open:not([hidden]) {
   display: flex;
 }
 
@@ -7445,7 +7445,7 @@ html[data-theme="dark"] .btn-fab-plus {
 .funds-cards-stack {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
 /* Fund Themes */
@@ -7457,18 +7457,20 @@ html[data-theme="dark"] .btn-fab-plus {
   --fund-text-strong: #1E4611;
   --fund-badge-bg: #E1F3D5;
   --fund-track: rgba(63, 122, 44, 0.14);
-  --fund-wave-1: rgba(132, 204, 92, 0.24);
-  --fund-wave-2: rgba(94, 148, 71, 0.14);
+  --fund-glow: rgba(94, 148, 71, 0.24);
+  --fund-mote: #5E9447;
+  --fund-sheen: rgba(255, 255, 255, 0.45);
 
   position: relative;
   overflow: hidden;
   isolation: isolate;
   background-color: var(--fund-bg);
   border: 1.5px solid var(--fund-border);
-  border-radius: 24px;
-  padding: 15px 15px 14px;
+  border-radius: 28px;
+  padding: 22px 20px 20px;
+  min-height: 276px;
   box-shadow: var(--shadow-card);
-  transition: border-color 0.25s ease-out, box-shadow 0.25s ease-out;
+  transition: border-color 0.25s ease-out, box-shadow 0.28s ease-out, transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .fund-goal-card.fund-theme-emerald {
@@ -7478,8 +7480,8 @@ html[data-theme="dark"] .btn-fab-plus {
   --fund-text-strong: #0D4A36;
   --fund-badge-bg: #D5F5E7;
   --fund-track: rgba(16, 120, 86, 0.14);
-  --fund-wave-1: rgba(52, 211, 153, 0.24);
-  --fund-wave-2: rgba(16, 185, 129, 0.14);
+  --fund-glow: rgba(16, 185, 129, 0.24);
+  --fund-mote: #10B981;
 }
 
 .fund-goal-card.fund-theme-sky {
@@ -7489,8 +7491,8 @@ html[data-theme="dark"] .btn-fab-plus {
   --fund-text-strong: #0F406E;
   --fund-badge-bg: #D8ECFC;
   --fund-track: rgba(21, 101, 168, 0.14);
-  --fund-wave-1: rgba(56, 189, 248, 0.24);
-  --fund-wave-2: rgba(14, 165, 233, 0.14);
+  --fund-glow: rgba(14, 165, 233, 0.24);
+  --fund-mote: #0EA5E9;
 }
 
 .fund-goal-card.fund-theme-amber {
@@ -7500,8 +7502,8 @@ html[data-theme="dark"] .btn-fab-plus {
   --fund-text-strong: #78350F;
   --fund-badge-bg: #FDEAC8;
   --fund-track: rgba(161, 82, 8, 0.14);
-  --fund-wave-1: rgba(251, 191, 36, 0.24);
-  --fund-wave-2: rgba(245, 158, 11, 0.14);
+  --fund-glow: rgba(245, 158, 11, 0.24);
+  --fund-mote: #F59E0B;
 }
 
 .fund-goal-card.fund-theme-rose {
@@ -7511,8 +7513,8 @@ html[data-theme="dark"] .btn-fab-plus {
   --fund-text-strong: #7F1D32;
   --fund-badge-bg: #FCE0E6;
   --fund-track: rgba(184, 41, 66, 0.14);
-  --fund-wave-1: rgba(251, 113, 133, 0.22);
-  --fund-wave-2: rgba(244, 63, 94, 0.14);
+  --fund-glow: rgba(244, 63, 94, 0.22);
+  --fund-mote: #F43F5E;
 }
 
 .fund-goal-card.fund-theme-violet {
@@ -7522,15 +7524,19 @@ html[data-theme="dark"] .btn-fab-plus {
   --fund-text-strong: #3E2180;
   --fund-badge-bg: #EAE2FC;
   --fund-track: rgba(98, 59, 184, 0.14);
-  --fund-wave-1: rgba(167, 139, 250, 0.24);
-  --fund-wave-2: rgba(139, 92, 246, 0.14);
+  --fund-glow: rgba(139, 92, 246, 0.24);
+  --fund-mote: #8B5CF6;
 }
 
 .fund-goal-card.is-goal-reached {
   box-shadow: 0 8px 24px rgba(63, 122, 44, 0.14), 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
-/* Animated Liquid Wave Background Inside Each Fund Card */
+.fund-goal-card.is-just-deposited {
+  box-shadow: 0 0 0 3px var(--fund-accent), var(--shadow-card);
+}
+
+/* Vault & Orbital Goal Card Backdrop (Non-Wave Animation Layers) */
 .fund-card-bg {
   position: absolute;
   inset: 0;
@@ -7539,33 +7545,74 @@ html[data-theme="dark"] .btn-fab-plus {
   overflow: hidden;
 }
 
-.fund-wave-level {
+.fund-card-grid-bg {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -14px;
-  height: calc(var(--fund-level, 0%) + 14px);
-  max-height: calc(100% + 14px);
-  transition: height 0.72s cubic-bezier(0.22, 1, 0.36, 1);
+  inset: 0;
+  background-image: radial-gradient(var(--fund-accent) 1px, transparent 1px);
+  background-size: 16px 16px;
+  opacity: 0.09;
+  -webkit-mask-image: radial-gradient(circle at 88% 18%, #000 0%, transparent 72%);
+  mask-image: radial-gradient(circle at 88% 18%, #000 0%, transparent 72%);
 }
 
-.fund-wave-back,
-.fund-wave-front {
+.fund-card-glow {
   position: absolute;
-  left: 0;
-  width: 200%;
-  height: 100%;
-  border-radius: 38% 42% 0 0 / 18px 20px 0 0;
+  width: 220px;
+  height: 220px;
+  right: -64px;
+  top: -64px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--fund-glow) 0%, transparent 70%);
 }
 
-.fund-wave-back {
-  top: 0;
-  background: var(--fund-wave-2);
+.fund-card-sheen {
+  position: absolute;
+  inset: -30% -50%;
+  width: 42%;
+  background: linear-gradient(105deg, transparent 0%, var(--fund-sheen) 50%, transparent 100%);
+  transform: translateX(-180%) skewX(-18deg);
 }
 
-.fund-wave-front {
-  top: 5px;
-  background: var(--fund-wave-1);
+.fund-motes {
+  position: absolute;
+  inset: 0;
+}
+
+.fund-mote {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: var(--fund-mote);
+  opacity: 0;
+}
+
+.fund-mote.m-1 {
+  right: 24px;
+  bottom: 54px;
+  width: 4px;
+  height: 4px;
+}
+
+.fund-mote.m-2 {
+  right: 62px;
+  bottom: 38px;
+  width: 6px;
+  height: 6px;
+}
+
+.fund-mote.m-3 {
+  right: 98px;
+  bottom: 64px;
+  width: 4px;
+  height: 4px;
+}
+
+.fund-mote.m-4 {
+  right: 38px;
+  bottom: 92px;
+  width: 5px;
+  height: 5px;
 }
 
 .fund-card-body {
@@ -7573,7 +7620,7 @@ html[data-theme="dark"] .btn-fab-plus {
   z-index: 2;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 16px;
 }
 
 .fund-card-top {
@@ -7586,15 +7633,15 @@ html[data-theme="dark"] .btn-fab-plus {
 .fund-card-identity {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
   flex: 1;
 }
 
 .fund-card-icon-badge {
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
   background-color: var(--fund-badge-bg);
   color: var(--fund-text-strong);
   border: 1px solid var(--fund-border);
@@ -7617,10 +7664,11 @@ html[data-theme="dark"] .btn-fab-plus {
 }
 
 .fund-card-name {
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 800;
   color: var(--text-main);
   line-height: 1.25;
+  letter-spacing: -0.015em;
   overflow-wrap: anywhere;
 }
 
@@ -7637,65 +7685,17 @@ html[data-theme="dark"] .btn-fab-plus {
 }
 
 .fund-card-status-line {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--fund-text-strong);
-  margin-top: 2px;
-}
-
-.fund-card-top-right {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.fund-ring-wrap {
-  position: relative;
-  width: 56px;
-  height: 56px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.fund-ring-svg {
-  width: 56px;
-  height: 56px;
-  transform: rotate(-90deg);
-}
-
-.fund-ring-track {
-  fill: none;
-  stroke: var(--fund-track);
-  stroke-width: 5.5;
-}
-
-.fund-ring-fill {
-  fill: none;
-  stroke: var(--fund-accent);
-  stroke-width: 5.5;
-  stroke-linecap: round;
-  transition: stroke-dashoffset 0.72s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.fund-ring-pct {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11.5px;
-  font-weight: 800;
-  color: var(--fund-text-strong);
+  margin-top: 3px;
 }
 
 .btn-fund-edit-gear {
-  width: 36px;
-  height: 36px;
-  min-width: 36px;
-  border-radius: 12px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: 14px;
   border: 1px solid var(--fund-border);
   background-color: rgba(255, 255, 255, 0.72);
   color: var(--fund-text-strong);
@@ -7703,6 +7703,7 @@ html[data-theme="dark"] .btn-fab-plus {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  flex-shrink: 0;
   transition: transform 0.15s ease-out, background-color 0.15s ease-out;
 }
 
@@ -7710,32 +7711,153 @@ html[data-theme="dark"] .btn-fab-plus {
   transform: scale(0.96);
 }
 
-.fund-money-row {
+.btn-fund-edit-gear:focus-visible {
+  outline: 2.5px solid var(--fund-accent);
+  outline-offset: 2px;
+}
+
+.fund-hero-showcase {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 14px;
+  padding: 4px 0 2px;
+}
+
+.fund-hero-numbers {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.fund-saved-eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-sub);
 }
 
 .fund-saved-val {
-  font-size: 20px;
+  font-size: clamp(23px, 7.2vw, 31px);
+  line-height: 1.1;
   font-weight: 800;
   color: var(--text-main);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
+  overflow-wrap: anywhere;
 }
 
 .fund-target-val {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--text-sub);
 }
 
-/* Shimmer Progress Bar & Milestone Ticks */
+.fund-meta-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.fund-meta-pill {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background-color: var(--fund-badge-bg);
+  color: var(--fund-text-strong);
+  border: 1px solid var(--fund-border);
+}
+
+.fund-dial-wrap {
+  position: relative;
+  width: 88px;
+  height: 88px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.fund-dial-halo {
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--fund-glow) 0%, transparent 72%);
+  pointer-events: none;
+}
+
+.fund-dial-svg {
+  width: 88px;
+  height: 88px;
+  transform: rotate(-90deg);
+  position: relative;
+  z-index: 1;
+}
+
+.fund-dial-orbit {
+  fill: none;
+  stroke: var(--fund-border);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 6;
+  stroke-linecap: round;
+  transform-origin: 44px 44px;
+  opacity: 0.78;
+}
+
+.fund-ring-track {
+  fill: none;
+  stroke: var(--fund-track);
+  stroke-width: 6.5;
+}
+
+.fund-ring-fill {
+  fill: none;
+  stroke: var(--fund-accent);
+  stroke-width: 6.5;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.82s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.fund-dial-center {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.05;
+}
+
+.fund-ring-pct {
+  position: static;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--fund-text-strong);
+}
+
+.fund-dial-sub {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--text-sub);
+  margin-top: 1px;
+}
+
+/* Shimmer Progress Runway & Milestone Markers */
+.fund-runway-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .fund-progress-track {
   position: relative;
   width: 100%;
-  height: 10px;
+  height: 12px;
   border-radius: var(--radius-pill);
   background-color: var(--fund-track);
   overflow: hidden;
@@ -7754,6 +7876,18 @@ html[data-theme="dark"] .btn-fab-plus {
   background: var(--fund-accent);
 }
 
+.fund-progress-beacon {
+  position: absolute;
+  right: 2px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #FFFFFF;
+  transform: translateY(-50%);
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.9);
+}
+
 .fund-progress-tick {
   position: absolute;
   top: 0;
@@ -7763,20 +7897,37 @@ html[data-theme="dark"] .btn-fab-plus {
   pointer-events: none;
 }
 
+.fund-runway-milestones {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-sub);
+}
+
+.fund-runway-milestone {
+  text-align: right;
+}
+
+.fund-runway-milestone.is-reached {
+  color: var(--fund-text-strong);
+  font-weight: 800;
+}
+
 .fund-card-actions {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 8px;
+  gap: 10px;
   padding-top: 2px;
 }
 
 .btn-fund-deposit-sm,
 .btn-fund-history-sm {
-  min-height: 44px;
-  padding: 8px 10px;
-  border-radius: 14px;
+  min-height: 48px;
+  padding: 10px 14px;
+  border-radius: 16px;
   font-family: inherit;
-  font-size: 12.5px;
+  font-size: 14px;
   font-weight: 800;
   display: inline-flex;
   align-items: center;
@@ -7784,6 +7935,22 @@ html[data-theme="dark"] .btn-fab-plus {
   gap: 5px;
   cursor: pointer;
   transition: transform 0.15s ease-out, filter 0.15s ease-out, background-color 0.15s ease-out;
+}
+
+@media (max-width: 350px) {
+  .fund-goal-card {
+    padding: 18px 15px 16px;
+  }
+
+  .fund-dial-wrap,
+  .fund-dial-svg {
+    width: 76px;
+    height: 76px;
+  }
+
+  .fund-ring-pct {
+    font-size: 15px;
+  }
 }
 
 .btn-fund-deposit-sm {
@@ -7835,7 +8002,7 @@ html[data-theme="dark"] .btn-fab-plus {
   height: 8px;
 }
 
-/* History Filter Pills & Items */
+/* Deposit Modal Fund Filter Pills */
 .fund-filter-pill {
   flex-shrink: 0;
   min-height: 36px;
@@ -7860,43 +8027,6 @@ html[data-theme="dark"] .btn-fab-plus {
 
 .fund-filter-pill:not(:disabled):active {
   transform: scale(0.96);
-}
-
-.fund-tag-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  font-weight: 800;
-  padding: 2px 8px;
-  border-radius: 8px;
-  background-color: #E8F6DE;
-  color: #1E4611;
-}
-
-.fund-tag-badge.is-sky {
-  background-color: #D8ECFC;
-  color: #0F406E;
-}
-
-.fund-tag-badge.is-emerald {
-  background-color: #D5F5E7;
-  color: #0D4A36;
-}
-
-.fund-tag-badge.is-amber {
-  background-color: #FDEAC8;
-  color: #78350F;
-}
-
-.fund-tag-badge.is-rose {
-  background-color: #FCE0E6;
-  color: #7F1D32;
-}
-
-.fund-tag-badge.is-violet {
-  background-color: #EAE2FC;
-  color: #3E2180;
 }
 
 .fund-history-modal-summary {
@@ -8008,12 +8138,39 @@ html[data-theme="dark"] .btn-fab-plus {
     animation-delay: 0.035s;
   }
 
-  .fund-wave-back {
-    animation: fundWaveSway 6.2s ease-in-out infinite alternate;
+  .fund-card-sheen {
+    animation: fundVaultSheen 7.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   }
 
-  .fund-wave-front {
-    animation: fundWaveSway 4.4s ease-in-out infinite alternate-reverse;
+  .fund-dial-orbit {
+    animation: fundOrbitSpin 24s linear infinite;
+  }
+
+  .fund-dial-halo {
+    animation: fundHaloBreathe 4.2s ease-in-out infinite;
+  }
+
+  .fund-mote {
+    animation: fundMoteRise 5.4s ease-in-out infinite;
+  }
+
+  .fund-mote.m-2 {
+    animation-duration: 6.6s;
+    animation-delay: -1.8s;
+  }
+
+  .fund-mote.m-3 {
+    animation-duration: 5.9s;
+    animation-delay: -3.2s;
+  }
+
+  .fund-mote.m-4 {
+    animation-duration: 7.1s;
+    animation-delay: -4.1s;
+  }
+
+  .fund-progress-beacon {
+    animation: fundBeaconPulse 1.8s ease-in-out infinite;
   }
 
   .fund-progress-fill::after {
@@ -8034,13 +8191,70 @@ html[data-theme="dark"] .btn-fab-plus {
   }
 }
 
-@keyframes fundWaveSway {
+@keyframes fundVaultSheen {
+  0%,
+  55% {
+    transform: translateX(-180%) skewX(-18deg);
+  }
+
+  100% {
+    transform: translateX(460%) skewX(-18deg);
+  }
+}
+
+@keyframes fundOrbitSpin {
   from {
-    transform: translateX(0) translateY(0);
+    transform: rotate(0deg);
   }
 
   to {
-    transform: translateX(-22%) translateY(-2px);
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fundHaloBreathe {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.94);
+  }
+
+  50% {
+    opacity: 0.95;
+    transform: scale(1.06);
+  }
+}
+
+@keyframes fundMoteRise {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0) scale(0.6);
+  }
+
+  25% {
+    opacity: 0.72;
+  }
+
+  75% {
+    opacity: 0.5;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(-10px, -46px, 0) scale(1.1);
+  }
+}
+
+@keyframes fundBeaconPulse {
+  0%,
+  100% {
+    opacity: 0.85;
+    transform: translateY(-50%) scale(0.95);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translateY(-50%) scale(1.25);
   }
 }
 
@@ -8140,8 +8354,9 @@ html[data-theme="dark"] .fund-goal-card {
   --fund-text-strong: #B6EE92;
   --fund-badge-bg: #20351D;
   --fund-track: rgba(134, 199, 90, 0.18);
-  --fund-wave-1: rgba(134, 199, 90, 0.18);
-  --fund-wave-2: rgba(94, 148, 71, 0.12);
+  --fund-glow: rgba(142, 209, 98, 0.24);
+  --fund-mote: #8ED162;
+  --fund-sheen: rgba(255, 255, 255, 0.06);
 }
 
 html[data-theme="dark"] .fund-goal-card.fund-theme-emerald {
@@ -8151,8 +8366,8 @@ html[data-theme="dark"] .fund-goal-card.fund-theme-emerald {
   --fund-text-strong: #A7F3D0;
   --fund-badge-bg: #1B362D;
   --fund-track: rgba(94, 234, 212, 0.16);
-  --fund-wave-1: rgba(52, 211, 153, 0.18);
-  --fund-wave-2: rgba(16, 185, 129, 0.12);
+  --fund-glow: rgba(94, 234, 212, 0.22);
+  --fund-mote: #5EEAD4;
 }
 
 html[data-theme="dark"] .fund-goal-card.fund-theme-sky {
@@ -8162,8 +8377,8 @@ html[data-theme="dark"] .fund-goal-card.fund-theme-sky {
   --fund-text-strong: #BAE6FD;
   --fund-badge-bg: #193142;
   --fund-track: rgba(125, 211, 252, 0.16);
-  --fund-wave-1: rgba(56, 189, 248, 0.18);
-  --fund-wave-2: rgba(14, 165, 233, 0.12);
+  --fund-glow: rgba(125, 211, 252, 0.22);
+  --fund-mote: #7DD3FC;
 }
 
 html[data-theme="dark"] .fund-goal-card.fund-theme-amber {
@@ -8173,8 +8388,8 @@ html[data-theme="dark"] .fund-goal-card.fund-theme-amber {
   --fund-text-strong: #FDE68A;
   --fund-badge-bg: #362816;
   --fund-track: rgba(251, 191, 36, 0.16);
-  --fund-wave-1: rgba(251, 191, 36, 0.18);
-  --fund-wave-2: rgba(245, 158, 11, 0.12);
+  --fund-glow: rgba(251, 191, 36, 0.22);
+  --fund-mote: #FBBF24;
 }
 
 html[data-theme="dark"] .fund-goal-card.fund-theme-rose {
@@ -8184,8 +8399,8 @@ html[data-theme="dark"] .fund-goal-card.fund-theme-rose {
   --fund-text-strong: #FECDD3;
   --fund-badge-bg: #3B1E27;
   --fund-track: rgba(253, 164, 175, 0.16);
-  --fund-wave-1: rgba(251, 113, 133, 0.18);
-  --fund-wave-2: rgba(244, 63, 94, 0.12);
+  --fund-glow: rgba(253, 164, 175, 0.22);
+  --fund-mote: #FDA4AF;
 }
 
 html[data-theme="dark"] .fund-goal-card.fund-theme-violet {
@@ -8195,8 +8410,12 @@ html[data-theme="dark"] .fund-goal-card.fund-theme-violet {
   --fund-text-strong: #DDD6FE;
   --fund-badge-bg: #2C2342;
   --fund-track: rgba(196, 181, 253, 0.16);
-  --fund-wave-1: rgba(167, 139, 250, 0.18);
-  --fund-wave-2: rgba(139, 92, 246, 0.12);
+  --fund-glow: rgba(196, 181, 253, 0.22);
+  --fund-mote: #C4B5FD;
+}
+
+html[data-theme="dark"] .fund-progress-beacon {
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.95), 0 0 0 1.5px rgba(15, 23, 16, 0.35);
 }
 
 html[data-theme="dark"] .btn-fund-edit-gear,
@@ -8225,36 +8444,6 @@ html[data-theme="dark"] .fund-icon-opt.active {
 html[data-theme="dark"] .fund-filter-pill.active {
   background-color: var(--color-pill-green);
   color: var(--color-pill-text);
-}
-
-html[data-theme="dark"] .fund-tag-badge {
-  background-color: #1C3119;
-  color: #A7E484;
-}
-
-html[data-theme="dark"] .fund-tag-badge.is-sky {
-  background-color: #152B3C;
-  color: #BAE6FD;
-}
-
-html[data-theme="dark"] .fund-tag-badge.is-emerald {
-  background-color: #153027;
-  color: #A7F3D0;
-}
-
-html[data-theme="dark"] .fund-tag-badge.is-amber {
-  background-color: #332512;
-  color: #FDE68A;
-}
-
-html[data-theme="dark"] .fund-tag-badge.is-rose {
-  background-color: #361A22;
-  color: #FECDD3;
-}
-
-html[data-theme="dark"] .fund-tag-badge.is-violet {
-  background-color: #28203D;
-  color: #DDD6FE;
 }
 
 @media (hover: hover) {
