@@ -5433,6 +5433,7 @@ body:not(.is-logged-in) #app-bottom-nav {
 }
 
 @keyframes scoreAuroraDrift {
+
   0%,
   100% {
     transform: translate3d(0, 0, 0) scale(1);
@@ -5456,6 +5457,7 @@ body:not(.is-logged-in) #app-bottom-nav {
 }
 
 @keyframes scoreGaugeHaloPulse {
+
   0%,
   100% {
     transform: scale(0.95);
@@ -5469,6 +5471,7 @@ body:not(.is-logged-in) #app-bottom-nav {
 }
 
 @keyframes scoreHeartBeat {
+
   0%,
   100% {
     transform: scale(1);
@@ -6401,6 +6404,7 @@ body:not(.is-logged-in) #app-bottom-nav {
 }
 
 @media (prefers-reduced-motion: no-preference) {
+
   .work-search-clear:not(:disabled):active,
   .work-time-mode-pill:not(:disabled):active,
   .btn-search-reset:not(:disabled):active,
@@ -7257,6 +7261,7 @@ html[data-theme="dark"] .btn-fab-plus {
 }
 
 @media (hover: hover) {
+
   html[data-theme="dark"] .btn-circle-action:hover,
   html[data-theme="dark"] .day-capsule:hover,
   html[data-theme="dark"] .btn-data-action.btn-data-neutral:hover,

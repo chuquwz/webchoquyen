@@ -50,7 +50,7 @@
         if (tc) tc.setAttribute('content', resolved === 'dark' ? '#111611' : '#F5F7F4');
         var sb = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
         if (sb) sb.setAttribute('content', resolved === 'dark' ? 'black-translucent' : 'default');
-      } catch (_) {}
+      } catch (_) { }
     })();
   </script>
   <link rel="stylesheet" href="/style.css?v=88">
@@ -133,11 +133,11 @@
               </span>
               <svg class="score-ecg-svg" viewBox="0 0 260 64" fill="none" preserveAspectRatio="none">
                 <path class="score-ecg-base"
-                  d="M0,42 L74,42 L86,42 L94,30 L102,52 L111,16 L120,56 L128,36 L136,42 L260,42"
-                  stroke="#5E9447" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+                  d="M0,42 L74,42 L86,42 L94,30 L102,52 L111,16 L120,56 L128,36 L136,42 L260,42" stroke="#5E9447"
+                  stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
                 <path class="score-ecg-pulse"
-                  d="M0,42 L74,42 L86,42 L94,30 L102,52 L111,16 L120,56 L128,36 L136,42 L260,42"
-                  stroke="#76C04E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+                  d="M0,42 L74,42 L86,42 L94,30 L102,52 L111,16 L120,56 L128,36 L136,42 L260,42" stroke="#76C04E"
+                  stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
               </svg>
               <span class="score-float-dot dot-1"></span>
               <span class="score-float-dot dot-2"></span>
@@ -595,7 +595,8 @@
                 </svg>
                 <h3 class="settings-block-title" style="margin-bottom: 0;">Dữ liệu &amp; Tài khoản</h3>
               </div>
-              <span id="work-vault-badge" class="work-vault-badge font-tabular" role="status" aria-live="polite">Đã đồng bộ 0 mục</span>
+              <span id="work-vault-badge" class="work-vault-badge font-tabular" role="status" aria-live="polite">Đã đồng
+                bộ 0 mục</span>
             </div>
             <div id="work-vault-sub" class="work-vault-sub">
               Tự động đồng bộ giữa các thiết bị &amp; lưu dự phòng an toàn trên máy này.
@@ -641,8 +642,7 @@
                   <input type="file" id="finance-vault-file-input" accept=".json" style="display: none;"
                     onchange="importFinanceVaultFile(event)">
                 </label>
-                <button type="button" id="btn-work-link-disk" class="btn-data-action"
-                  onclick="linkOrSyncLocalFinance()"
+                <button type="button" id="btn-work-link-disk" class="btn-data-action" onclick="linkOrSyncLocalFinance()"
                   title="Gắn file tự động lưu trên ổ cứng máy tính hoặc đồng bộ ngay">
                   <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none"
                     stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
@@ -703,9 +703,8 @@
 
             <div class="settings-logout-footer">
               <button type="button" id="btn-settings-logout" class="btn-settings-logout" onclick="logout()">
-                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none"
-                  stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
-                  aria-hidden="true">
+                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
+                  stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                   <polyline points="16 17 21 12 16 7" />
                   <line x1="21" y1="12" x2="9" y2="12" />
@@ -921,8 +920,8 @@
                     oninput="onDebtSearchInput(this.value)" onkeydown="onDebtSearchKeydown(event)">
                   <button type="button" id="debt-search-clear" class="work-search-clear"
                     aria-label="Xoá từ khoá tìm kiếm sổ nợ" onclick="clearDebtSearch()" hidden>
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
-                      stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4"
+                      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <line x1="18" y1="6" x2="6" y2="18" />
                       <line x1="6" y1="6" x2="18" y2="18" />
                     </svg>
@@ -1044,7 +1043,8 @@
                 <span>CN</span>
               </div>
 
-              <div id="ledger-cal-grid" class="work-cal-grid font-tabular" onkeydown="onWorkCalGridKeydown(event)"></div>
+              <div id="ledger-cal-grid" class="work-cal-grid font-tabular" onkeydown="onWorkCalGridKeydown(event)">
+              </div>
 
               <div class="work-cal-footer">
                 <div class="work-cal-legend" aria-hidden="true">
