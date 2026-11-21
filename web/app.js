@@ -989,6 +989,9 @@
     if (typeof cancelSwipeSessionFn === 'function' && !(opts && opts.fromSwipeFlush)) {
       cancelSwipeSessionFn();
     }
+    if (typeof window.closeFundsFabMenu === 'function') {
+      window.closeFundsFabMenu();
+    }
 
     const prevTab = state.activeTab;
     const prevIdx = MAIN_TAB_ORDER.indexOf(prevTab);
@@ -1363,7 +1366,9 @@
     }
 
     function isSwipeAllowed() {
-      return document.body.classList.contains('is-logged-in') && !document.querySelector('.modal-overlay.open');
+      return document.body.classList.contains('is-logged-in')
+        && !document.querySelector('.modal-overlay.open')
+        && !document.querySelector('.funds-fab-menu.open');
     }
 
     appView.addEventListener('touchstart', (e) => {
@@ -3858,10 +3863,16 @@
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         const openModals = Array.from(document.querySelectorAll('.modal-overlay.open'));
-        if (openModals.length === 0) return;
-        const topModal = openModals[openModals.length - 1];
-        if (topModal.id) window.closeModal(topModal.id);
-        else topModal.classList.remove('open');
+        if (openModals.length > 0) {
+          const topModal = openModals[openModals.length - 1];
+          if (topModal.id) window.closeModal(topModal.id);
+          else topModal.classList.remove('open');
+          return;
+        }
+        const fabMenu = document.getElementById('funds-fab-menu');
+        if (fabMenu && fabMenu.classList.contains('open') && typeof window.closeFundsFabMenu === 'function') {
+          window.closeFundsFabMenu({ restoreFocus: true });
+        }
       }
     });
 
@@ -7792,21 +7803,7 @@
         if (el) el.textContent = val;
       };
 
-      setTxt('funds-hero-count-pill', `${model.fundCount} quỹ`);
-      const heroTotalEl = document.getElementById('funds-hero-total');
-      if (heroTotalEl) {
-        heroTotalEl.textContent = formatVND(model.totalSaved);
-        heroTotalEl.classList.toggle('is-long', heroTotalEl.textContent.length >= 12);
-      }
-      setTxt('funds-hero-pct-pill', `${model.overallPct}%`);
-      setTxt('funds-hero-target', formatVND(model.totalTarget));
-      setTxt('funds-hero-remaining', model.totalRemaining > 0
-        ? `Còn thiếu ${formatShortK(model.totalRemaining)}`
-        : 'Đã đạt mục tiêu tổng!');
-      setTxt('funds-goal-done-sub', `${model.completedCount}/${model.fundCount} đạt mục tiêu`);
-
-      const heroBar = document.getElementById('funds-hero-bar-fill');
-      if (heroBar) heroBar.style.width = `${model.overallPctClamped}%`;
+      setTxt('funds-count-sub', `${model.fundCount} quỹ`);
 
       const RING_CIRC = 163.36;
       cardsList.innerHTML = model.funds.map(f => {
@@ -7914,8 +7911,6 @@
 
             const savedValEl = cardEl.querySelector('.fund-saved-val');
             animateCountUp(savedValEl, anim.prevSaved, targetFund.saved, 480, formatVND);
-            const prevTotal = Math.max(0, model.totalSaved - anim.added);
-            animateCountUp(heroTotalEl, prevTotal, model.totalSaved, 480, formatVND);
           }
           triggerFundCelebration(cardEl, anim.added, crossedGoal);
         }
@@ -7924,12 +7919,19 @@
       // Thanh lọc lịch sử theo từng quỹ
       const filterBar = document.getElementById('funds-history-filter-bar');
       if (filterBar) {
-        const allBtn = `<button type="button" class="fund-filter-pill${fundsUIState.filterFundId === 'all' ? ' active' : ''}" role="tab" aria-selected="${fundsUIState.filterFundId === 'all' ? 'true' : 'false'}" onclick="setFundsInlineFilter('all')">Tất cả (${model.allDeposits.length})</button>`;
-        const fundBtns = model.funds.map(f => {
-          const isAct = fundsUIState.filterFundId === f.id;
-          return `<button type="button" class="fund-filter-pill${isAct ? ' active' : ''}" role="tab" aria-selected="${isAct ? 'true' : 'false'}" onclick="setFundsInlineFilter('${escapeHTML(f.id)}')">${escapeHTML(f.name)} (${f.depositCount})</button>`;
-        }).join('');
-        filterBar.innerHTML = allBtn + fundBtns;
+        if (model.funds.length <= 1) {
+          const single = model.funds[0];
+          filterBar.innerHTML = single
+            ? `<button type="button" class="fund-filter-pill active" role="tab" aria-selected="true" onclick="setFundsInlineFilter('${escapeHTML(single.id)}')">${escapeHTML(single.name)} (${single.depositCount})</button>`
+            : '';
+        } else {
+          const allBtn = `<button type="button" class="fund-filter-pill${fundsUIState.filterFundId === 'all' ? ' active' : ''}" role="tab" aria-selected="${fundsUIState.filterFundId === 'all' ? 'true' : 'false'}" onclick="setFundsInlineFilter('all')">Tất cả (${model.allDeposits.length})</button>`;
+          const fundBtns = model.funds.map(f => {
+            const isAct = fundsUIState.filterFundId === f.id;
+            return `<button type="button" class="fund-filter-pill${isAct ? ' active' : ''}" role="tab" aria-selected="${isAct ? 'true' : 'false'}" onclick="setFundsInlineFilter('${escapeHTML(f.id)}')">${escapeHTML(f.name)} (${f.depositCount})</button>`;
+          }).join('');
+          filterBar.innerHTML = allBtn + fundBtns;
+        }
       }
 
       // Danh sách lịch sử nạp quỹ
@@ -7943,7 +7945,8 @@
         if (filteredDeps.length === 0) {
           histList.innerHTML = `<div class="empty-state-box">Chưa có lịch sử nạp quỹ nào${fundsUIState.filterFundId !== 'all' ? ' cho quỹ này' : ''}.</div>`;
         } else {
-          histList.innerHTML = filteredDeps.map(dep => buildFundHistoryRowHTML(dep, fundsUIState.filterFundId === 'all')).join('');
+          const showBadge = model.funds.length > 1 && fundsUIState.filterFundId === 'all';
+          histList.innerHTML = filteredDeps.map(dep => buildFundHistoryRowHTML(dep, showBadge)).join('');
         }
       }
 
@@ -7952,6 +7955,97 @@
         renderFundHistoryModal();
       }
     }
+
+    window.closeFundsFabMenu = function (opts = {}) {
+      const menuEl = document.getElementById('funds-fab-menu');
+      const backdropEl = document.getElementById('funds-fab-backdrop');
+      const fabEl = document.getElementById('btn-fab-funds');
+      const wasOpen = Boolean(menuEl && menuEl.classList.contains('open'));
+      if (menuEl) {
+        menuEl.classList.remove('open');
+        menuEl.hidden = true;
+      }
+      if (backdropEl) {
+        backdropEl.classList.remove('open');
+      }
+      if (fabEl) {
+        fabEl.classList.remove('is-open');
+        fabEl.setAttribute('aria-expanded', 'false');
+        fabEl.setAttribute('aria-label', 'Mở tuỳ chọn thêm quỹ hoặc nạp tiền');
+      }
+      if (wasOpen && opts && opts.restoreFocus && fabEl && state.activeTab === 'funds') {
+        fabEl.focus();
+      }
+    };
+
+    window.openFundsFabMenu = function () {
+      if (state.activeTab !== 'funds') return;
+      const menuEl = document.getElementById('funds-fab-menu');
+      const backdropEl = document.getElementById('funds-fab-backdrop');
+      const fabEl = document.getElementById('btn-fab-funds');
+      if (!menuEl || !fabEl) return;
+      if (backdropEl) backdropEl.classList.add('open');
+      menuEl.hidden = false;
+      menuEl.classList.add('open');
+      fabEl.classList.add('is-open');
+      fabEl.setAttribute('aria-expanded', 'true');
+      fabEl.setAttribute('aria-label', 'Đóng tuỳ chọn quỹ');
+
+      const scheduleFocus = typeof window.requestAnimationFrame === 'function'
+        ? window.requestAnimationFrame.bind(window)
+        : (fn) => setTimeout(fn, 10);
+      scheduleFocus(() => {
+        const focusTarget = menuEl.querySelector('.funds-fab-item.is-primary') || menuEl.querySelector('[role="menuitem"]');
+        if (focusTarget && typeof focusTarget.focus === 'function') {
+          focusTarget.focus();
+        }
+      });
+    };
+
+    window.toggleFundsFabMenu = function () {
+      const menuEl = document.getElementById('funds-fab-menu');
+      if (menuEl && menuEl.classList.contains('open')) {
+        window.closeFundsFabMenu();
+      } else {
+        window.openFundsFabMenu();
+      }
+    };
+
+    window.onFundsFabMenuKeydown = function (e) {
+      if (!e) return;
+      const menuEl = document.getElementById('funds-fab-menu');
+      if (!menuEl || !menuEl.classList.contains('open')) return;
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        window.closeFundsFabMenu({ restoreFocus: true });
+        return;
+      }
+      if (e.key === 'Tab') {
+        window.closeFundsFabMenu();
+        return;
+      }
+      const items = Array.from(menuEl.querySelectorAll('[role="menuitem"]'));
+      if (items.length === 0) return;
+      const curIdx = items.indexOf(document.activeElement);
+      let nextIdx = -1;
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        nextIdx = curIdx >= 0 ? (curIdx + 1) % items.length : 0;
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        nextIdx = curIdx >= 0 ? (curIdx - 1 + items.length) % items.length : items.length - 1;
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        nextIdx = 0;
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        nextIdx = items.length - 1;
+      }
+      if (nextIdx >= 0 && items[nextIdx]) {
+        items[nextIdx].focus();
+      }
+    };
 
     window.setFundsInlineFilter = function (fundId) {
       fundsUIState.filterFundId = fundId || 'all';

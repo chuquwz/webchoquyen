@@ -4797,9 +4797,9 @@ body:not(.is-logged-in) #app-bottom-nav {
   display: none;
 }
 
-#tab-work.active ~ .btn-fab-plus[data-fab-for="work"],
-#tab-ledger.active ~ .btn-fab-plus[data-fab-for="ledger"],
-#tab-funds.active ~ .btn-fab-plus[data-fab-for="funds"] {
+#tab-work.active~.btn-fab-plus[data-fab-for="work"],
+#tab-ledger.active~.btn-fab-plus[data-fab-for="ledger"],
+#tab-funds.active~.btn-fab-plus[data-fab-for="funds"] {
   display: inline-flex;
 }
 
@@ -7333,110 +7333,113 @@ html[data-theme="dark"] .btn-fab-plus {
 /* --------------------------------------------------------------------------
    Tab Quỹ Tiết Kiệm (Đa quỹ, Mục tiêu, Animation sóng/vòng/ăn mừng, Lịch sử)
    -------------------------------------------------------------------------- */
-.btn-funds-header-add {
-  color: var(--color-pill-text);
-  background-color: var(--color-pill-green);
-  border-color: #84C757;
+.btn-fab-plus .fab-plus-icon {
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.funds-hero-card {
-  position: relative;
-  overflow: hidden;
-  isolation: isolate;
-  background: linear-gradient(140deg, #FAFDFA 0%, #EEF7E8 100%);
-  border: 1.5px solid #CFE3C6;
-  border-radius: 26px;
-  padding: 18px 16px 16px;
-  box-shadow: var(--shadow-card);
+.btn-fab-plus.is-open .fab-plus-icon {
+  transform: rotate(45deg);
 }
 
-.funds-hero-bg {
-  position: absolute;
+.funds-fab-backdrop {
+  position: fixed;
   inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  overflow: hidden;
+  z-index: 93;
+  background-color: rgba(15, 22, 14, 0.28);
+  display: none;
 }
 
-.funds-hero-orb {
-  position: absolute;
-  border-radius: 50%;
-  pointer-events: none;
+#tab-funds.active ~ .funds-fab-backdrop.open {
+  display: block;
 }
 
-.funds-hero-orb.orb-1 {
-  width: 160px;
-  height: 160px;
-  right: -36px;
-  top: -54px;
-  background: radial-gradient(circle, rgba(164, 219, 122, 0.32) 0%, rgba(164, 219, 122, 0) 70%);
-}
-
-.funds-hero-orb.orb-2 {
-  width: 120px;
-  height: 120px;
-  left: -30px;
-  bottom: -44px;
-  background: radial-gradient(circle, rgba(94, 148, 71, 0.18) 0%, rgba(94, 148, 71, 0) 72%);
-}
-
-.funds-hero-wave {
-  position: absolute;
-  left: 0;
-  bottom: -6px;
-  width: 200%;
-  height: 36px;
-  background-repeat: repeat-x;
-  background-size: 50% 100%;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 40' preserveAspectRatio='none'%3E%3Cpath d='M0,16 Q30,4 60,16 T120,16 L120,40 L0,40 Z' fill='%23A4DB7A' fill-opacity='0.22'/%3E%3C/svg%3E");
-}
-
-.funds-hero-content {
-  position: relative;
-  z-index: 2;
-}
-
-.funds-hero-balance-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.funds-fab-menu {
+  position: fixed;
+  bottom: calc(148px + var(--safe-bottom));
+  right: max(18px, calc(50% - 188px));
+  z-index: 96;
+  display: none;
+  flex-direction: column;
+  align-items: flex-end;
   gap: 10px;
-  margin: 6px 0 4px;
+  max-width: calc(100vw - 36px);
 }
 
-.funds-hero-pct-pill {
-  flex-shrink: 0;
-  padding: 4px 10px;
-  border-radius: var(--radius-pill);
-  background-color: #E2F2D6;
-  border: 1px solid #A8D88E;
-  color: #1E4611;
-  font-size: 12.5px;
-  font-weight: 800;
-}
-
-.funds-hero-target-sub {
-  font-size: 12.5px;
-  color: var(--text-sub);
-  margin-bottom: 10px;
-}
-
-.funds-hero-actions {
+#tab-funds.active ~ .funds-fab-menu.open:not([hidden]) {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 12px;
-  flex-wrap: wrap;
 }
 
-.funds-hero-actions .btn-green-pill,
-.funds-hero-actions .btn-secondary-pill {
-  flex: 1;
-  min-width: 120px;
-  min-height: 44px;
+@media (max-width: 600px) {
+  .funds-fab-menu {
+    right: 18px;
+  }
+}
+
+.funds-fab-item {
+  min-height: 46px;
+  padding: 8px 16px 8px 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  max-width: 100%;
+  box-shadow: 0 10px 24px rgba(18, 30, 16, 0.18), 0 2px 6px rgba(18, 30, 16, 0.1);
+  transition: transform 0.15s ease-out, background-color 0.15s ease-out, filter 0.15s ease-out;
+}
+
+.funds-fab-item:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.funds-fab-item:focus-visible {
+  outline: 2.5px solid #2B5719;
+  outline-offset: 2px;
+}
+
+.funds-fab-item-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+}
+
+.funds-fab-item.is-secondary {
+  background-color: #FFFFFF;
+  border: 1.5px solid #6E8568;
+  color: #1E251D;
+}
+
+.funds-fab-item.is-secondary .funds-fab-item-icon {
+  background-color: #E1F3D5;
+  color: #1E4611;
+}
+
+.funds-fab-item.is-primary {
+  background-color: #3F7A2C;
+  border: 1.5px solid #2E5D1F;
+  color: #FFFFFF;
+}
+
+.funds-fab-item.is-primary .funds-fab-item-icon {
+  background-color: rgba(255, 255, 255, 0.18);
+  color: #FFFFFF;
+}
+
+@media (hover: hover) {
+  .funds-fab-item.is-secondary:hover {
+    background-color: #F2F8EE;
+  }
+
+  .funds-fab-item.is-primary:hover {
+    filter: brightness(1.06);
+  }
 }
 
 .funds-cards-stack {
@@ -7738,11 +7741,6 @@ html[data-theme="dark"] .btn-fab-plus {
   overflow: hidden;
 }
 
-.fund-progress-track.is-hero {
-  height: 11px;
-  background-color: rgba(63, 122, 44, 0.14);
-}
-
 .fund-progress-fill {
   position: relative;
   height: 100%;
@@ -7876,11 +7874,30 @@ html[data-theme="dark"] .btn-fab-plus {
   color: #1E4611;
 }
 
-.fund-tag-badge.is-sky { background-color: #D8ECFC; color: #0F406E; }
-.fund-tag-badge.is-emerald { background-color: #D5F5E7; color: #0D4A36; }
-.fund-tag-badge.is-amber { background-color: #FDEAC8; color: #78350F; }
-.fund-tag-badge.is-rose { background-color: #FCE0E6; color: #7F1D32; }
-.fund-tag-badge.is-violet { background-color: #EAE2FC; color: #3E2180; }
+.fund-tag-badge.is-sky {
+  background-color: #D8ECFC;
+  color: #0F406E;
+}
+
+.fund-tag-badge.is-emerald {
+  background-color: #D5F5E7;
+  color: #0D4A36;
+}
+
+.fund-tag-badge.is-amber {
+  background-color: #FDEAC8;
+  color: #78350F;
+}
+
+.fund-tag-badge.is-rose {
+  background-color: #FCE0E6;
+  color: #7F1D32;
+}
+
+.fund-tag-badge.is-violet {
+  background-color: #EAE2FC;
+  color: #3E2180;
+}
 
 .fund-history-modal-summary {
   background-color: var(--bg-subtle);
@@ -7899,6 +7916,7 @@ html[data-theme="dark"] .btn-fab-plus {
 }
 
 @media (max-width: 340px) {
+
   .fund-color-grid,
   .fund-icon-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -7927,12 +7945,29 @@ html[data-theme="dark"] .btn-fab-plus {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
 }
 
-.fund-color-swatch.is-sage .fund-swatch-dot { background-color: #5E9447; }
-.fund-color-swatch.is-emerald .fund-swatch-dot { background-color: #10B981; }
-.fund-color-swatch.is-sky .fund-swatch-dot { background-color: #0EA5E9; }
-.fund-color-swatch.is-amber .fund-swatch-dot { background-color: #F59E0B; }
-.fund-color-swatch.is-rose .fund-swatch-dot { background-color: #F43F5E; }
-.fund-color-swatch.is-violet .fund-swatch-dot { background-color: #8B5CF6; }
+.fund-color-swatch.is-sage .fund-swatch-dot {
+  background-color: #5E9447;
+}
+
+.fund-color-swatch.is-emerald .fund-swatch-dot {
+  background-color: #10B981;
+}
+
+.fund-color-swatch.is-sky .fund-swatch-dot {
+  background-color: #0EA5E9;
+}
+
+.fund-color-swatch.is-amber .fund-swatch-dot {
+  background-color: #F59E0B;
+}
+
+.fund-color-swatch.is-rose .fund-swatch-dot {
+  background-color: #F43F5E;
+}
+
+.fund-color-swatch.is-violet .fund-swatch-dot {
+  background-color: #8B5CF6;
+}
 
 .fund-color-swatch.active,
 .fund-icon-opt.active {
@@ -7948,6 +7983,7 @@ html[data-theme="dark"] .btn-fab-plus {
 }
 
 @media (hover: hover) {
+
   .btn-fund-edit-gear:hover,
   .btn-fund-history-sm:hover {
     background-color: #FFFFFF;
@@ -7964,8 +8000,12 @@ html[data-theme="dark"] .btn-fab-plus {
 
 /* Reduced-Motion Safe Fund Animations */
 @media (prefers-reduced-motion: no-preference) {
-  .funds-hero-wave {
-    animation: waterWaveFlow 7.5s linear infinite;
+  .funds-fab-menu.open .funds-fab-item {
+    animation: fundsFabPopIn 0.18s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .funds-fab-menu.open .funds-fab-item:first-child {
+    animation-delay: 0.035s;
   }
 
   .fund-wave-back {
@@ -8005,6 +8045,7 @@ html[data-theme="dark"] .btn-fab-plus {
 }
 
 @keyframes fundBarShimmer {
+
   0%,
   35% {
     transform: translateX(-100%);
@@ -8044,26 +8085,51 @@ html[data-theme="dark"] .btn-fab-plus {
   }
 }
 
+@keyframes fundsFabPopIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.92);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 /* Dark Mode Overrides for Quỹ Tiết Kiệm */
-html[data-theme="dark"] .btn-funds-header-add {
-  background-color: var(--color-pill-green);
-  color: var(--color-pill-text);
+html[data-theme="dark"] .funds-fab-backdrop {
+  background-color: rgba(4, 7, 4, 0.56);
+}
+
+html[data-theme="dark"] .funds-fab-item {
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.48), 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+html[data-theme="dark"] .funds-fab-item:focus-visible {
+  outline-color: #7CC256;
+}
+
+html[data-theme="dark"] .funds-fab-item.is-secondary {
+  background-color: #1C251C;
+  border-color: #647563;
+  color: #EFF4ED;
+}
+
+html[data-theme="dark"] .funds-fab-item.is-secondary .funds-fab-item-icon {
+  background-color: #20351D;
+  color: #B6EE92;
+}
+
+html[data-theme="dark"] .funds-fab-item.is-primary {
+  background-color: #86C75A;
   border-color: #6BB44A;
+  color: #0F2208;
 }
 
-html[data-theme="dark"] .funds-hero-card {
-  background: linear-gradient(140deg, #161F15 0%, #1C2A1A 100%);
-  border-color: #365033;
-}
-
-html[data-theme="dark"] .funds-hero-pct-pill {
-  background-color: #1D341A;
-  border-color: #4E8A38;
-  color: #A7E484;
-}
-
-html[data-theme="dark"] .fund-progress-track.is-hero {
-  background-color: rgba(134, 199, 90, 0.16);
+html[data-theme="dark"] .funds-fab-item.is-primary .funds-fab-item-icon {
+  background-color: rgba(15, 34, 8, 0.14);
+  color: #0F2208;
 }
 
 html[data-theme="dark"] .fund-goal-card {
@@ -8161,14 +8227,42 @@ html[data-theme="dark"] .fund-filter-pill.active {
   color: var(--color-pill-text);
 }
 
-html[data-theme="dark"] .fund-tag-badge { background-color: #1C3119; color: #A7E484; }
-html[data-theme="dark"] .fund-tag-badge.is-sky { background-color: #152B3C; color: #BAE6FD; }
-html[data-theme="dark"] .fund-tag-badge.is-emerald { background-color: #153027; color: #A7F3D0; }
-html[data-theme="dark"] .fund-tag-badge.is-amber { background-color: #332512; color: #FDE68A; }
-html[data-theme="dark"] .fund-tag-badge.is-rose { background-color: #361A22; color: #FECDD3; }
-html[data-theme="dark"] .fund-tag-badge.is-violet { background-color: #28203D; color: #DDD6FE; }
+html[data-theme="dark"] .fund-tag-badge {
+  background-color: #1C3119;
+  color: #A7E484;
+}
+
+html[data-theme="dark"] .fund-tag-badge.is-sky {
+  background-color: #152B3C;
+  color: #BAE6FD;
+}
+
+html[data-theme="dark"] .fund-tag-badge.is-emerald {
+  background-color: #153027;
+  color: #A7F3D0;
+}
+
+html[data-theme="dark"] .fund-tag-badge.is-amber {
+  background-color: #332512;
+  color: #FDE68A;
+}
+
+html[data-theme="dark"] .fund-tag-badge.is-rose {
+  background-color: #361A22;
+  color: #FECDD3;
+}
+
+html[data-theme="dark"] .fund-tag-badge.is-violet {
+  background-color: #28203D;
+  color: #DDD6FE;
+}
 
 @media (hover: hover) {
+
+  html[data-theme="dark"] .funds-fab-item.is-secondary:hover {
+    background-color: #243322;
+  }
+
   html[data-theme="dark"] .btn-fund-edit-gear:hover,
   html[data-theme="dark"] .btn-fund-history-sm:hover {
     background-color: rgba(25, 34, 25, 0.9);
