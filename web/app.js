@@ -25,7 +25,7 @@
     mealsTarget: 3,
     mealDayRows: [],
     weights: [],
-    activeTab: 'today'
+    activeTab: 'work'
   };
 
   // Utility Toast (hỗ trợ nút Hoàn tác & tạm dừng đếm ngược khi người dùng đang chạm/focus)
@@ -768,12 +768,20 @@
     await hydrateSyncQueueFromIDB();
     if (typeof hydrateVaultFromIDB === 'function') {
       await hydrateVaultFromIDB();
+      if ((state.activeTab === 'work' || state.activeTab === 'ledger' || state.activeTab === 'funds')
+        && typeof computeWorkFromLocalVault === 'function') {
+        computeWorkFromLocalVault(workState.date || state.today);
+      }
     }
     bindSyncLifecycleListeners();
     startSyncWatcher();
     await flushPendingSyncQueues({ silent: true });
     await loadToday({ silent: true });
     await syncFinanceVaultOnBoot();
+    if (state.activeTab === 'work' || state.activeTab === 'ledger' || state.activeTab === 'funds') {
+      lastWorkSyncAt = Date.now();
+      await loadWorkData(workState.date || state.today, { silent: true });
+    }
     await checkRemoteSyncState({ silent: true, force: true });
   }
 
@@ -938,6 +946,7 @@
     stopSyncWatcher();
     localStorage.removeItem('qh_user');
     state.currentUser = 'quyen';
+    applyActiveTabUI('work');
     showLoginView();
   };
 
@@ -983,10 +992,28 @@
     }
   }
 
+  function applyActiveTabUI(tabId, opts = {}) {
+    state.activeTab = tabId;
+    document.querySelectorAll('.tab-pane').forEach(el => {
+      clearPaneSwipeStyles(el);
+      el.classList.remove('active');
+      el.removeAttribute('data-slide-dir');
+    });
+
+    const targetPane = document.getElementById('tab-' + tabId);
+    if (targetPane) {
+      clearPaneSwipeStyles(targetPane);
+      if (opts.direction) targetPane.setAttribute('data-slide-dir', opts.direction);
+      targetPane.classList.add('active');
+    }
+
+    updateNavPillSelection(tabId, Boolean(opts.focusNavBtn));
+  }
+
   window.switchTab = function (tabId, opts = {}) {
     if (tabId === 'records' || tabId === 'meals') tabId = 'today';
     if (tabId === 'overview' || !document.getElementById('tab-' + tabId)) {
-      tabId = 'today';
+      tabId = 'work';
     }
 
     if (typeof cancelSwipeSessionFn === 'function' && !(opts && opts.fromSwipeFlush)) {
@@ -1006,21 +1033,10 @@
       : ((opts && opts.direction) ||
         (prevIdx !== -1 && nextIdx !== -1 && nextIdx !== prevIdx ? (nextIdx > prevIdx ? 'next' : 'prev') : ''));
 
-    state.activeTab = tabId;
-    document.querySelectorAll('.tab-pane').forEach(el => {
-      clearPaneSwipeStyles(el);
-      el.classList.remove('active');
-      el.removeAttribute('data-slide-dir');
+    applyActiveTabUI(tabId, {
+      direction: dir,
+      focusNavBtn: Boolean(opts && opts.focusNavBtn)
     });
-
-    const targetPane = document.getElementById('tab-' + tabId);
-    if (targetPane) {
-      clearPaneSwipeStyles(targetPane);
-      if (dir) targetPane.setAttribute('data-slide-dir', dir);
-      targetPane.classList.add('active');
-    }
-
-    updateNavPillSelection(tabId, Boolean(opts && opts.focusNavBtn));
 
     const scrollContainer = document.querySelector('.app-content-area');
     if (isTabChanged) {
@@ -4238,14 +4254,6 @@
       return String(Math.round(n) / 1000);
     }
 
-    function syncPresetChipActive(formSelector, vnd, skipPayAll = false) {
-      const targetText = vnd > 0 ? formatShortK(vnd) : '';
-      document.querySelectorAll(formSelector + ' .btn-price-chip').forEach(btn => {
-        if (skipPayAll && btn.classList.contains('is-pay-all')) return;
-        btn.classList.toggle('active', Boolean(targetText) && btn.textContent.trim() === targetText);
-      });
-    }
-
     function shiftDateStr(dStr, deltaDays) {
       const parts = dStr.split('-').map(Number);
       const dt = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
@@ -5292,8 +5300,7 @@
         const svcs = (workState.suggestions && workState.suggestions.services) || [];
         svcContainer.innerHTML = svcs.map(item => {
           const safeSvc = escapeHTML(item.service);
-          const priceLabel = item.price ? ` (${formatShortK(item.price)})` : '';
-          return `<button type="button" class="work-suggest-chip font-tabular" data-svc="${safeSvc}" data-price="${item.price || 0}" onclick="pickWorkService(this.getAttribute('data-svc'), Number(this.getAttribute('data-price')))">${safeSvc.trim()}${priceLabel}</button>`;
+          return `<button type="button" class="work-suggest-chip" data-svc="${safeSvc}" onclick="pickWorkService(this.getAttribute('data-svc'))">${safeSvc.trim()}</button>`;
         }).join('');
       }
     }
@@ -5309,7 +5316,7 @@
       }
     };
 
-    window.pickWorkService = function (svcName, defaultPrice) {
+    window.pickWorkService = function (svcName) {
       const input = document.getElementById('work-job-service');
       if (input) {
         input.value = svcName;
@@ -5317,10 +5324,6 @@
         try {
           input.setSelectionRange(svcName.length, svcName.length);
         } catch (e) { }
-      }
-      const priceInput = document.getElementById('work-job-price');
-      if (defaultPrice > 0 && priceInput && !priceInput.value) {
-        setWorkJobPrice(defaultPrice);
       }
     };
 
@@ -5342,21 +5345,11 @@
       if (btnCtt) btnCtt.classList.toggle('active-ctt', st === 'CTT');
     };
 
-    window.setWorkJobPrice = function (vnd) {
-      const input = document.getElementById('work-job-price');
-      if (input) {
-        input.value = formatMoneyInputVal(vnd);
-        updateWorkPricePreview(input.value);
-      }
-    };
-
     window.updateWorkPricePreview = function (rawVal) {
       const preview = document.getElementById('work-job-price-preview');
+      if (!preview) return;
       const vnd = parseMoneyInputVND(rawVal);
-      if (preview) {
-        preview.textContent = vnd > 0 ? ('= ' + formatVND(vnd)) : '';
-      }
-      syncPresetChipActive('#work-job-form', vnd);
+      preview.textContent = vnd > 0 ? ('= ' + formatVND(vnd)) : '';
     };
 
     window.openAddWorkJobModal = function () {
@@ -7120,31 +7113,14 @@
 
     window.updateWorkLedgerAmountPreview = function (rawVal) {
       const preview = document.getElementById('work-ledger-amount-preview');
+      if (!preview) return;
       const vnd = parseMoneyInputVND(rawVal);
-      if (preview) {
-        preview.textContent = vnd > 0 ? ('= ' + formatVND(vnd)) : '';
-      }
-      syncPresetChipActive('#work-ledger-form', vnd);
+      preview.textContent = vnd > 0 ? ('= ' + formatVND(vnd)) : '';
     };
 
-    window.setWorkLedgerAmount = function (vnd) {
-      const input = document.getElementById('work-ledger-amount');
-      if (input) {
-        input.value = formatMoneyInputVal(vnd);
-        updateWorkLedgerAmountPreview(input.value);
-      }
-    };
-
-    window.setWorkLedgerNote = function (noteText, defaultVnd) {
+    window.setWorkLedgerNote = function (noteText) {
       const noteInput = document.getElementById('work-ledger-note');
       if (noteInput) noteInput.value = noteText;
-      if (defaultVnd > 0) {
-        const amtInput = document.getElementById('work-ledger-amount');
-        if (amtInput && !amtInput.value) {
-          amtInput.value = formatMoneyInputVal(defaultVnd);
-          updateWorkLedgerAmountPreview(amtInput.value);
-        }
-      }
       setWorkLedgerCategory('expense');
     };
 
@@ -7388,10 +7364,15 @@
       const badgeEl = document.getElementById('ledger-borrow-btn-badge');
       const totalEl = document.getElementById('ledger-borrow-btn-total');
 
-      const allSettled = sum.totalCount > 0 && sum.unpaidCount === 0;
-      if (btn) btn.classList.toggle('is-all-settled', allSettled);
+      const hasUnpaid = sum.unpaidCount > 0;
+      const allSettled = sum.totalCount > 0 && !hasUnpaid;
+      if (btn) {
+        btn.classList.toggle('is-has-unpaid', hasUnpaid);
+        btn.classList.toggle('is-all-settled', allSettled);
+      }
 
       if (badgeEl) {
+        badgeEl.classList.toggle('is-has-unpaid', hasUnpaid);
         badgeEl.classList.toggle('is-settled', allSettled);
         if (sum.totalCount === 0) {
           badgeEl.textContent = '0 khoản';
@@ -8144,18 +8125,11 @@
       if (dateInput) dateInput.value = workState.date || state.today || new Date().toISOString().slice(0, 10);
       if (amtInput) amtInput.value = '';
       if (noteInput) noteInput.value = '';
-      document.querySelectorAll('#fund-deposit-form .btn-price-chip').forEach(b => b.classList.remove('active'));
       window.updateFundDepositPreview();
       openModal('modal-fund-deposit');
       setTimeout(() => {
         if (amtInput) amtInput.focus();
       }, 80);
-    };
-
-    window.setFundDepositAmount = function (vnd) {
-      const amtInput = document.getElementById('fund-deposit-amount');
-      if (amtInput) amtInput.value = formatMoneyInputVal(vnd);
-      window.updateFundDepositPreview();
     };
 
     window.fillFundDepositToGoal = function () {
@@ -8170,14 +8144,9 @@
       window.updateFundDepositPreview();
     };
 
-    window.setFundDepositNote = function (text, defaultVnd) {
+    window.setFundDepositNote = function (text) {
       const noteInput = document.getElementById('fund-deposit-note');
       if (noteInput) noteInput.value = text;
-      const amtInput = document.getElementById('fund-deposit-amount');
-      if (defaultVnd > 0 && amtInput && !amtInput.value) {
-        amtInput.value = formatMoneyInputVal(defaultVnd);
-      }
-      window.updateFundDepositPreview();
     };
 
     window.updateFundDepositPreview = function () {
@@ -8185,13 +8154,16 @@
       const amtInput = document.getElementById('fund-deposit-amount');
       const prevEl = document.getElementById('fund-deposit-amount-preview');
       const afterEl = document.getElementById('fund-deposit-after-preview');
+      const fillWrap = document.getElementById('fund-deposit-fill-wrap');
       const fillBtn = document.getElementById('btn-fund-deposit-fill-goal');
 
       const model = computeFundsModel();
       const f = (hidden && model.byId.get(hidden.value)) || model.funds[0];
+      const showFill = Boolean(f && f.remaining >= 1000 && f.remaining <= 500000000);
 
+      if (fillWrap) fillWrap.hidden = !showFill;
       if (fillBtn) {
-        if (f && f.remaining >= 1000 && f.remaining <= 500000000) {
+        if (showFill) {
           fillBtn.hidden = false;
           fillBtn.textContent = `Đủ mục tiêu (${formatShortK(f.remaining)})`;
         } else {
@@ -8201,9 +8173,8 @@
 
       const vnd = parseMoneyInputVND(amtInput ? amtInput.value : '');
       if (prevEl) prevEl.textContent = vnd > 0 ? ('= ' + formatVND(vnd)) : '';
-      syncPresetChipActive('#fund-deposit-form', vnd, true);
-      if (fillBtn && !fillBtn.hidden) {
-        fillBtn.classList.toggle('active', Boolean(f && vnd > 0 && vnd === f.remaining));
+      if (fillBtn && showFill) {
+        fillBtn.classList.toggle('active', vnd > 0 && vnd === f.remaining);
       }
       if (afterEl && f) {
         if (vnd > 0) {
@@ -8294,18 +8265,12 @@
     };
 
     // --- POPUP TẠO / CÀI ĐẶT / XOÁ QUỸ ---
-    window.setFundEditTarget = function (vnd) {
-      const targetInp = document.getElementById('fund-edit-target');
-      if (targetInp) targetInp.value = formatMoneyInputVal(vnd);
-      window.updateFundTargetPreview();
-    };
-
     window.updateFundTargetPreview = function () {
       const targetInp = document.getElementById('fund-edit-target');
       const prevEl = document.getElementById('fund-edit-target-preview');
+      if (!prevEl) return;
       const vnd = parseMoneyInputVND(targetInp ? targetInp.value : '');
-      if (prevEl) prevEl.textContent = vnd > 0 ? ('= ' + formatVND(vnd)) : '';
-      syncPresetChipActive('#fund-editor-form', vnd);
+      prevEl.textContent = vnd > 0 ? ('= ' + formatVND(vnd)) : '';
     };
 
     window.setFundEditColor = function (color) {
@@ -8353,7 +8318,7 @@
         window.setFundEditIcon(existing.icon);
       } else {
         if (nameEl) nameEl.value = '';
-        if (targetEl) targetEl.value = '5000';
+        if (targetEl) targetEl.value = '';
         const usedColors = new Set(model.funds.map(f => f.color));
         const nextColor = FUND_COLORS.find(c => !usedColors.has(c)) || FUND_COLORS[model.funds.length % FUND_COLORS.length];
         const nextIcon = FUND_ICONS[model.funds.length % FUND_ICONS.length];
@@ -8643,14 +8608,7 @@
 
     function buildInstallmentChipsHTML(remaining, onClickFnName) {
       if (remaining <= 0) return '';
-      const presets = [100000, 200000, 500000, 1000000].filter(v => v < remaining);
-      const chipBtns = presets.map(v =>
-        `<button type="button" class="btn-price-chip" data-vnd="${v}" onclick="${onClickFnName}(${v})">${escapeHTML(formatShortK(v))}</button>`
-      );
-      chipBtns.push(
-        `<button type="button" class="btn-price-chip is-pay-all" data-vnd="${remaining}" onclick="${onClickFnName}(${remaining})">Trả hết (${escapeHTML(formatShortK(remaining))})</button>`
-      );
-      return chipBtns.join('');
+      return `<button type="button" class="btn-price-chip is-pay-all" data-vnd="${remaining}" onclick="${onClickFnName}(${remaining})">Trả hết (${escapeHTML(formatShortK(remaining))})</button>`;
     }
 
     function computeInstallmentAfterText(amount, remaining) {
@@ -8766,6 +8724,7 @@
 
       const chipsEl = document.getElementById('repay-quick-chips');
       if (chipsEl) {
+        chipsEl.hidden = isSettled;
         chipsEl.innerHTML = isSettled ? '' : buildInstallmentChipsHTML(remaining, 'setBorrowRepayAmount');
       }
 
@@ -9097,6 +9056,7 @@
 
       const chipsEl = document.getElementById('debt-pay-quick-chips');
       if (chipsEl) {
+        chipsEl.hidden = isSettled;
         chipsEl.innerHTML = isSettled ? '' : buildInstallmentChipsHTML(remaining, 'setDebtPayAmount');
       }
 

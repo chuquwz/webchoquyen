@@ -3480,19 +3480,6 @@ input.work-mobile-input:not(.work-search-input) {
   color: #2B5719;
 }
 
-.work-price-Preset-grid {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 6px;
-  margin-top: 8px;
-}
-
-@media (max-width: 360px) {
-  .work-price-Preset-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
 .btn-price-chip {
   display: inline-flex;
   align-items: center;
@@ -5864,6 +5851,10 @@ input.work-mobile-input:not(.work-search-input) {
   margin-top: 8px;
 }
 
+.repay-chips-grid[hidden] {
+  display: none !important;
+}
+
 .repay-chips-grid .btn-price-chip {
   min-height: 40px;
   padding: 6px 12px;
@@ -5874,12 +5865,6 @@ input.work-mobile-input:not(.work-search-input) {
   background-color: #E8F6DE;
   border-color: #96CE72;
   color: #1A3A0E;
-}
-
-.work-price-Preset-grid .btn-price-chip.is-pay-all {
-  grid-column: 1 / -1;
-  min-height: 40px;
-  padding: 8px 14px;
 }
 
 .repay-meta-grid {
@@ -6006,12 +5991,12 @@ input.work-mobile-input:not(.work-search-input) {
 
 .work-borrow-summary-btn {
   width: 100%;
-  min-height: 62px;
+  min-height: 66px;
   padding: 12px 14px;
-  border-radius: 20px;
-  background-color: #FFFFFF;
-  border: 1.5px solid #CFE4C2;
-  box-shadow: 0 2px 10px rgba(30, 59, 19, 0.06);
+  border-radius: 22px;
+  background: linear-gradient(135deg, #F3FBEB 0%, #E1F3D3 100%);
+  border: 2px solid #6BB44A;
+  box-shadow: 0 6px 18px rgba(78, 138, 56, 0.14), 0 1px 3px rgba(30, 59, 19, 0.08);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -6022,34 +6007,73 @@ input.work-mobile-input:not(.work-search-input) {
   transition: transform 0.15s ease-out, background-color 0.15s ease-out, border-color 0.15s ease-out, box-shadow 0.15s ease-out;
 }
 
-.work-borrow-summary-btn:not(:disabled):active {
-  transform: scale(0.985);
+.work-borrow-summary-btn:focus-visible {
+  outline: 2.5px solid #2B5719;
+  outline-offset: 2px;
+}
+
+.work-borrow-summary-btn.is-has-unpaid {
+  background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
+  border-color: #D97706;
+  box-shadow: 0 8px 22px rgba(217, 119, 6, 0.16), 0 1px 3px rgba(146, 64, 14, 0.08);
+}
+
+.work-borrow-summary-btn.is-has-unpaid:focus-visible {
+  outline-color: #B45309;
 }
 
 .work-borrow-summary-btn.is-all-settled {
-  background-color: #F7FCF4;
-  border-color: #C6E2B7;
+  background: linear-gradient(135deg, #F1FAE9 0%, #E2F4D6 100%);
+  border-color: #5E9447;
 }
 
 @media (hover: hover) {
   .work-borrow-summary-btn:hover {
-    background-color: #F8FCF5;
-    border-color: #93CA70;
-    box-shadow: 0 4px 14px rgba(30, 59, 19, 0.1);
+    background: linear-gradient(135deg, #ECF8E1 0%, #D6EEC4 100%);
+    border-color: #4E8A38;
+    box-shadow: 0 8px 22px rgba(78, 138, 56, 0.2), 0 2px 5px rgba(30, 59, 19, 0.1);
+  }
+
+  .work-borrow-summary-btn.is-has-unpaid:hover {
+    background: linear-gradient(135deg, #FEF7DC 0%, #FDEBA8 100%);
+    border-color: #B45309;
+    box-shadow: 0 10px 26px rgba(217, 119, 6, 0.22), 0 2px 5px rgba(146, 64, 14, 0.1);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .work-borrow-summary-btn:not(:disabled):active {
+    transform: scale(0.96);
+  }
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .work-borrow-summary-btn:hover {
+    transform: translateY(-1px);
+  }
+
+  .work-borrow-summary-btn:hover .work-borrow-btn-chevron {
+    transform: translateX(1.5px);
   }
 }
 
 .work-borrow-btn-icon {
   width: 38px;
   height: 38px;
-  border-radius: 12px;
-  background-color: #ECF7E4;
-  border: 1px solid #C8E3B6;
-  color: #265214;
+  border-radius: 10px;
+  background-color: #2B5719;
+  border: 1px solid #214512;
+  color: #FFFFFF;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+}
+
+.work-borrow-summary-btn.is-has-unpaid .work-borrow-btn-icon {
+  background-color: #FDE68A;
+  border-color: #F59E0B;
+  color: #78350F;
 }
 
 .work-borrow-btn-body {
@@ -6077,26 +6101,32 @@ input.work-mobile-input:not(.work-search-input) {
 .work-borrow-btn-badge {
   display: inline-flex;
   align-items: center;
-  padding: 2px 7px;
+  padding: 2px 8px;
   border-radius: 999px;
   font-size: 11px;
   font-weight: 800;
-  background-color: #FFF4E5;
-  border: 1px solid #F6CF97;
-  color: #92400E;
+  background-color: #FFFFFF;
+  border: 1px solid #8CC66E;
+  color: #1E4611;
   white-space: nowrap;
 }
 
+.work-borrow-btn-badge.is-has-unpaid {
+  background-color: #B45309;
+  border-color: #92400E;
+  color: #FFFFFF;
+}
+
 .work-borrow-btn-badge.is-settled {
-  background-color: #E2F4D6;
-  border-color: #B7DF9C;
-  color: #1E4611;
+  background-color: #2B5719;
+  border-color: #214512;
+  color: #FFFFFF;
 }
 
 .work-borrow-btn-right {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   flex-shrink: 0;
 }
 
@@ -6107,9 +6137,30 @@ input.work-mobile-input:not(.work-search-input) {
   white-space: nowrap;
 }
 
-.work-borrow-btn-chevron {
-  color: #4A5246;
+.work-borrow-summary-btn.is-has-unpaid .work-borrow-btn-total {
+  color: #92400E;
+}
+
+.work-borrow-btn-chevron-wrap {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background-color: #2B5719;
+  color: #FFFFFF;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+}
+
+.work-borrow-summary-btn.is-has-unpaid .work-borrow-btn-chevron-wrap {
+  background-color: #B45309;
+  color: #FFFFFF;
+}
+
+.work-borrow-btn-chevron {
+  flex-shrink: 0;
+  transition: transform 0.15s ease-out;
 }
 
 .borrow-list-subtitle {
@@ -6541,14 +6592,27 @@ input.work-mobile-input:not(.work-search-input) {
 
   .work-borrow-summary-btn {
     padding: 10px 11px;
-    gap: 9px;
+    gap: 8px;
+    border-radius: 20px;
   }
 
   .work-borrow-btn-icon {
     width: 34px;
     height: 34px;
+    border-radius: 10px;
   }
 
+  .work-borrow-btn-chevron-wrap {
+    width: 26px;
+    height: 26px;
+    border-radius: 9px;
+  }
+
+  .work-borrow-btn-right {
+    gap: 6px;
+  }
+
+  .work-borrow-btn-title,
   .work-borrow-btn-total {
     font-size: 13.5px;
   }
@@ -6740,7 +6804,6 @@ html[data-theme="dark"] .work-debt-item-row.is-debt-settled,
 html[data-theme="dark"] .meal-history-row,
 html[data-theme="dark"] .btn-meal-reset,
 html[data-theme="dark"] .repay-metrics-3,
-html[data-theme="dark"] .work-borrow-summary-btn,
 html[data-theme="dark"] .btn-borrow-add-inline,
 html[data-theme="dark"] .btn-search-reset {
   background-color: #171E17;
@@ -6752,8 +6815,7 @@ html[data-theme="dark"] .btn-secondary-pill,
 html[data-theme="dark"] .btn-water-custom,
 html[data-theme="dark"] .btn-meal-reset,
 html[data-theme="dark"] .btn-borrow-add-inline,
-html[data-theme="dark"] .btn-search-reset,
-html[data-theme="dark"] .work-borrow-summary-btn {
+html[data-theme="dark"] .btn-search-reset {
   border-color: #647563;
   color: var(--text-main);
 }
@@ -6972,7 +7034,6 @@ html[data-theme="dark"] .work-job-count-pill,
 html[data-theme="dark"] .work-subtab-count,
 html[data-theme="dark"] .work-vault-badge,
 html[data-theme="dark"] .work-borrow-settled-badge,
-html[data-theme="dark"] .work-borrow-btn-badge.is-settled,
 html[data-theme="dark"] .work-debt-status-badge.is-settled,
 html[data-theme="dark"] .btn-status-toggle.st-tt,
 html[data-theme="dark"] .repay-settled-banner,
@@ -7093,7 +7154,6 @@ html[data-theme="dark"] .repay-borrow-date,
 html[data-theme="dark"] .repay-metric-lbl,
 html[data-theme="dark"] .repay-history-empty,
 html[data-theme="dark"] .repay-history-note,
-html[data-theme="dark"] .work-borrow-btn-chevron,
 html[data-theme="dark"] .borrow-list-subtitle,
 html[data-theme="dark"] .work-search-label,
 html[data-theme="dark"] .work-search-icon,
@@ -7116,7 +7176,6 @@ html[data-theme="dark"] .borrow-repay-log-amt,
 html[data-theme="dark"] .repay-metric-val.is-paid,
 html[data-theme="dark"] .repay-after-hint,
 html[data-theme="dark"] .repay-history-amt,
-html[data-theme="dark"] .work-borrow-btn-total,
 html[data-theme="dark"] .ios-step-text strong,
 html[data-theme="dark"] .ios-pwa-tip-banner,
 html[data-theme="dark"] .giant-meals-sub,
@@ -7185,7 +7244,6 @@ html[data-theme="dark"] .work-debt-item-row,
 html[data-theme="dark"] .work-status-opt.active-ctt,
 html[data-theme="dark"] .btn-status-toggle.st-ctt,
 html[data-theme="dark"] .work-debt-status-badge,
-html[data-theme="dark"] .work-borrow-btn-badge,
 html[data-theme="dark"] .work-search-status.is-empty-result,
 html[data-theme="dark"] .btn-debt-items-toggle {
   background-color: #291E13;
@@ -7212,7 +7270,6 @@ html[data-theme="dark"] .work-debt-group-header {
 
 html[data-theme="dark"] .work-debt-group-card.is-debt-settled,
 html[data-theme="dark"] .work-job-card.is-borrow-settled,
-html[data-theme="dark"] .work-borrow-summary-btn.is-all-settled,
 html[data-theme="dark"] .work-debt-group-card.is-debt-settled .btn-debt-items-toggle {
   background-color: #162215;
   border-color: #3E6A34;
@@ -7291,10 +7348,83 @@ html[data-theme="dark"] .btn-data-action.btn-data-cloud {
   color: #7DD3FC;
 }
 
+html[data-theme="dark"] .work-borrow-summary-btn {
+  background: linear-gradient(135deg, #192A18 0%, #223B1F 100%);
+  border: 2px solid #6BB44A;
+  color: var(--text-main);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45), 0 2px 14px rgba(124, 194, 86, 0.18);
+}
+
+html[data-theme="dark"] .work-borrow-summary-btn:focus-visible {
+  outline: 2.5px solid #A4DB7A;
+  outline-offset: 2px;
+}
+
+html[data-theme="dark"] .work-borrow-summary-btn.is-has-unpaid {
+  background: linear-gradient(135deg, #281C0E 0%, #362512 100%);
+  border-color: #F59E0B;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.48), 0 2px 16px rgba(245, 158, 11, 0.22);
+}
+
+html[data-theme="dark"] .work-borrow-summary-btn.is-has-unpaid:focus-visible {
+  outline-color: #FBBF24;
+}
+
+html[data-theme="dark"] .work-borrow-summary-btn.is-has-unpaid .work-borrow-btn-title {
+  color: #FFF7ED;
+}
+
+html[data-theme="dark"] .work-borrow-summary-btn.is-all-settled {
+  background: linear-gradient(135deg, #172B16 0%, #203A1E 100%);
+  border-color: #6BB44A;
+}
+
 html[data-theme="dark"] .work-borrow-btn-icon {
-  background-color: #1E311B;
-  border-color: #467837;
-  color: #A7E484;
+  background-color: #86C75A;
+  border-color: #A4DB7A;
+  color: #0F2208;
+}
+
+html[data-theme="dark"] .work-borrow-summary-btn.is-has-unpaid .work-borrow-btn-icon {
+  background-color: #4B2E11;
+  border-color: #F59E0B;
+  color: #FDE68A;
+}
+
+html[data-theme="dark"] .work-borrow-btn-badge {
+  background-color: #2A4B26;
+  border-color: #6BB44A;
+  color: #D8F9C3;
+}
+
+html[data-theme="dark"] .work-borrow-btn-badge.is-has-unpaid {
+  background-color: #B45309;
+  border-color: #F59E0B;
+  color: #FFFFFF;
+}
+
+html[data-theme="dark"] .work-borrow-btn-badge.is-settled {
+  background-color: #2A4B26;
+  border-color: #7CC256;
+  color: #D8F9C3;
+}
+
+html[data-theme="dark"] .work-borrow-btn-total {
+  color: #B7F094;
+}
+
+html[data-theme="dark"] .work-borrow-summary-btn.is-has-unpaid .work-borrow-btn-total {
+  color: #FDE68A;
+}
+
+html[data-theme="dark"] .work-borrow-btn-chevron-wrap {
+  background-color: #86C75A;
+  color: #0F2208;
+}
+
+html[data-theme="dark"] .work-borrow-summary-btn.is-has-unpaid .work-borrow-btn-chevron-wrap {
+  background-color: #FDBA74;
+  color: #281908;
 }
 
 html[data-theme="dark"] .borrow-filter-pill.active,
@@ -7352,8 +7482,15 @@ html[data-theme="dark"] .btn-fab-plus {
   }
 
   html[data-theme="dark"] .work-borrow-summary-btn:hover {
-    background-color: #1D2A1C;
-    border-color: #54923D;
+    background: linear-gradient(135deg, #1E331C 0%, #284625 100%);
+    border-color: #86C75A;
+    box-shadow: 0 12px 26px rgba(0, 0, 0, 0.5), 0 4px 18px rgba(134, 199, 90, 0.25);
+  }
+
+  html[data-theme="dark"] .work-borrow-summary-btn.is-has-unpaid:hover {
+    background: linear-gradient(135deg, #322210 0%, #422D15 100%);
+    border-color: #FBBF24;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.54), 0 4px 20px rgba(251, 191, 36, 0.28);
   }
 
   html[data-theme="dark"] .btn-data-action.btn-data-cloud:hover {
