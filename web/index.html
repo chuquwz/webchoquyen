@@ -53,7 +53,7 @@
       } catch (_) { }
     })();
   </script>
-  <link rel="stylesheet" href="/style.css?v=95">
+  <link rel="stylesheet" href="/style.css?v=96">
 </head>
 
 <body>
@@ -1596,8 +1596,13 @@
           <input type="text" id="edit-job-service" class="form-input work-mobile-input" maxlength="150" required>
         </div>
         <div class="form-group" style="margin-top: 10px;">
-          <label class="form-label" for="edit-job-price">Giá tiền (VNĐ)</label>
-          <input type="number" id="edit-job-price" class="form-input work-mobile-input font-tabular" min="1" required>
+          <div class="repay-amount-label-row">
+            <label class="form-label" for="edit-job-price">Giá tiền (1 = 1.000đ)</label>
+            <span id="edit-job-price-preview" class="work-price-preview font-tabular"></span>
+          </div>
+          <input type="number" id="edit-job-price" class="form-input work-mobile-input font-tabular"
+            placeholder="Ví dụ: 200" inputmode="numeric" min="1" step="any" required
+            oninput="updateEditJobPricePreview(this.value)">
         </div>
         <button type="submit" class="btn-green-pill" style="width: 100%; margin-top: 16px;">Lưu thay đổi</button>
       </form>
@@ -1645,12 +1650,12 @@
 
         <!-- 3. Giá Tiền + Chip Mệnh Giá 1 Chạm -->
         <div class="form-group" style="margin-top: 12px;">
-          <div style="display: flex; justify-content: space-between; align-items: baseline;">
-            <label class="form-label" for="work-job-price">Giá tiền (gõ số nghìn: 200 = 200.000đ)</label>
+          <div class="repay-amount-label-row">
+            <label class="form-label" for="work-job-price">Giá tiền (1 = 1.000đ)</label>
             <span id="work-job-price-preview" class="work-price-preview font-tabular"></span>
           </div>
           <input type="number" id="work-job-price" class="form-input work-mobile-input font-tabular"
-            placeholder="Ví dụ: 200 hoặc 200000" inputmode="numeric" min="1" required
+            placeholder="Ví dụ: 200" inputmode="numeric" min="1" step="any" required
             oninput="updateWorkPricePreview(this.value)">
           <div class="work-price-Preset-grid" aria-label="Chọn nhanh mệnh giá tiền">
             <button type="button" class="btn-price-chip font-tabular" onclick="setWorkJobPrice(35000)">35k</button>
@@ -1813,9 +1818,13 @@
 
         <!-- Số tiền -->
         <div class="form-group" style="margin-top: 10px;">
-          <label class="form-label" for="work-ledger-amount">Số tiền (gõ số nghìn: 50 = 50.000đ)</label>
+          <div class="repay-amount-label-row">
+            <label class="form-label" for="work-ledger-amount">Số tiền (1 = 1.000đ)</label>
+            <span id="work-ledger-amount-preview" class="work-price-preview font-tabular"></span>
+          </div>
           <input type="number" id="work-ledger-amount" class="form-input work-mobile-input font-tabular"
-            placeholder="Ví dụ: 50 hoặc 50000" inputmode="numeric" min="1" required>
+            placeholder="Ví dụ: 50" inputmode="numeric" min="1" step="any" required
+            oninput="updateWorkLedgerAmountPreview(this.value)">
           <div class="work-price-Preset-grid" aria-label="Chọn nhanh số tiền">
             <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(10000)">10k</button>
             <button type="button" class="btn-price-chip font-tabular" onclick="setWorkLedgerAmount(35000)">35k</button>
@@ -1898,11 +1907,11 @@
 
         <div class="form-group">
           <div class="repay-amount-label-row">
-            <label class="form-label" for="repay-amount">Số tiền trả lần này (500 = 500.000đ)</label>
+            <label class="form-label" for="repay-amount">Số tiền trả lần này (1 = 1.000đ)</label>
             <span id="repay-amount-preview" class="work-price-preview font-tabular"></span>
           </div>
           <input type="number" id="repay-amount" name="repay_amount" class="form-input work-mobile-input font-tabular"
-            placeholder="Ví dụ: 500 hoặc 500000" inputmode="numeric" min="1" required
+            placeholder="Ví dụ: 500" inputmode="numeric" min="0.001" step="any" required
             oninput="updateBorrowRepayPreview()">
           <p id="repay-amount-after" class="repay-after-hint font-tabular" role="status"></p>
           <p id="repay-amount-error" class="repay-error-text" role="alert" style="display: none;"></p>
@@ -1985,12 +1994,12 @@
 
         <div class="form-group">
           <div class="repay-amount-label-row">
-            <label class="form-label" for="debt-pay-amount">Số tiền trả lần này (500 = 500.000đ)</label>
+            <label class="form-label" for="debt-pay-amount">Số tiền trả lần này (1 = 1.000đ)</label>
             <span id="debt-pay-amount-preview" class="work-price-preview font-tabular"></span>
           </div>
           <input type="number" id="debt-pay-amount" name="debt_pay_amount"
-            class="form-input work-mobile-input font-tabular" placeholder="Ví dụ: 500 hoặc 500000" inputmode="numeric"
-            min="1" required oninput="updateDebtPayPreview()">
+            class="form-input work-mobile-input font-tabular" placeholder="Ví dụ: 500" inputmode="numeric"
+            min="0.001" step="any" required oninput="updateDebtPayPreview()">
           <p id="debt-pay-amount-after" class="repay-after-hint font-tabular" role="status"></p>
           <p id="debt-pay-amount-error" class="repay-error-text" role="alert" style="display: none;"></p>
           <div id="debt-pay-quick-chips" class="repay-chips-grid" aria-label="Chọn nhanh số tiền trả"></div>
@@ -2050,12 +2059,12 @@
         </div>
 
         <div class="form-group" style="margin-top: 10px;">
-          <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 8px;">
-            <label class="form-label" for="fund-deposit-amount">Số tiền (gõ số nghìn: 100 = 100.000đ)</label>
+          <div class="repay-amount-label-row">
+            <label class="form-label" for="fund-deposit-amount">Số tiền (1 = 1.000đ)</label>
             <span id="fund-deposit-amount-preview" class="work-price-preview font-tabular"></span>
           </div>
           <input type="number" id="fund-deposit-amount" class="form-input work-mobile-input font-tabular"
-            placeholder="Ví dụ: 100 hoặc 100000" inputmode="numeric" min="1" required
+            placeholder="Ví dụ: 100" inputmode="numeric" min="1" step="any" required
             oninput="updateFundDepositPreview()">
           <div id="fund-deposit-after-preview" class="repay-after-hint font-tabular" aria-live="polite"></div>
           <div class="work-price-Preset-grid" aria-label="Chọn nhanh số tiền nạp quỹ">
@@ -2114,12 +2123,12 @@
         </div>
 
         <div class="form-group" style="margin-top: 12px;">
-          <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 8px;">
-            <label class="form-label" for="fund-edit-target">Mục tiêu quỹ (gõ số nghìn: 5000 = 5.000.000đ)</label>
+          <div class="repay-amount-label-row">
+            <label class="form-label" for="fund-edit-target">Mục tiêu quỹ (1 = 1.000đ)</label>
             <span id="fund-edit-target-preview" class="work-price-preview font-tabular"></span>
           </div>
           <input type="number" id="fund-edit-target" class="form-input work-mobile-input font-tabular"
-            placeholder="Ví dụ: 5000 hoặc 5000000" inputmode="numeric" min="1" required
+            placeholder="Ví dụ: 5000" inputmode="numeric" min="1" step="any" required
             oninput="updateFundTargetPreview()">
           <div class="work-price-Preset-grid" aria-label="Chọn nhanh mục tiêu quỹ">
             <button type="button" class="btn-price-chip font-tabular" onclick="setFundEditTarget(1000000)">1tr</button>
@@ -2250,7 +2259,7 @@
     </div>
   </div>
 
-  <script src="/app.js?v=95"></script>
+  <script src="/app.js?v=96"></script>
 </body>
 
 </html>

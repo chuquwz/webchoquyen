@@ -4223,6 +4223,29 @@
       return n.toLocaleString('vi-VN') + 'đ';
     }
 
+    // Quy ước nhập tiền thống nhất: mọi ô nhập tiền đều theo đơn vị nghìn đồng (1 = 1.000đ, 1000 = 1.000.000đ)
+    function parseMoneyInputVND(rawVal) {
+      const cleaned = String(rawVal == null ? '' : rawVal).trim().replace(',', '.');
+      if (!cleaned) return 0;
+      const num = Number(cleaned);
+      if (!Number.isFinite(num) || num <= 0) return 0;
+      return Math.round(num * 1000);
+    }
+
+    function formatMoneyInputVal(vnd) {
+      const n = Number(vnd) || 0;
+      if (n <= 0) return '';
+      return String(Math.round(n) / 1000);
+    }
+
+    function syncPresetChipActive(formSelector, vnd, skipPayAll = false) {
+      const targetText = vnd > 0 ? formatShortK(vnd) : '';
+      document.querySelectorAll(formSelector + ' .btn-price-chip').forEach(btn => {
+        if (skipPayAll && btn.classList.contains('is-pay-all')) return;
+        btn.classList.toggle('active', Boolean(targetText) && btn.textContent.trim() === targetText);
+      });
+    }
+
     function shiftDateStr(dStr, deltaDays) {
       const parts = dStr.split('-').map(Number);
       const dt = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
@@ -5322,25 +5345,18 @@
     window.setWorkJobPrice = function (vnd) {
       const input = document.getElementById('work-job-price');
       if (input) {
-        input.value = vnd / 1000;
+        input.value = formatMoneyInputVal(vnd);
         updateWorkPricePreview(input.value);
       }
-      document.querySelectorAll('#work-job-form .btn-price-chip').forEach(btn => {
-        const match = btn.textContent.trim() === (vnd / 1000) + 'k';
-        btn.classList.toggle('active', match);
-      });
     };
 
     window.updateWorkPricePreview = function (rawVal) {
       const preview = document.getElementById('work-job-price-preview');
-      if (!preview) return;
-      let n = parseInt(rawVal, 10);
-      if (!n || n <= 0) {
-        preview.textContent = '';
-        return;
+      const vnd = parseMoneyInputVND(rawVal);
+      if (preview) {
+        preview.textContent = vnd > 0 ? ('= ' + formatVND(vnd)) : '';
       }
-      if (n < 1000) n = n * 1000;
-      preview.textContent = '= ' + formatVND(n);
+      syncPresetChipActive('#work-job-form', vnd);
     };
 
     window.openAddWorkJobModal = function () {
@@ -5356,16 +5372,20 @@
       e.preventDefault();
       const customer = document.getElementById('work-job-customer').value.trim();
       const service = document.getElementById('work-job-service').value.trim();
-      const rawPrice = parseInt(document.getElementById('work-job-price').value, 10);
+      const priceInput = document.getElementById('work-job-price');
+      const price = parseMoneyInputVND(priceInput ? priceInput.value : '');
       const channel = document.getElementById('work-job-channel').value || 'ZL';
       const status = document.getElementById('work-job-status').value || 'TT';
 
-      if (!customer || !service || !rawPrice || rawPrice <= 0) {
+      if (!customer || !service) {
         showToast('Nhập đầy đủ tên khách, dịch vụ và giá tiền', true);
         return;
       }
-
-      const price = rawPrice < 1000 ? rawPrice * 1000 : rawPrice;
+      if (!price || price < 1000 || price > 200000000) {
+        showToast('Giá tiền phải từ 1.000đ đến 200.000.000đ (nhập 1 – 200.000)', true);
+        if (priceInput) priceInput.focus();
+        return;
+      }
       const jobDate = workState.date || state.today || new Date().toISOString().slice(0, 10);
       const clientUid = genClientUID('job');
       const nowTs = Math.floor(Date.now() / 1000);
@@ -5392,7 +5412,6 @@
         document.getElementById('work-job-service').value = '';
         document.getElementById('work-job-price').value = '';
         updateWorkPricePreview('');
-        document.querySelectorAll('#work-job-form .btn-price-chip').forEach(b => b.classList.remove('active'));
         closeModal('modal-add-work-job');
         showToast(`Đã lưu đơn ${customer} (${formatShortK(price)} - ${status})`);
         workState.calendarMonth = jobDate.slice(0, 7);
@@ -5422,7 +5441,6 @@
         document.getElementById('work-job-service').value = '';
         document.getElementById('work-job-price').value = '';
         updateWorkPricePreview('');
-        document.querySelectorAll('#work-job-form .btn-price-chip').forEach(b => b.classList.remove('active'));
         closeModal('modal-add-work-job');
         showToast(`Đã lưu đơn ${customer} vào máy này (sẽ tự đồng bộ lên Cloud)`);
         workState.calendarMonth = jobDate.slice(0, 7);
@@ -6106,6 +6124,13 @@
       }, { passive: true });
     }
 
+    window.updateEditJobPricePreview = function (rawVal) {
+      const preview = document.getElementById('edit-job-price-preview');
+      if (!preview) return;
+      const vnd = parseMoneyInputVND(rawVal);
+      preview.textContent = vnd > 0 ? ('= ' + formatVND(vnd)) : '';
+    };
+
     window.openEditWorkJobModal = function (jobId) {
       const job = findDebtJobById(jobId);
       if (!job) return;
@@ -6115,7 +6140,11 @@
       document.getElementById('edit-job-channel').value = job.channel || 'ZL';
       document.getElementById('edit-job-customer').value = job.customer;
       document.getElementById('edit-job-service').value = job.service;
-      document.getElementById('edit-job-price').value = job.price;
+      const priceInput = document.getElementById('edit-job-price');
+      if (priceInput) {
+        priceInput.value = formatMoneyInputVal(job.price);
+        updateEditJobPricePreview(priceInput.value);
+      }
       document.getElementById('edit-job-status').value = job.status || 'TT';
 
       openModal('modal-edit-work-job');
@@ -6128,10 +6157,19 @@
       const channel = document.getElementById('edit-job-channel').value;
       const customer = document.getElementById('edit-job-customer').value.trim();
       const service = document.getElementById('edit-job-service').value.trim();
-      const rawPrice = parseInt(document.getElementById('edit-job-price').value, 10);
+      const priceInput = document.getElementById('edit-job-price');
+      const price = parseMoneyInputVND(priceInput ? priceInput.value : '');
       const status = document.getElementById('edit-job-status').value;
 
-      const price = rawPrice < 1000 ? rawPrice * 1000 : rawPrice;
+      if (!customer || !service) {
+        showToast('Nhập đầy đủ tên khách hàng và dịch vụ', true);
+        return;
+      }
+      if (!price || price < 1000 || price > 200000000) {
+        showToast('Giá tiền phải từ 1.000đ đến 200.000.000đ (nhập 1 – 200.000)', true);
+        if (priceInput) priceInput.focus();
+        return;
+      }
       const existing = findDebtJobById(id);
       const jobUid = existing && existing.uid ? existing.uid : '';
       const payload = { uid: jobUid || undefined, date, channel, customer, service, price, status };
@@ -7080,9 +7118,21 @@
       });
     };
 
+    window.updateWorkLedgerAmountPreview = function (rawVal) {
+      const preview = document.getElementById('work-ledger-amount-preview');
+      const vnd = parseMoneyInputVND(rawVal);
+      if (preview) {
+        preview.textContent = vnd > 0 ? ('= ' + formatVND(vnd)) : '';
+      }
+      syncPresetChipActive('#work-ledger-form', vnd);
+    };
+
     window.setWorkLedgerAmount = function (vnd) {
       const input = document.getElementById('work-ledger-amount');
-      if (input) input.value = vnd / 1000;
+      if (input) {
+        input.value = formatMoneyInputVal(vnd);
+        updateWorkLedgerAmountPreview(input.value);
+      }
     };
 
     window.setWorkLedgerNote = function (noteText, defaultVnd) {
@@ -7091,7 +7141,8 @@
       if (defaultVnd > 0) {
         const amtInput = document.getElementById('work-ledger-amount');
         if (amtInput && !amtInput.value) {
-          amtInput.value = defaultVnd / 1000;
+          amtInput.value = formatMoneyInputVal(defaultVnd);
+          updateWorkLedgerAmountPreview(amtInput.value);
         }
       }
       setWorkLedgerCategory('expense');
@@ -7104,9 +7155,10 @@
       } else if (hidden && !['expense', 'borrow'].includes(hidden.value)) {
         setWorkLedgerCategory('expense');
       }
+      const amtInp = document.getElementById('work-ledger-amount');
+      updateWorkLedgerAmountPreview(amtInp ? amtInp.value : '');
       openModal('modal-add-work-ledger');
       setTimeout(() => {
-        const amtInp = document.getElementById('work-ledger-amount');
         if (amtInp) amtInp.focus();
       }, 80);
     };
@@ -7114,15 +7166,19 @@
     window.submitWorkLedger = async function (e) {
       e.preventDefault();
       const category = document.getElementById('work-ledger-category').value || 'expense';
-      const rawAmt = parseInt(document.getElementById('work-ledger-amount').value, 10);
+      const amtInput = document.getElementById('work-ledger-amount');
+      const amount = parseMoneyInputVND(amtInput ? amtInput.value : '');
       const note = document.getElementById('work-ledger-note').value.trim();
 
-      if (!rawAmt || rawAmt <= 0 || !note) {
+      if (!note) {
         showToast('Nhập số tiền và nội dung chi tiết', true);
         return;
       }
-
-      const amount = rawAmt < 1000 ? rawAmt * 1000 : rawAmt;
+      if (!amount || amount < 1000 || amount > 500000000) {
+        showToast('Số tiền phải từ 1.000đ đến 500.000.000đ (nhập 1 – 500.000)', true);
+        if (amtInput) amtInput.focus();
+        return;
+      }
       const ledgerDate = workState.date || state.today || new Date().toISOString().slice(0, 10);
       const clientUid = genClientUID('ldg');
       const nowTs = Math.floor(Date.now() / 1000);
@@ -7145,6 +7201,7 @@
         }
         document.getElementById('work-ledger-amount').value = '';
         document.getElementById('work-ledger-note').value = '';
+        updateWorkLedgerAmountPreview('');
         closeModal('modal-add-work-ledger');
         showToast('Đã lưu khoản mục vào sổ');
         workState.calendarMonth = ledgerDate.slice(0, 7);
@@ -7170,6 +7227,7 @@
         });
         document.getElementById('work-ledger-amount').value = '';
         document.getElementById('work-ledger-note').value = '';
+        updateWorkLedgerAmountPreview('');
         closeModal('modal-add-work-ledger');
         showToast('Đã lưu khoản mục trên máy này (chờ đồng bộ)');
         workState.calendarMonth = ledgerDate.slice(0, 7);
@@ -8096,8 +8154,7 @@
 
     window.setFundDepositAmount = function (vnd) {
       const amtInput = document.getElementById('fund-deposit-amount');
-      if (amtInput) amtInput.value = Math.round(vnd / 1000);
-      document.querySelectorAll('#fund-deposit-form .btn-price-chip:not(.is-pay-all)').forEach(b => b.classList.remove('active'));
+      if (amtInput) amtInput.value = formatMoneyInputVal(vnd);
       window.updateFundDepositPreview();
     };
 
@@ -8108,7 +8165,7 @@
       if (!f || f.remaining <= 0) return;
       const amtInput = document.getElementById('fund-deposit-amount');
       if (amtInput) {
-        amtInput.value = f.remaining >= 1000 && f.remaining % 1000 === 0 ? (f.remaining / 1000) : f.remaining;
+        amtInput.value = formatMoneyInputVal(f.remaining);
       }
       window.updateFundDepositPreview();
     };
@@ -8118,7 +8175,7 @@
       if (noteInput) noteInput.value = text;
       const amtInput = document.getElementById('fund-deposit-amount');
       if (defaultVnd > 0 && amtInput && !amtInput.value) {
-        amtInput.value = Math.round(defaultVnd / 1000);
+        amtInput.value = formatMoneyInputVal(defaultVnd);
       }
       window.updateFundDepositPreview();
     };
@@ -8142,9 +8199,12 @@
         }
       }
 
-      const raw = amtInput ? Number(String(amtInput.value || '').trim()) : 0;
-      const vnd = (Number.isFinite(raw) && raw > 0) ? (raw < 1000 ? Math.round(raw * 1000) : Math.round(raw)) : 0;
-      if (prevEl) prevEl.textContent = vnd > 0 ? formatVND(vnd) : '';
+      const vnd = parseMoneyInputVND(amtInput ? amtInput.value : '');
+      if (prevEl) prevEl.textContent = vnd > 0 ? ('= ' + formatVND(vnd)) : '';
+      syncPresetChipActive('#fund-deposit-form', vnd, true);
+      if (fillBtn && !fillBtn.hidden) {
+        fillBtn.classList.toggle('active', Boolean(f && vnd > 0 && vnd === f.remaining));
+      }
       if (afterEl && f) {
         if (vnd > 0) {
           const nextSaved = f.saved + vnd;
@@ -8165,11 +8225,10 @@
 
       const model = computeFundsModel();
       const fund = (hidden && model.byId.get(hidden.value)) || model.funds[0];
-      const rawAmt = amtInput ? Number(String(amtInput.value || '').trim()) : 0;
-      const amount = (Number.isFinite(rawAmt) && rawAmt > 0) ? (rawAmt < 1000 ? Math.round(rawAmt * 1000) : Math.round(rawAmt)) : 0;
+      const amount = parseMoneyInputVND(amtInput ? amtInput.value : '');
 
       if (!amount || amount < 1000 || amount > 500000000) {
-        showToast('Số tiền nạp phải từ 1.000đ đến 500.000.000đ', true);
+        showToast('Số tiền nạp phải từ 1.000đ đến 500.000.000đ (nhập 1 – 500.000)', true);
         if (amtInput) amtInput.focus();
         return;
       }
@@ -8237,17 +8296,16 @@
     // --- POPUP TẠO / CÀI ĐẶT / XOÁ QUỸ ---
     window.setFundEditTarget = function (vnd) {
       const targetInp = document.getElementById('fund-edit-target');
-      if (targetInp) targetInp.value = Math.round(vnd / 1000);
+      if (targetInp) targetInp.value = formatMoneyInputVal(vnd);
       window.updateFundTargetPreview();
     };
 
     window.updateFundTargetPreview = function () {
       const targetInp = document.getElementById('fund-edit-target');
       const prevEl = document.getElementById('fund-edit-target-preview');
-      if (!prevEl) return;
-      const raw = targetInp ? Number(String(targetInp.value || '').trim()) : 0;
-      const vnd = (Number.isFinite(raw) && raw > 0) ? (raw < 1000 ? Math.round(raw * 1000) : Math.round(raw)) : 0;
-      prevEl.textContent = vnd > 0 ? formatVND(vnd) : '';
+      const vnd = parseMoneyInputVND(targetInp ? targetInp.value : '');
+      if (prevEl) prevEl.textContent = vnd > 0 ? ('= ' + formatVND(vnd)) : '';
+      syncPresetChipActive('#fund-editor-form', vnd);
     };
 
     window.setFundEditColor = function (color) {
@@ -8290,12 +8348,12 @@
 
       if (isEdit) {
         if (nameEl) nameEl.value = existing.name;
-        if (targetEl) targetEl.value = existing.target >= 1000 && existing.target % 1000 === 0 ? Math.round(existing.target / 1000) : existing.target;
+        if (targetEl) targetEl.value = formatMoneyInputVal(existing.target);
         window.setFundEditColor(existing.color);
         window.setFundEditIcon(existing.icon);
       } else {
         if (nameEl) nameEl.value = '';
-        if (targetEl) targetEl.value = 5000;
+        if (targetEl) targetEl.value = '5000';
         const usedColors = new Set(model.funds.map(f => f.color));
         const nextColor = FUND_COLORS.find(c => !usedColors.has(c)) || FUND_COLORS[model.funds.length % FUND_COLORS.length];
         const nextIcon = FUND_ICONS[model.funds.length % FUND_ICONS.length];
@@ -8323,10 +8381,7 @@
       const iconEl = document.getElementById('fund-edit-icon');
 
       const name = nameEl ? nameEl.value.trim() : '';
-      const rawTarget = targetEl ? Number(String(targetEl.value || '').trim()) : 0;
-      const target = (Number.isFinite(rawTarget) && rawTarget > 0)
-        ? (rawTarget < 1000 ? Math.round(rawTarget * 1000) : Math.round(rawTarget))
-        : 0;
+      const target = parseMoneyInputVND(targetEl ? targetEl.value : '');
 
       if (!name) {
         showToast('Nhập tên quỹ trước khi lưu', true);
@@ -8334,7 +8389,7 @@
         return;
       }
       if (!target || target < 1000 || target > 500000000) {
-        showToast('Mục tiêu quỹ phải từ 1.000đ đến 500.000.000đ', true);
+        showToast('Mục tiêu quỹ phải từ 1.000đ đến 500.000.000đ (nhập 1 – 500.000)', true);
         if (targetEl) targetEl.focus();
         return;
       }
@@ -8559,19 +8614,6 @@
     let activeRepayLedgerId = null;
     let repaySubmitting = false;
 
-    function parseInstallmentInput(rawVal, remaining) {
-      const num = Number(String(rawVal == null ? '' : rawVal).trim());
-      if (!Number.isFinite(num) || num <= 0) return 0;
-      const rounded = Math.round(num);
-      if (remaining > 0 && remaining < 1000 && rounded === remaining) {
-        return remaining;
-      }
-      if (num < 1000) {
-        return Math.round(num * 1000);
-      }
-      return rounded;
-    }
-
     function setInstallmentError(inputId, errId, afterId, msg) {
       const errEl = document.getElementById(errId);
       const amtInput = document.getElementById(inputId);
@@ -8624,13 +8666,43 @@
     function applyInstallmentQuickAmount(inputId, vnd, previewFn) {
       const input = document.getElementById(inputId);
       if (!input) return;
-      const val = Number(vnd) || 0;
-      if (val <= 0) return;
-      // Values >= 1.000.000 or non-multiples of 1000 must stay in full VND to avoid the <1000 multiplier trap.
-      input.value = (val >= 1000 && val < 1000000 && val % 1000 === 0)
-        ? String(val / 1000)
-        : String(val);
+      const formatted = formatMoneyInputVal(vnd);
+      if (!formatted) return;
+      input.value = formatted;
       previewFn();
+    }
+
+    function updateInstallmentPreview({ inputId, previewId, afterId, errId, chipsSelector, remaining }) {
+      const amtInput = document.getElementById(inputId);
+      const previewEl = document.getElementById(previewId);
+      const afterEl = document.getElementById(afterId);
+      const rawStr = amtInput ? amtInput.value.trim() : '';
+      const chips = document.querySelectorAll(chipsSelector);
+
+      if (!rawStr) {
+        if (previewEl) previewEl.textContent = '';
+        if (afterEl) afterEl.textContent = '';
+        setInstallmentError(inputId, errId, afterId, '');
+        chips.forEach(c => c.classList.remove('active'));
+        return 0;
+      }
+
+      const amount = parseMoneyInputVND(rawStr);
+      chips.forEach(c => {
+        c.classList.toggle('active', Number(c.getAttribute('data-vnd')) === amount);
+      });
+
+      if (amount <= 0 || (amount < 1000 && !(remaining > 0 && remaining < 1000 && amount === remaining))) {
+        if (previewEl) previewEl.textContent = amount > 0 ? ('= ' + formatVND(amount)) : '';
+        if (afterEl) afterEl.textContent = '';
+        setInstallmentError(inputId, errId, afterId, 'Số tiền trả phải từ 1.000đ trở lên.');
+        return 0;
+      }
+
+      if (previewEl) previewEl.textContent = '= ' + formatVND(amount);
+      setInstallmentError(inputId, errId, afterId, '');
+      if (afterEl) afterEl.textContent = computeInstallmentAfterText(amount, remaining);
+      return amount;
     }
 
     function buildInstallmentHistoryHTML(installments, fallbackDate, deleteFnName, targetId, emptyMsg) {
@@ -8749,41 +8821,19 @@
     };
 
     window.updateBorrowRepayPreview = function () {
-      const amtInput = document.getElementById('repay-amount');
-      const previewEl = document.getElementById('repay-amount-preview');
-      const afterEl = document.getElementById('repay-amount-after');
       const idEl = document.getElementById('repay-ledger-id');
       const ledgerId = Number((idEl && idEl.value) || activeRepayLedgerId);
       const item = findBorrowLedgerItem(ledgerId);
       const remaining = item ? getBorrowTotals(item).remaining : 0;
 
-      const rawStr = amtInput ? amtInput.value.trim() : '';
-      const chips = document.querySelectorAll('#repay-quick-chips .btn-price-chip');
-
-      if (!rawStr) {
-        if (previewEl) previewEl.textContent = '';
-        if (afterEl) afterEl.textContent = '';
-        setRepayAmountError('');
-        chips.forEach(c => c.classList.remove('active'));
-        return 0;
-      }
-
-      const amount = parseInstallmentInput(rawStr, remaining);
-      chips.forEach(c => {
-        c.classList.toggle('active', Number(c.getAttribute('data-vnd')) === amount);
+      return updateInstallmentPreview({
+        inputId: 'repay-amount',
+        previewId: 'repay-amount-preview',
+        afterId: 'repay-amount-after',
+        errId: 'repay-amount-error',
+        chipsSelector: '#repay-quick-chips .btn-price-chip',
+        remaining
       });
-
-      if (amount <= 0 || (amount < 1000 && !(remaining > 0 && remaining < 1000 && amount === remaining))) {
-        if (previewEl) previewEl.textContent = amount > 0 ? ('= ' + formatVND(amount)) : '';
-        if (afterEl) afterEl.textContent = '';
-        setRepayAmountError('Số tiền trả phải từ 1.000đ trở lên.');
-        return 0;
-      }
-
-      if (previewEl) previewEl.textContent = '= ' + formatVND(amount);
-      setRepayAmountError('');
-      if (afterEl) afterEl.textContent = computeInstallmentAfterText(amount, remaining);
-      return amount;
     };
 
     window.submitBorrowRepayment = async function (e) {
@@ -8803,7 +8853,7 @@
       const amount = updateBorrowRepayPreview();
       if (!amount || amount <= 0) {
         if (amtInput && !amtInput.value.trim()) {
-          setRepayAmountError('Vui lòng nhập số tiền trả lần này (ví dụ: 500 = 500.000đ).');
+          setRepayAmountError('Nhập số tiền trả lần này (ví dụ: 500 = 500.000đ).');
         }
         if (amtInput) amtInput.focus();
         return;
@@ -9102,41 +9152,19 @@
     };
 
     window.updateDebtPayPreview = function () {
-      const amtInput = document.getElementById('debt-pay-amount');
-      const previewEl = document.getElementById('debt-pay-amount-preview');
-      const afterEl = document.getElementById('debt-pay-amount-after');
       const idEl = document.getElementById('debt-pay-job-id');
       const jobId = Number((idEl && idEl.value) || activeDebtJobId);
       const job = findDebtJobById(jobId);
       const remaining = job ? getDebtJobTotals(job).remaining : 0;
 
-      const rawStr = amtInput ? amtInput.value.trim() : '';
-      const chips = document.querySelectorAll('#debt-pay-quick-chips .btn-price-chip');
-
-      if (!rawStr) {
-        if (previewEl) previewEl.textContent = '';
-        if (afterEl) afterEl.textContent = '';
-        setDebtPayAmountError('');
-        chips.forEach(c => c.classList.remove('active'));
-        return 0;
-      }
-
-      const amount = parseInstallmentInput(rawStr, remaining);
-      chips.forEach(c => {
-        c.classList.toggle('active', Number(c.getAttribute('data-vnd')) === amount);
+      return updateInstallmentPreview({
+        inputId: 'debt-pay-amount',
+        previewId: 'debt-pay-amount-preview',
+        afterId: 'debt-pay-amount-after',
+        errId: 'debt-pay-amount-error',
+        chipsSelector: '#debt-pay-quick-chips .btn-price-chip',
+        remaining
       });
-
-      if (amount <= 0 || (amount < 1000 && !(remaining > 0 && remaining < 1000 && amount === remaining))) {
-        if (previewEl) previewEl.textContent = amount > 0 ? ('= ' + formatVND(amount)) : '';
-        if (afterEl) afterEl.textContent = '';
-        setDebtPayAmountError('Số tiền trả phải từ 1.000đ trở lên.');
-        return 0;
-      }
-
-      if (previewEl) previewEl.textContent = '= ' + formatVND(amount);
-      setDebtPayAmountError('');
-      if (afterEl) afterEl.textContent = computeInstallmentAfterText(amount, remaining);
-      return amount;
     };
 
     window.submitDebtJobPayment = async function (e) {
@@ -9156,7 +9184,7 @@
       const amount = updateDebtPayPreview();
       if (!amount || amount <= 0) {
         if (amtInput && !amtInput.value.trim()) {
-          setDebtPayAmountError('Vui lòng nhập số tiền trả lần này (ví dụ: 500 = 500.000đ).');
+          setDebtPayAmountError('Nhập số tiền trả lần này (ví dụ: 500 = 500.000đ).');
         }
         if (amtInput) amtInput.focus();
         return;
