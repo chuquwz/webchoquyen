@@ -53,7 +53,7 @@
       } catch (_) { }
     })();
   </script>
-  <link rel="stylesheet" href="/style.css?v=100">
+  <link rel="stylesheet" href="/style.css?v=101">
 </head>
 
 <body>
@@ -851,6 +851,54 @@
               </div>
             </div>
           </div>
+
+          <!-- Nút Copy QR Banking nổi bật 1 chạm để gửi khách thanh toán -->
+          <div class="work-qr-action-card" role="region" aria-label="Mã QR Banking nhận tiền">
+            <button type="button" id="btn-work-copy-qr" class="btn-work-qr-copy" onclick="copyBankQrImage()">
+              <span class="work-qr-btn-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.1"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="7" height="7" rx="1.2" />
+                  <rect x="14" y="3" width="7" height="7" rx="1.2" />
+                  <rect x="3" y="14" width="7" height="7" rx="1.2" />
+                  <path d="M14 14h3v3h-3z" />
+                  <path d="M17 17h4v4" />
+                  <path d="M14 21h3" />
+                  <path d="M21 14v1" />
+                </svg>
+              </span>
+              <span class="work-qr-btn-body">
+                <strong class="work-qr-btn-title">Copy QR Banking</strong>
+                <span class="work-qr-btn-sub font-tabular">BIDV &bull; 8867350944</span>
+              </span>
+              <span class="work-qr-cta-pill">
+                <span class="qr-copy-icon-stack" aria-hidden="true">
+                  <svg class="qr-icon-copy" viewBox="0 0 24 24" width="14" height="14" fill="none"
+                    stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                  </svg>
+                  <svg class="qr-icon-check" viewBox="0 0 24 24" width="14" height="14" fill="none"
+                    stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                </span>
+                <span id="work-qr-copy-label" class="work-qr-cta-label">Copy QR</span>
+              </span>
+            </button>
+            <button type="button" id="btn-work-view-qr" class="btn-work-qr-preview" onclick="openBankQrModal()"
+              aria-label="Xem và chia sẻ mã QR Banking" aria-haspopup="dialog" aria-controls="modal-bank-qr"
+              title="Xem ảnh QR lớn / Chia sẻ">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.1"
+                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M15 3h6v6" />
+                <path d="M9 21H3v-6" />
+                <path d="M21 3l-7 7" />
+                <path d="M3 21l7-7" />
+              </svg>
+            </button>
+          </div>
+          <span id="work-qr-live" class="sr-only" role="status" aria-live="polite"></span>
 
           <!-- Thanh Chuyển Đổi 2 Phân Khu (Đơn việc & Sổ nợ) -->
           <div class="work-subtab-bar" style="grid-template-columns: repeat(2, minmax(0, 1fr));" role="tablist"
@@ -2211,7 +2259,50 @@
     </div>
   </div>
 
-  <script src="/app.js?v=100"></script>
+  <!-- MODAL: Xem, Copy, Chia Sẻ & Tải Ảnh Mã QR Banking -->
+  <div id="modal-bank-qr" class="modal-overlay modal-top" role="dialog" aria-modal="true"
+    aria-labelledby="modal-bank-qr-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="modal-bank-qr-title" class="modal-title">Mã QR Banking</h3>
+        <button type="button" class="modal-close" aria-label="Đóng hộp thoại mã QR Banking"
+          onclick="closeModal('modal-bank-qr')">&times;</button>
+      </div>
+
+      <div class="bank-qr-preview-frame">
+        <img id="bank-qr-modal-img" class="bank-qr-modal-img"
+          alt="Mã QR chuyển khoản BIDV 8867350944 Phùng Văn Quyền">
+      </div>
+
+      <div class="bank-qr-info-strip">
+        <div class="bank-qr-info-meta">
+          <div class="bank-qr-info-line">
+            <span class="bank-qr-bank-badge">BIDV</span>
+            <strong class="bank-qr-acct-num font-tabular">8867350944</strong>
+          </div>
+          <span class="bank-qr-acct-name">PHÙNG VĂN QUYỀN</span>
+        </div>
+        <button type="button" id="btn-bank-copy-stk" class="btn-secondary-pill btn-sm bank-qr-stk-btn"
+          onclick="copyBankAccountNumber()">Copy STK</button>
+      </div>
+
+      <div class="bank-qr-modal-actions">
+        <button type="button" id="btn-modal-copy-qr" class="btn-green-pill bank-qr-btn-primary"
+          onclick="copyBankQrImage({ fromModal: true })">Copy ảnh QR</button>
+        <div class="bank-qr-modal-secondary-row">
+          <button type="button" id="btn-modal-share-qr" class="btn-secondary-pill bank-qr-btn-sec"
+            onclick="shareBankQrImage()" hidden>Chia sẻ QR</button>
+          <button type="button" id="btn-modal-download-qr" class="btn-secondary-pill bank-qr-btn-sec"
+            onclick="downloadBankQrImage()">Tải ảnh</button>
+        </div>
+      </div>
+
+      <p class="bank-qr-modal-hint">Mẹo: Bấm Copy ảnh QR rồi dán (Ctrl+V / Dán) thẳng vào Zalo hoặc Messenger. Trên điện
+        thoại có thể nhấn giữ ảnh để lưu/gửi.</p>
+    </div>
+  </div>
+
+  <script src="/app.js?v=101"></script>
 </body>
 
 </html>

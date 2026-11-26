@@ -796,6 +796,7 @@
     setupModalSheetGestures();
     setupWorkJobSwipeGestures();
     bindPendingDeleteFlushListeners();
+    schedulePrewarmBankQr();
     try {
       const me = await api('/api/me');
       if (me && me.ok) {
@@ -9312,6 +9313,739 @@
       const fallbackDate = new Date().toISOString().slice(0, 10);
       const month = workState.month || (workState.date || state.today || fallbackDate).slice(0, 7);
       window.location.href = `/api/work/export?month=${encodeURIComponent(month)}`;
+    };
+
+    // =========================================================================
+    // MÃ QR BANKING (VIETQR OFFLINE + COPY ẢNH 1 CHẠM)
+    // =========================================================================
+    const BANK_QR_CONFIG = {
+      rawPayload: '00020101021138540010A00000072701240006970418011088673509440208QRIBFTTA53037045802VN6304C4F0',
+      bankShort: 'BIDV',
+      accountNo: '8867350944',
+      accountName: 'PHÙNG VĂN QUYỀN',
+      fileName: 'QR-Banking-BIDV-8867350944.png'
+    };
+
+    const bankQrCache = {
+      matrix: null,
+      dataUrl: '',
+      blob: null,
+      blobPromise: null,
+      accountName: '',
+      resetTimer: null,
+      modalResetTimer: null
+    };
+
+    // ISO/IEC 18004 ECC-M block table for versions 1..10:
+    // [totalDataCodewords, ecPerBlock, g1Blocks, g1DataLen, g2Blocks, g2DataLen]
+    const QR_ECC_M_TABLE = {
+      1: [16, 10, 1, 16, 0, 0],
+      2: [28, 16, 1, 28, 0, 0],
+      3: [44, 26, 1, 44, 0, 0],
+      4: [64, 18, 2, 32, 0, 0],
+      5: [86, 24, 2, 43, 0, 0],
+      6: [108, 16, 4, 27, 0, 0],
+      7: [124, 18, 4, 31, 0, 0],
+      8: [154, 22, 2, 38, 2, 39],
+      9: [182, 22, 3, 36, 2, 37],
+      10: [216, 26, 4, 43, 1, 44]
+    };
+
+    const QR_ALIGN_CENTERS = {
+      2: [6, 18],
+      3: [6, 22],
+      4: [6, 26],
+      5: [6, 30],
+      6: [6, 34],
+      7: [6, 22, 38],
+      8: [6, 24, 42],
+      9: [6, 26, 46],
+      10: [6, 28, 50]
+    };
+
+    const QR_GF_EXP = new Uint8Array(512);
+    const QR_GF_LOG = new Uint8Array(256);
+    (function initQrGfTables() {
+      let x = 1;
+      for (let i = 0; i < 255; i++) {
+        QR_GF_EXP[i] = x;
+        QR_GF_LOG[x] = i;
+        x <<= 1;
+        if (x & 0x100) x ^= 0x11d;
+      }
+      for (let i = 255; i < 512; i++) {
+        QR_GF_EXP[i] = QR_GF_EXP[i - 255];
+      }
+    })();
+
+    function qrGfMul(a, b) {
+      if (a === 0 || b === 0) return 0;
+      return QR_GF_EXP[QR_GF_LOG[a] + QR_GF_LOG[b]];
+    }
+
+    function qrRsRemainder(dataBytes, ecLen) {
+      let gen = [1];
+      for (let i = 0; i < ecLen; i++) {
+        const next = new Array(gen.length + 1).fill(0);
+        const factor = QR_GF_EXP[i];
+        for (let j = 0; j < gen.length; j++) {
+          next[j] ^= gen[j];
+          next[j + 1] ^= qrGfMul(gen[j], factor);
+        }
+        gen = next;
+      }
+      const rem = new Uint8Array(ecLen);
+      for (let i = 0; i < dataBytes.length; i++) {
+        const lead = dataBytes[i] ^ rem[0];
+        for (let j = 0; j < ecLen - 1; j++) {
+          rem[j] = rem[j + 1];
+        }
+        rem[ecLen - 1] = 0;
+        if (lead !== 0) {
+          for (let j = 0; j < ecLen; j++) {
+            rem[j] ^= qrGfMul(gen[j + 1], lead);
+          }
+        }
+      }
+      return rem;
+    }
+
+    function qrFormatBits(maskIdx) {
+      // ECC Level M indicator = 0b00
+      const data = maskIdx & 7;
+      let d = data << 10;
+      for (let i = 4; i >= 0; i--) {
+        if ((d >>> (i + 10)) & 1) {
+          d ^= 0x537 << i;
+        }
+      }
+      return (((data << 10) | d) ^ 0x5412) & 0x7fff;
+    }
+
+    function qrVersionBits(version) {
+      let d = version << 12;
+      for (let i = 5; i >= 0; i--) {
+        if ((d >>> (i + 12)) & 1) {
+          d ^= 0x1f25 << i;
+        }
+      }
+      return ((version << 12) | d) & 0x3ffff;
+    }
+
+    function qrMaskPredicate(maskIdx, r, c) {
+      switch (maskIdx) {
+        case 0: return ((r + c) & 1) === 0;
+        case 1: return (r & 1) === 0;
+        case 2: return (c % 3) === 0;
+        case 3: return ((r + c) % 3) === 0;
+        case 4: return (((r >> 1) + Math.floor(c / 3)) & 1) === 0;
+        case 5: return (((r * c) & 1) + ((r * c) % 3)) === 0;
+        case 6: return ((((r * c) & 1) + ((r * c) % 3)) & 1) === 0;
+        case 7: return ((((r + c) & 1) + ((r * c) % 3)) & 1) === 0;
+        default: return false;
+      }
+    }
+
+    function qrEvaluatePenalty(modules, size) {
+      let penalty = 0;
+      for (let r = 0; r < size; r++) {
+        let runColor = modules[r][0];
+        let runLen = 1;
+        for (let c = 1; c < size; c++) {
+          if (modules[r][c] === runColor) {
+            runLen++;
+          } else {
+            if (runLen >= 5) penalty += 3 + (runLen - 5);
+            runColor = modules[r][c];
+            runLen = 1;
+          }
+        }
+        if (runLen >= 5) penalty += 3 + (runLen - 5);
+      }
+      for (let c = 0; c < size; c++) {
+        let runColor = modules[0][c];
+        let runLen = 1;
+        for (let r = 1; r < size; r++) {
+          if (modules[r][c] === runColor) {
+            runLen++;
+          } else {
+            if (runLen >= 5) penalty += 3 + (runLen - 5);
+            runColor = modules[r][c];
+            runLen = 1;
+          }
+        }
+        if (runLen >= 5) penalty += 3 + (runLen - 5);
+      }
+      for (let r = 0; r < size - 1; r++) {
+        for (let c = 0; c < size - 1; c++) {
+          const v = modules[r][c];
+          if (v === modules[r][c + 1] && v === modules[r + 1][c] && v === modules[r + 1][c + 1]) {
+            penalty += 3;
+          }
+        }
+      }
+      const hasPatternAt = (getFn, idx) => (
+        getFn(idx) && !getFn(idx + 1) && getFn(idx + 2) && getFn(idx + 3) && getFn(idx + 4) && !getFn(idx + 5) && getFn(idx + 6)
+      );
+      const isFourWhite = (getFn, start) => (
+        !getFn(start) && !getFn(start + 1) && !getFn(start + 2) && !getFn(start + 3)
+      );
+      for (let r = 0; r < size; r++) {
+        const getRow = (i) => modules[r][i];
+        for (let c = 0; c <= size - 11; c++) {
+          if (isFourWhite(getRow, c) && hasPatternAt(getRow, c + 4)) penalty += 40;
+          if (hasPatternAt(getRow, c) && isFourWhite(getRow, c + 7)) penalty += 40;
+        }
+      }
+      for (let c = 0; c < size; c++) {
+        const getCol = (i) => modules[i][c];
+        for (let r = 0; r <= size - 11; r++) {
+          if (isFourWhite(getCol, r) && hasPatternAt(getCol, r + 4)) penalty += 40;
+          if (hasPatternAt(getCol, r) && isFourWhite(getCol, r + 7)) penalty += 40;
+        }
+      }
+      let darkCount = 0;
+      for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+          if (modules[r][c]) darkCount++;
+        }
+      }
+      const darkPct = (darkCount * 100) / (size * size);
+      penalty += Math.floor(Math.abs(darkPct - 50) / 5) * 10;
+      return penalty;
+    }
+
+    /** Encodes UTF-8 text into a deterministic ISO/IEC 18004 QR matrix (Byte mode, ECC-M, Versions 1..10). */
+    function encodeQrMatrix(text) {
+      const payloadBytes = new TextEncoder().encode(String(text || ''));
+      let version = 0;
+      for (let v = 1; v <= 10; v++) {
+        const totalDataBytes = QR_ECC_M_TABLE[v][0];
+        const countBits = v <= 9 ? 8 : 16;
+        if (totalDataBytes * 8 >= 4 + countBits + payloadBytes.length * 8) {
+          version = v;
+          break;
+        }
+      }
+      if (!version) {
+        throw new Error('Dữ liệu QR vượt quá dung lượng phiên bản 10-M');
+      }
+
+      const [totalDataBytes, ecLen, g1Blocks, g1Len, g2Blocks, g2Len] = QR_ECC_M_TABLE[version];
+      const countBits = version <= 9 ? 8 : 16;
+
+      const bits = [];
+      const pushBits = (val, n) => {
+        for (let i = n - 1; i >= 0; i--) {
+          bits.push((val >>> i) & 1);
+        }
+      };
+      pushBits(0b0100, 4);
+      pushBits(payloadBytes.length, countBits);
+      for (let i = 0; i < payloadBytes.length; i++) {
+        pushBits(payloadBytes[i], 8);
+      }
+      const capacityBits = totalDataBytes * 8;
+      const terminatorLen = Math.min(4, capacityBits - bits.length);
+      for (let i = 0; i < terminatorLen; i++) bits.push(0);
+      while (bits.length % 8 !== 0) bits.push(0);
+
+      const dataCodewords = new Uint8Array(totalDataBytes);
+      let byteIdx = 0;
+      for (let i = 0; i < bits.length; i += 8) {
+        let b = 0;
+        for (let k = 0; k < 8; k++) b = (b << 1) | bits[i + k];
+        dataCodewords[byteIdx++] = b;
+      }
+      let padToggle = 0;
+      while (byteIdx < totalDataBytes) {
+        dataCodewords[byteIdx++] = padToggle === 0 ? 0xec : 0x11;
+        padToggle ^= 1;
+      }
+
+      const dataBlocks = [];
+      const ecBlocks = [];
+      let offset = 0;
+      for (let b = 0; b < g1Blocks; b++) {
+        const blk = dataCodewords.slice(offset, offset + g1Len);
+        offset += g1Len;
+        dataBlocks.push(blk);
+        ecBlocks.push(qrRsRemainder(blk, ecLen));
+      }
+      for (let b = 0; b < g2Blocks; b++) {
+        const blk = dataCodewords.slice(offset, offset + g2Len);
+        offset += g2Len;
+        dataBlocks.push(blk);
+        ecBlocks.push(qrRsRemainder(blk, ecLen));
+      }
+
+      const interleaved = [];
+      const maxDataLen = Math.max(g1Len, g2Len);
+      for (let i = 0; i < maxDataLen; i++) {
+        for (let b = 0; b < dataBlocks.length; b++) {
+          if (i < dataBlocks[b].length) interleaved.push(dataBlocks[b][i]);
+        }
+      }
+      for (let i = 0; i < ecLen; i++) {
+        for (let b = 0; b < ecBlocks.length; b++) {
+          interleaved.push(ecBlocks[b][i]);
+        }
+      }
+
+      const size = 17 + 4 * version;
+      const base = Array.from({ length: size }, () => new Array(size).fill(false));
+      const isFunc = Array.from({ length: size }, () => new Array(size).fill(false));
+
+      const setFunc = (r, c, dark) => {
+        if (r < 0 || r >= size || c < 0 || c >= size) return;
+        base[r][c] = Boolean(dark);
+        isFunc[r][c] = true;
+      };
+
+      const drawFinder = (top, left) => {
+        for (let dr = -1; dr <= 7; dr++) {
+          for (let dc = -1; dc <= 7; dc++) {
+            const r = top + dr;
+            const c = left + dc;
+            if (r < 0 || r >= size || c < 0 || c >= size) continue;
+            const inOuter = dr >= 0 && dr <= 6 && dc >= 0 && dc <= 6;
+            const isBorder = dr === 0 || dr === 6 || dc === 0 || dc === 6;
+            const isCenter = dr >= 2 && dr <= 4 && dc >= 2 && dc <= 4;
+            setFunc(r, c, inOuter && (isBorder || isCenter));
+          }
+        }
+      };
+
+      drawFinder(0, 0);
+      drawFinder(0, size - 7);
+      drawFinder(size - 7, 0);
+
+      for (let i = 8; i <= size - 9; i++) {
+        const dark = (i & 1) === 0;
+        setFunc(6, i, dark);
+        setFunc(i, 6, dark);
+      }
+
+      if (version >= 2) {
+        const centers = QR_ALIGN_CENTERS[version] || [];
+        for (let i = 0; i < centers.length; i++) {
+          for (let j = 0; j < centers.length; j++) {
+            const cr = centers[i];
+            const cc = centers[j];
+            const nearTL = cr <= 8 && cc <= 8;
+            const nearTR = cr <= 8 && cc >= size - 8;
+            const nearBL = cr >= size - 8 && cc <= 8;
+            if (nearTL || nearTR || nearBL) continue;
+            for (let dr = -2; dr <= 2; dr++) {
+              for (let dc = -2; dc <= 2; dc++) {
+                const dark = Math.max(Math.abs(dr), Math.abs(dc)) !== 1;
+                setFunc(cr + dr, cc + dc, dark);
+              }
+            }
+          }
+        }
+      }
+
+      setFunc(size - 8, 8, true);
+      for (let i = 0; i <= 8; i++) {
+        if (i !== 6) {
+          setFunc(8, i, false);
+          setFunc(i, 8, false);
+        }
+      }
+      for (let i = 0; i < 8; i++) {
+        setFunc(8, size - 1 - i, false);
+      }
+      for (let i = 0; i < 7; i++) {
+        setFunc(size - 1 - i, 8, false);
+      }
+
+      if (version >= 7) {
+        const vBits = qrVersionBits(version);
+        for (let k = 0; k < 18; k++) {
+          const dark = ((vBits >>> k) & 1) === 1;
+          const a = Math.floor(k / 3);
+          const b = size - 11 + (k % 3);
+          setFunc(a, b, dark);
+          setFunc(b, a, dark);
+        }
+      }
+
+      const totalBits = interleaved.length * 8;
+      let bitCursor = 0;
+      let dirUp = true;
+      for (let col = size - 1; col >= 1; col -= 2) {
+        if (col === 6) col--;
+        for (let step = 0; step < size; step++) {
+          const r = dirUp ? (size - 1 - step) : step;
+          for (let dx = 0; dx < 2; dx++) {
+            const c = col - dx;
+            if (!isFunc[r][c]) {
+              if (bitCursor < totalBits) {
+                const cw = interleaved[bitCursor >> 3];
+                const bit = (cw >>> (7 - (bitCursor & 7))) & 1;
+                base[r][c] = bit === 1;
+                bitCursor++;
+              } else {
+                base[r][c] = false;
+              }
+            }
+          }
+        }
+        dirUp = !dirUp;
+      }
+
+      const writeFormatTo = (mat, maskIdx) => {
+        const fmt = qrFormatBits(maskIdx);
+        for (let i = 0; i <= 5; i++) mat[i][8] = ((fmt >>> i) & 1) === 1;
+        mat[7][8] = ((fmt >>> 6) & 1) === 1;
+        mat[8][8] = ((fmt >>> 7) & 1) === 1;
+        mat[8][7] = ((fmt >>> 8) & 1) === 1;
+        for (let i = 9; i < 15; i++) mat[8][14 - i] = ((fmt >>> i) & 1) === 1;
+
+        for (let i = 0; i < 8; i++) mat[8][size - 1 - i] = ((fmt >>> i) & 1) === 1;
+        for (let i = 8; i < 15; i++) mat[size - 15 + i][8] = ((fmt >>> i) & 1) === 1;
+      };
+
+      let bestPenalty = Infinity;
+      let bestModules = null;
+      let bestMask = 0;
+
+      for (let maskIdx = 0; maskIdx < 8; maskIdx++) {
+        const candidate = base.map((row, r) => row.map((val, c) => (
+          isFunc[r][c] ? val : (qrMaskPredicate(maskIdx, r, c) ? !val : val)
+        )));
+        writeFormatTo(candidate, maskIdx);
+        const p = qrEvaluatePenalty(candidate, size);
+        if (p < bestPenalty) {
+          bestPenalty = p;
+          bestModules = candidate;
+          bestMask = maskIdx;
+        }
+      }
+
+      return { version, size, mask: bestMask, modules: bestModules };
+    }
+
+    function getBankQrAccountName() {
+      const raw = state && state.settings && state.settings.name
+        ? String(state.settings.name).trim()
+        : '';
+      return raw ? raw.toLocaleUpperCase('vi-VN') : BANK_QR_CONFIG.accountName;
+    }
+
+    function drawRoundedRectPath(ctx, x, y, w, h, r) {
+      const radius = Math.min(r, w / 2, h / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + w - radius, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+      ctx.lineTo(x + w, y + h - radius);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+      ctx.lineTo(x + radius, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+    }
+
+    function renderBankQrCardCanvas() {
+      if (!bankQrCache.matrix) {
+        bankQrCache.matrix = encodeQrMatrix(BANK_QR_CONFIG.rawPayload);
+      }
+      const qr = bankQrCache.matrix;
+      const acctName = getBankQrAccountName();
+
+      const W = 720;
+      const H = 900;
+      const canvas = document.createElement('canvas');
+      canvas.width = W;
+      canvas.height = H;
+      const ctx = canvas.getContext('2d');
+
+      // Pure white background so all QR scanners read high-contrast dark modules
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, W, H);
+
+      ctx.save();
+      drawRoundedRectPath(ctx, 200, 44, 320, 42, 21);
+      ctx.fillStyle = '#EDF7E7';
+      ctx.fill();
+      ctx.strokeStyle = '#CBE4BC';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = '#254516';
+      ctx.font = '700 18px "Plus Jakarta Sans", system-ui, -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('VietQR  •  Chuyển nhanh 24/7', W / 2, 65);
+      ctx.restore();
+
+      ctx.fillStyle = '#1C1F1B';
+      ctx.font = '800 30px "Plus Jakarta Sans", system-ui, -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`Chuyển khoản ${BANK_QR_CONFIG.bankShort}`, W / 2, 120);
+
+      const boxX = 92;
+      const boxY = 162;
+      const boxW = 536;
+      const boxH = 512;
+      drawRoundedRectPath(ctx, boxX, boxY, boxW, boxH, 28);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fill();
+      ctx.strokeStyle = '#DCE8D9';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      const modPx = Math.floor(420 / qr.size);
+      const qrPx = modPx * qr.size;
+      const qrOriginX = Math.floor((W - qrPx) / 2);
+      const qrOriginY = Math.floor(boxY + (boxH - qrPx) / 2);
+
+      ctx.fillStyle = '#000000';
+      for (let r = 0; r < qr.size; r++) {
+        for (let c = 0; c < qr.size; c++) {
+          if (qr.modules[r][c]) {
+            ctx.fillRect(qrOriginX + c * modPx, qrOriginY + r * modPx, modPx, modPx);
+          }
+        }
+      }
+
+      ctx.fillStyle = '#1C1F1B';
+      ctx.font = '800 26px "Plus Jakarta Sans", system-ui, -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(acctName, W / 2, 720);
+
+      drawRoundedRectPath(ctx, 166, 756, 388, 54, 27);
+      ctx.fillStyle = '#EDF7E7';
+      ctx.fill();
+      ctx.strokeStyle = '#CBE4BC';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.fillStyle = '#1E3B13';
+      ctx.font = '800 24px "Plus Jakarta Sans", system-ui, -apple-system, sans-serif';
+      ctx.fillText(`${BANK_QR_CONFIG.bankShort}  •  ${BANK_QR_CONFIG.accountNo}`, W / 2, 783);
+
+      ctx.fillStyle = '#5C6659';
+      ctx.font = '600 16px "Plus Jakarta Sans", system-ui, -apple-system, sans-serif';
+      ctx.fillText('Quét mã bằng ứng dụng Ngân hàng hoặc Ví điện tử', W / 2, 846);
+
+      return canvas;
+    }
+
+    function dataUrlToPngBlob(dataUrl) {
+      const parts = String(dataUrl || '').split(',');
+      const bstr = atob(parts[1] || '');
+      const bytes = new Uint8Array(bstr.length);
+      for (let i = 0; i < bstr.length; i++) {
+        bytes[i] = bstr.charCodeAt(i);
+      }
+      return new Blob([bytes], { type: 'image/png' });
+    }
+
+    function ensureBankQrAssets() {
+      const acctName = getBankQrAccountName();
+      if (bankQrCache.dataUrl && bankQrCache.accountName === acctName) {
+        return bankQrCache;
+      }
+      const canvas = renderBankQrCardCanvas();
+      bankQrCache.accountName = acctName;
+      bankQrCache.dataUrl = canvas.toDataURL('image/png');
+      bankQrCache.blob = null;
+      bankQrCache.blobPromise = new Promise((resolve) => {
+        if (typeof canvas.toBlob === 'function') {
+          canvas.toBlob((blob) => {
+            const finalBlob = blob || dataUrlToPngBlob(bankQrCache.dataUrl);
+            bankQrCache.blob = finalBlob;
+            resolve(finalBlob);
+          }, 'image/png');
+        } else {
+          const finalBlob = dataUrlToPngBlob(bankQrCache.dataUrl);
+          bankQrCache.blob = finalBlob;
+          resolve(finalBlob);
+        }
+      });
+      return bankQrCache;
+    }
+
+    function ensureBankQrBlob() {
+      ensureBankQrAssets();
+      return bankQrCache.blob || bankQrCache.blobPromise;
+    }
+
+    function schedulePrewarmBankQr() {
+      const run = () => {
+        try { ensureBankQrAssets(); } catch (_) { }
+      };
+      if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(run, { timeout: 1200 });
+      } else {
+        setTimeout(run, 150);
+      }
+    }
+
+    function setBankQrCopiedFeedback(fromModal) {
+      const cardBtn = document.getElementById('btn-work-copy-qr');
+      const cardLabel = document.getElementById('work-qr-copy-label');
+      if (cardBtn) cardBtn.classList.add('is-copied');
+      if (cardLabel) cardLabel.textContent = 'Đã copy';
+      if (bankQrCache.resetTimer) clearTimeout(bankQrCache.resetTimer);
+      bankQrCache.resetTimer = setTimeout(() => {
+        if (cardBtn) cardBtn.classList.remove('is-copied');
+        if (cardLabel) cardLabel.textContent = 'Copy QR';
+        bankQrCache.resetTimer = null;
+      }, 2200);
+
+      if (fromModal) {
+        const modalBtn = document.getElementById('btn-modal-copy-qr');
+        if (modalBtn) {
+          modalBtn.textContent = 'Đã copy ảnh QR!';
+          if (bankQrCache.modalResetTimer) clearTimeout(bankQrCache.modalResetTimer);
+          bankQrCache.modalResetTimer = setTimeout(() => {
+            modalBtn.textContent = 'Copy ảnh QR';
+            bankQrCache.modalResetTimer = null;
+          }, 2200);
+        }
+      }
+
+      const liveEl = document.getElementById('work-qr-live');
+      if (liveEl) {
+        liveEl.textContent = 'Đã sao chép ảnh mã QR Banking BIDV 8867350944 vào bộ nhớ tạm';
+      }
+    }
+
+    function handleBankQrClipboardFallback(fromModal) {
+      if (!fromModal) {
+        openBankQrModal();
+      }
+      const liveEl = document.getElementById('work-qr-live');
+      if (liveEl) {
+        liveEl.textContent = 'Trình duyệt không hỗ trợ copy ảnh tự động, đã mở mã QR để chia sẻ hoặc lưu ảnh';
+      }
+      showToast('Trình duyệt không cho copy ảnh tự động — Dùng Chia sẻ hoặc giữ vào ảnh QR để gửi!');
+    }
+
+    // Keep ClipboardItem & clipboard.write() synchronous inside click handler for Safari/iOS PWA gesture activation.
+    window.copyBankQrImage = function (opts = {}) {
+      const fromModal = Boolean(opts && opts.fromModal);
+      const canWriteImage = Boolean(
+        navigator.clipboard &&
+        typeof navigator.clipboard.write === 'function' &&
+        typeof window.ClipboardItem === 'function'
+      );
+
+      if (!canWriteImage) {
+        handleBankQrClipboardFallback(fromModal);
+        return;
+      }
+
+      try {
+        const pngItem = ensureBankQrBlob();
+        const item = new window.ClipboardItem({ 'image/png': pngItem });
+        navigator.clipboard.write([item]).then(() => {
+          setBankQrCopiedFeedback(fromModal);
+          showToast(
+            'Đã copy ảnh QR Banking — Dán gửi Zalo/FB ngay!',
+            fromModal ? false : { actionLabel: 'Xem QR', onAction: () => openBankQrModal() }
+          );
+        }).catch(() => {
+          handleBankQrClipboardFallback(fromModal);
+        });
+      } catch (_) {
+        handleBankQrClipboardFallback(fromModal);
+      }
+    };
+
+    window.openBankQrModal = function () {
+      const assets = ensureBankQrAssets();
+      const imgEl = document.getElementById('bank-qr-modal-img');
+      if (imgEl) {
+        imgEl.src = assets.dataUrl;
+      }
+      const acctEl = document.querySelector('#modal-bank-qr .bank-qr-acct-name');
+      if (acctEl) {
+        acctEl.textContent = getBankQrAccountName();
+      }
+      const shareBtn = document.getElementById('btn-modal-share-qr');
+      if (shareBtn) {
+        let canSharePng = false;
+        try {
+          if (typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && typeof File === 'function') {
+            const probeBlob = assets.blob || dataUrlToPngBlob(assets.dataUrl);
+            const probeFile = new File([probeBlob], BANK_QR_CONFIG.fileName, { type: 'image/png' });
+            canSharePng = navigator.canShare({ files: [probeFile] });
+          }
+        } catch (_) {
+          canSharePng = false;
+        }
+        shareBtn.hidden = !canSharePng;
+      }
+      openModal('modal-bank-qr');
+    };
+
+    window.copyBankAccountNumber = async function () {
+      const text = BANK_QR_CONFIG.accountNo;
+      let copied = false;
+      try {
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+          await navigator.clipboard.writeText(text);
+          copied = true;
+        }
+      } catch (_) {
+        copied = false;
+      }
+      if (!copied) {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.setAttribute('readonly', '');
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          copied = document.execCommand('copy');
+          ta.remove();
+        } catch (_) {
+          copied = false;
+        }
+      }
+      if (copied) {
+        const liveEl = document.getElementById('work-qr-live');
+        if (liveEl) {
+          liveEl.textContent = `Đã sao chép số tài khoản BIDV ${text}`;
+        }
+        showToast(`Đã copy số tài khoản ${BANK_QR_CONFIG.bankShort}: ${text}`);
+      } else {
+        showToast('Không thể copy tự động trên trình duyệt này', true);
+      }
+    };
+
+    window.shareBankQrImage = async function () {
+      try {
+        const blob = await ensureBankQrBlob();
+        const file = new File([blob], BANK_QR_CONFIG.fileName, { type: 'image/png' });
+        await navigator.share({
+          files: [file],
+          title: `Mã QR Banking - ${BANK_QR_CONFIG.bankShort}`,
+          text: `${BANK_QR_CONFIG.bankShort} ${BANK_QR_CONFIG.accountNo} - ${getBankQrAccountName()}`
+        });
+      } catch (err) {
+        if (err && err.name === 'AbortError') return;
+        showToast('Không thể mở chia sẻ trên trình duyệt này, hãy dùng Tải ảnh hoặc nhấn giữ ảnh QR', true);
+      }
+    };
+
+    window.downloadBankQrImage = function () {
+      const assets = ensureBankQrAssets();
+      const link = document.createElement('a');
+      link.href = assets.dataUrl;
+      link.download = BANK_QR_CONFIG.fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      showToast(`Đã tải ảnh ${BANK_QR_CONFIG.fileName}`);
     };
 
     // Khởi động ứng dụng

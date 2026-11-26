@@ -8638,6 +8638,408 @@ html[data-theme="dark"] .fund-filter-pill.active {
   }
 }
 
+/* ==========================================================================
+   Work Tab: Prominent QR Banking Copy Card & Preview Modal
+   ========================================================================== */
+.work-qr-action-card {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  padding: 6px;
+  margin-bottom: 14px;
+  border-radius: 22px;
+  background: linear-gradient(135deg, #F3FBEB 0%, #E3F5D5 100%);
+  border: 1.5px solid #6BB44A;
+  box-shadow: 0 6px 18px rgba(78, 138, 56, 0.14), 0 1px 3px rgba(30, 59, 19, 0.08);
+}
+
+.btn-work-qr-copy {
+  flex: 1;
+  min-width: 0;
+  min-height: 54px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 15px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  font-family: inherit;
+  color: var(--text-main);
+  cursor: pointer;
+  transition-property: transform, background-color, border-color;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+
+.btn-work-qr-copy:focus-visible,
+.btn-work-qr-preview:focus-visible,
+.bank-qr-stk-btn:focus-visible {
+  outline: 2.5px solid #2B5719;
+  outline-offset: 2px;
+}
+
+.work-qr-btn-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background-color: #2B5719;
+  color: #FFFFFF;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.work-qr-btn-body {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.work-qr-btn-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-main);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.work-qr-btn-sub {
+  font-size: 12px;
+  font-weight: 700;
+  color: #2B5719;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.work-qr-cta-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 11px 7px 9px;
+  border-radius: var(--radius-pill);
+  background-color: #2B5719;
+  color: #FFFFFF;
+  font-size: 12.5px;
+  font-weight: 800;
+  flex-shrink: 0;
+  white-space: nowrap;
+  transition-property: background-color, color;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+
+.btn-work-qr-copy.is-copied .work-qr-cta-pill {
+  background-color: #166534;
+  color: #FFFFFF;
+}
+
+.qr-copy-icon-stack {
+  position: relative;
+  width: 15px;
+  height: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.qr-copy-icon-stack svg {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  transition-property: opacity;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+
+.qr-icon-copy {
+  opacity: 1;
+}
+
+.qr-icon-check {
+  opacity: 0;
+}
+
+.btn-work-qr-copy.is-copied .qr-icon-copy {
+  opacity: 0;
+}
+
+.btn-work-qr-copy.is-copied .qr-icon-check {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .qr-copy-icon-stack svg {
+    transition-property: opacity, transform, filter;
+    transition-duration: 300ms;
+    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  .qr-icon-copy {
+    transform: scale(1);
+    filter: blur(0px);
+  }
+
+  .qr-icon-check {
+    transform: scale(0.25);
+    filter: blur(4px);
+  }
+
+  .btn-work-qr-copy.is-copied .qr-icon-copy {
+    transform: scale(0.25);
+    filter: blur(4px);
+  }
+
+  .btn-work-qr-copy.is-copied .qr-icon-check {
+    transform: scale(1);
+    filter: blur(0px);
+  }
+}
+
+.btn-work-qr-preview {
+  min-width: 48px;
+  min-height: 54px;
+  padding: 0 12px;
+  border-radius: 15px;
+  background-color: #FFFFFF;
+  border: 1.5px solid #B6D8A4;
+  color: #254516;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition-property: transform, background-color, border-color;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+
+@media (hover: hover) {
+  .btn-work-qr-copy:hover {
+    background-color: rgba(255, 255, 255, 0.55);
+  }
+
+  .btn-work-qr-preview:hover {
+    background-color: #F4FBE9;
+    border-color: #6BB44A;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .btn-work-qr-copy:not(:disabled):active,
+  .btn-work-qr-preview:not(:disabled):active {
+    transform: scale(0.96);
+  }
+}
+
+@media (max-width: 360px) {
+  .work-qr-action-card {
+    gap: 5px;
+    padding: 5px;
+  }
+
+  .btn-work-qr-copy {
+    padding: 7px 6px;
+    gap: 8px;
+  }
+
+  .work-qr-btn-icon {
+    width: 34px;
+    height: 34px;
+  }
+
+  .work-qr-btn-title {
+    font-size: 13px;
+  }
+
+  .work-qr-btn-sub {
+    font-size: 11px;
+  }
+
+  .work-qr-cta-pill {
+    padding: 6px 9px 6px 7px;
+    font-size: 12px;
+    gap: 4px;
+  }
+
+  .btn-work-qr-preview {
+    min-width: 44px;
+    padding: 0 10px;
+  }
+}
+
+/* QR Preview Modal */
+#modal-bank-qr .modal-dialog {
+  overscroll-behavior: contain;
+}
+
+.bank-qr-preview-frame {
+  background-color: #FFFFFF;
+  border-radius: 20px;
+  padding: 10px;
+  margin-bottom: 12px;
+  outline: 1px solid rgba(0, 0, 0, 0.1);
+  outline-offset: -1px;
+  box-shadow: 0 4px 16px rgba(30, 59, 19, 0.08);
+}
+
+.bank-qr-modal-img {
+  width: 100%;
+  max-width: 300px;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  border-radius: 12px;
+}
+
+.bank-qr-info-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background-color: var(--bg-subtle);
+  border: 1px solid var(--border-card);
+  margin-bottom: 12px;
+}
+
+.bank-qr-info-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bank-qr-info-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.bank-qr-bank-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background-color: var(--badge-normal-bg);
+  color: var(--badge-normal-text);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.bank-qr-acct-num {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.bank-qr-acct-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-sub);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bank-qr-stk-btn {
+  flex-shrink: 0;
+  min-height: 36px;
+  font-weight: 700;
+}
+
+.bank-qr-modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bank-qr-btn-primary {
+  width: 100%;
+  min-height: 46px;
+}
+
+.bank-qr-modal-secondary-row {
+  display: flex;
+  gap: 8px;
+}
+
+.bank-qr-btn-sec {
+  flex: 1;
+  min-height: 42px;
+}
+
+.bank-qr-modal-hint {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-sub);
+  text-align: center;
+}
+
+html[data-theme="dark"] .work-qr-action-card {
+  background: linear-gradient(135deg, #192817 0%, #20341D 100%);
+  border-color: #4F853A;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.34), 0 1px 3px rgba(0, 0, 0, 0.24);
+}
+
+html[data-theme="dark"] .btn-work-qr-copy:focus-visible,
+html[data-theme="dark"] .btn-work-qr-preview:focus-visible,
+html[data-theme="dark"] .bank-qr-stk-btn:focus-visible {
+  outline-color: #86C75A;
+}
+
+html[data-theme="dark"] .work-qr-btn-icon {
+  background-color: #86C75A;
+  color: #0F2208;
+}
+
+html[data-theme="dark"] .work-qr-btn-sub {
+  color: #B7E59A;
+}
+
+html[data-theme="dark"] .work-qr-cta-pill {
+  background-color: #86C75A;
+  color: #0F2208;
+}
+
+html[data-theme="dark"] .btn-work-qr-copy.is-copied .work-qr-cta-pill {
+  background-color: #A7E484;
+  color: #0F2208;
+}
+
+html[data-theme="dark"] .btn-work-qr-preview {
+  background-color: #172216;
+  border-color: #3D6230;
+  color: #D7F2C4;
+}
+
+@media (hover: hover) {
+  html[data-theme="dark"] .btn-work-qr-copy:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+  }
+
+  html[data-theme="dark"] .btn-work-qr-preview:hover {
+    background-color: #21311F;
+    border-color: #6BB44A;
+  }
+}
+
+html[data-theme="dark"] .bank-qr-preview-frame {
+  outline-color: rgba(255, 255, 255, 0.1);
+}
+
 /* Media Queries for Accessibility */
 @media (prefers-reduced-motion: reduce) {
 
