@@ -2228,30 +2228,30 @@
 
       if (badgeEl) {
         let badgeText = 'Mới bắt đầu';
-        let dotColor = '#687363';
-        let textColor = '#545D50';
+        let tier = 'start';
 
         if (score >= 90) {
           badgeText = 'Xuất sắc';
-          dotColor = '#2B5719';
-          textColor = '#2B5719';
+          tier = 'excellent';
         } else if (score >= 70) {
           badgeText = 'Tốt';
-          dotColor = '#3D6E26';
-          textColor = '#3D6E26';
+          tier = 'good';
         } else if (score >= 40) {
           badgeText = 'Khá';
-          dotColor = '#4D7C0F';
-          textColor = '#3F6B0B';
+          tier = 'fair';
         } else if (score > 0) {
           badgeText = 'Đang cải thiện';
-          dotColor = '#D97706';
-          textColor = '#B45309';
+          tier = 'improving';
         }
 
         badgeEl.textContent = badgeText;
-        if (statusRowEl) statusRowEl.style.color = textColor;
-        if (statusDotEl) statusDotEl.style.backgroundColor = dotColor;
+        if (statusRowEl) {
+          statusRowEl.style.color = '';
+          statusRowEl.setAttribute('data-score-tier', tier);
+        }
+        if (statusDotEl) {
+          statusDotEl.style.backgroundColor = '';
+        }
       }
 
       const scoreCardEl = document.getElementById('daily-score-card');
@@ -2293,15 +2293,16 @@
       }
       const medSummary = document.getElementById('summary-med-display');
       if (medSummary) {
+        medSummary.style.color = '';
         if (medCount >= medTarget) {
           medSummary.textContent = `Đủ ${medTarget}/${medTarget} lần`;
-          medSummary.style.color = '#2B5719';
+          medSummary.setAttribute('data-status', 'done');
         } else if (medCount > 0) {
           medSummary.textContent = `${medCount}/${medTarget} lần`;
-          medSummary.style.color = '#9E4707';
+          medSummary.setAttribute('data-status', 'partial');
         } else {
           medSummary.textContent = `0/${medTarget} lần`;
-          medSummary.style.color = '#B23A09';
+          medSummary.setAttribute('data-status', 'empty');
         }
       }
       const medWaveEl = document.getElementById('summary-med-theme-level');
@@ -2312,15 +2313,16 @@
       const mealsSummary = document.getElementById('summary-meals-display');
       const mealsTarget = MEAL_SLOT_ORDER.length;
       if (mealsSummary) {
+        mealsSummary.style.color = '';
         if (doneMealsCount >= mealsTarget) {
           mealsSummary.textContent = `Đủ ${mealsTarget}/${mealsTarget} bữa`;
-          mealsSummary.style.color = '#2B5719';
+          mealsSummary.setAttribute('data-status', 'done');
         } else if (doneMealsCount > 0) {
           mealsSummary.textContent = `${doneMealsCount}/${mealsTarget} bữa`;
-          mealsSummary.style.color = '#9A4A08';
+          mealsSummary.setAttribute('data-status', 'partial');
         } else {
           mealsSummary.textContent = `0/${mealsTarget} bữa`;
-          mealsSummary.style.color = '#9A4A08';
+          mealsSummary.setAttribute('data-status', 'empty');
         }
       }
       const mealsWaveEl = document.getElementById('summary-meals-theme-level');

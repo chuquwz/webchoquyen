@@ -583,6 +583,46 @@ a:focus-visible,
   transition: background-color 0.3s ease;
 }
 
+.score-status-row[data-score-tier="start"] {
+  color: #545D50;
+}
+
+.score-status-row[data-score-tier="start"] .dot-status {
+  background-color: #687363;
+}
+
+.score-status-row[data-score-tier="improving"] {
+  color: #B45309;
+}
+
+.score-status-row[data-score-tier="improving"] .dot-status {
+  background-color: #D97706;
+}
+
+.score-status-row[data-score-tier="fair"] {
+  color: #3F6B0B;
+}
+
+.score-status-row[data-score-tier="fair"] .dot-status {
+  background-color: #4D7C0F;
+}
+
+.score-status-row[data-score-tier="good"] {
+  color: #3D6E26;
+}
+
+.score-status-row[data-score-tier="good"] .dot-status {
+  background-color: #3D6E26;
+}
+
+.score-status-row[data-score-tier="excellent"] {
+  color: #2B5719;
+}
+
+.score-status-row[data-score-tier="excellent"] .dot-status {
+  background-color: #2B5719;
+}
+
 .daily-score-gauge-wrap {
   position: relative;
   z-index: 2;
@@ -826,6 +866,27 @@ a:focus-visible,
   font-size: 11px;
   font-weight: 600;
   color: var(--text-muted);
+}
+
+#summary-med-display[data-status="done"] {
+  color: #2B5719;
+}
+
+#summary-med-display[data-status="partial"] {
+  color: #9E4707;
+}
+
+#summary-med-display[data-status="empty"] {
+  color: #B23A09;
+}
+
+#summary-meals-display[data-status="done"] {
+  color: #2B5719;
+}
+
+#summary-meals-display[data-status="partial"],
+#summary-meals-display[data-status="empty"] {
+  color: #9A4A08;
 }
 
 /* --------------------------------------------------------------------------
@@ -1542,6 +1603,7 @@ a:focus-visible,
 .time-chip-input {
   border: none;
   background: transparent;
+  color: var(--text-main);
   font-family: inherit;
   font-size: 11.5px;
   font-weight: 700;
@@ -6873,6 +6935,13 @@ html[data-theme="dark"] .work-time-detail-row .form-input {
   color: var(--text-main);
 }
 
+html[data-theme="dark"] input[type="time"].form-input,
+html[data-theme="dark"] input[type="date"].form-input,
+html[data-theme="dark"] .time-chip-input {
+  color: var(--text-main);
+  -webkit-text-fill-color: var(--text-main);
+}
+
 html[data-theme="dark"] .work-search-input::placeholder,
 html[data-theme="dark"] .pin-input::placeholder,
 html[data-theme="dark"] .pin-input::-webkit-input-placeholder {
@@ -6978,6 +7047,52 @@ html[data-theme="dark"] .score-label {
   color: var(--text-sub);
 }
 
+html[data-theme="dark"] .water-wave-layer {
+  opacity: 0.42;
+}
+
+html[data-theme="dark"] .score-status-row,
+html[data-theme="dark"] .score-status-row[data-score-tier="start"] {
+  color: #E2EDE0;
+}
+
+html[data-theme="dark"] .score-status-row .dot-status,
+html[data-theme="dark"] .score-status-row[data-score-tier="start"] .dot-status {
+  background-color: #9DB498;
+}
+
+html[data-theme="dark"] .score-status-row[data-score-tier="improving"] {
+  color: #FDE68A;
+}
+
+html[data-theme="dark"] .score-status-row[data-score-tier="improving"] .dot-status {
+  background-color: #FBBF24;
+}
+
+html[data-theme="dark"] .score-status-row[data-score-tier="fair"] {
+  color: #D9F99D;
+}
+
+html[data-theme="dark"] .score-status-row[data-score-tier="fair"] .dot-status {
+  background-color: #A3E635;
+}
+
+html[data-theme="dark"] .score-status-row[data-score-tier="good"] {
+  color: #BBF7D0;
+}
+
+html[data-theme="dark"] .score-status-row[data-score-tier="good"] .dot-status {
+  background-color: #86EFAC;
+}
+
+html[data-theme="dark"] .score-status-row[data-score-tier="excellent"] {
+  color: #B7F094;
+}
+
+html[data-theme="dark"] .score-status-row[data-score-tier="excellent"] .dot-status {
+  background-color: #86C75A;
+}
+
 html[data-theme="dark"] .score-track {
   stroke: var(--color-score-track);
 }
@@ -7016,7 +7131,7 @@ html[data-theme="dark"] .water-wave-card .summary-val-num {
 }
 
 html[data-theme="dark"] .water-wave-card .summary-val-unit {
-  color: #93C5FD;
+  color: #BAE6FD;
 }
 
 html[data-theme="dark"] .weight-theme-card .summary-card-label {
@@ -7028,7 +7143,7 @@ html[data-theme="dark"] .weight-theme-card .summary-val-num {
 }
 
 html[data-theme="dark"] .weight-theme-card .summary-val-unit {
-  color: #FDA4AF;
+  color: #FECDD3;
 }
 
 html[data-theme="dark"] .med-theme-card .summary-card-label {
@@ -7037,6 +7152,35 @@ html[data-theme="dark"] .med-theme-card .summary-card-label {
 
 html[data-theme="dark"] .meals-theme-card .summary-card-label,
 html[data-theme="dark"] .card-amber-tint .summary-card-label {
+  color: #FDE68A;
+}
+
+html[data-theme="dark"] #summary-med-display {
+  color: #EFF4ED;
+}
+
+html[data-theme="dark"] #summary-med-display[data-status="done"] {
+  color: #B7F094;
+}
+
+html[data-theme="dark"] #summary-med-display[data-status="partial"] {
+  color: #FDE68A;
+}
+
+html[data-theme="dark"] #summary-med-display[data-status="empty"] {
+  color: #FDBA74;
+}
+
+html[data-theme="dark"] #summary-meals-display {
+  color: #EFF4ED;
+}
+
+html[data-theme="dark"] #summary-meals-display[data-status="done"] {
+  color: #B7F094;
+}
+
+html[data-theme="dark"] #summary-meals-display[data-status="partial"],
+html[data-theme="dark"] #summary-meals-display[data-status="empty"] {
   color: #FDE68A;
 }
 
@@ -7379,7 +7523,28 @@ html[data-theme="dark"] .diet-guide-col.is-avoid .diet-guide-col-title {
   color: #FCA5A5;
 }
 
+html[data-theme="dark"] .btn-data-action {
+  background-color: #1D261D;
+  border-color: #4E634D;
+  color: #D7F0C5;
+}
+
+html[data-theme="dark"] .btn-data-action.btn-data-neutral {
+  background-color: #1D261D;
+  border-color: #4A5A49;
+  color: var(--text-main);
+}
+
+html[data-theme="dark"] .btn-data-action:focus-visible {
+  outline-color: #86C75A;
+}
+
+html[data-theme="dark"] .btn-settings-logout:focus-visible {
+  outline-color: #F87171;
+}
+
 html[data-theme="dark"] .btn-data-action.btn-data-primary {
+  background-color: #1C3119;
   border-color: #548E3D;
   color: #B7E59A;
 }
