@@ -1,0 +1,554 @@
+/* ==========================================================================
+   Quyền Anh - Liquid Glass Overlay Layer
+   GPU-composited translucent chrome, directional specular rims, inner glow,
+   squish glass navigation lens & HIG-compliant opaque content surfaces.
+   Loaded after style.css; relies on cascade order & matching specificity.
+   ========================================================================== */
+
+:root {
+  --lg-ambient-base: #F5F7F4;
+  --lg-ambient:
+    radial-gradient(120% 55% at 0% 0%, rgba(164, 219, 122, 0.38) 0%, rgba(164, 219, 122, 0) 62%),
+    radial-gradient(85% 45% at 100% 18%, rgba(56, 163, 165, 0.16) 0%, rgba(56, 163, 165, 0) 60%),
+    radial-gradient(110% 60% at 30% 100%, rgba(136, 196, 89, 0.22) 0%, rgba(136, 196, 89, 0) 65%),
+    #F5F7F4;
+  --lg-surface: rgba(255, 255, 255, 0.88);
+  --lg-surface-strong: rgba(255, 255, 255, 0.86);
+  --lg-chrome: rgba(250, 252, 249, 0.68);
+  --lg-sheet: rgba(250, 252, 249, 0.86);
+  --lg-field: rgba(244, 248, 242, 0.85);
+  --lg-border: rgba(255, 255, 255, 0.8);
+  --lg-hairline: rgba(28, 31, 27, 0.08);
+  --lg-control-border: rgba(28, 31, 27, 0.16);
+  --lg-field-border: rgba(28, 31, 27, 0.46);
+  --lg-blur-chrome: blur(22px) saturate(180%);
+  --lg-blur-sheet: blur(30px) saturate(170%);
+  --lg-specular: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -1px 0 rgba(28, 31, 27, 0.05);
+  --lg-shadow-card: 0 10px 28px rgba(30, 59, 19, 0.07), 0 1px 3px rgba(30, 59, 19, 0.05);
+  --lg-shadow-float: 0 14px 36px rgba(30, 59, 19, 0.16), 0 3px 10px rgba(30, 59, 19, 0.08);
+  --lg-gloss: linear-gradient(180deg, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0) 58%);
+  --lg-lens: linear-gradient(180deg, #B9E596 0%, #A4DB7A 100%);
+  --lg-lens-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75), inset 0 -1px 0 rgba(30, 59, 19, 0.14), 0 4px 14px rgba(94, 148, 71, 0.32);
+  --lg-nav-ink: #4F574C;
+  --lg-rim: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.25) 30%, rgba(255, 255, 255, 0) 50%, rgba(255, 255, 255, 0.18) 75%, rgba(255, 255, 255, 0.6) 100%);
+  --lg-inner-glow: inset 0 0 14px rgba(255, 255, 255, 0.35);
+  --lg-edge-fade: rgba(245, 247, 244, 0.92);
+  --lg-edge-fade-0: rgba(245, 247, 244, 0);
+  --lg-spring: cubic-bezier(0.34, 1.32, 0.64, 1);
+  --lg-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --lg-radius-sheet: 32px;
+  --lg-nav-bottom: calc(10px + env(safe-area-inset-bottom, 0px) * 0.5);
+  --nav-bottom-pad: calc(16px + env(safe-area-inset-bottom, 0px) * 0.5);
+  --bg-desktop-canvas: #F5F7F4;
+  --text-sub: #5F665C;
+  --text-muted: #687065;
+}
+
+html[data-theme="dark"] {
+  --lg-ambient-base: #111611;
+  --lg-ambient:
+    radial-gradient(120% 55% at 0% 0%, rgba(124, 194, 86, 0.20) 0%, rgba(124, 194, 86, 0) 62%),
+    radial-gradient(85% 45% at 100% 18%, rgba(86, 198, 200, 0.10) 0%, rgba(86, 198, 200, 0) 60%),
+    radial-gradient(110% 60% at 30% 100%, rgba(124, 194, 86, 0.12) 0%, rgba(124, 194, 86, 0) 65%),
+    #111611;
+  --lg-surface: rgba(28, 36, 28, 0.88);
+  --lg-surface-strong: rgba(36, 46, 36, 0.84);
+  --lg-chrome: rgba(22, 29, 22, 0.66);
+  --lg-sheet: rgba(20, 26, 20, 0.88);
+  --lg-field: rgba(27, 35, 27, 0.9);
+  --lg-border: rgba(255, 255, 255, 0.10);
+  --lg-hairline: rgba(255, 255, 255, 0.06);
+  --lg-control-border: rgba(255, 255, 255, 0.16);
+  --lg-field-border: #647563;
+  --lg-specular: inset 0 1px 0 rgba(255, 255, 255, 0.10), inset 0 -1px 0 rgba(0, 0, 0, 0.25);
+  --lg-shadow-card: 0 10px 28px rgba(0, 0, 0, 0.38), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --lg-shadow-float: 0 16px 40px rgba(0, 0, 0, 0.55), 0 3px 10px rgba(0, 0, 0, 0.35);
+  --lg-gloss: linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0) 58%);
+  --lg-lens: linear-gradient(180deg, #98D46E 0%, #86C75A 100%);
+  --lg-lens-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), inset 0 -1px 0 rgba(0, 0, 0, 0.25), 0 4px 14px rgba(134, 199, 90, 0.25);
+  --lg-nav-ink: #B2BEB0;
+  --lg-rim: linear-gradient(135deg, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0.10) 30%, rgba(255, 255, 255, 0) 50%, rgba(255, 255, 255, 0.06) 75%, rgba(255, 255, 255, 0.25) 100%);
+  --lg-inner-glow: inset 0 0 14px rgba(255, 255, 255, 0.04);
+  --lg-edge-fade: rgba(17, 22, 17, 0.92);
+  --lg-edge-fade-0: rgba(17, 22, 17, 0);
+  --bg-desktop-canvas: #111611;
+}
+
+/* --------------------------------------------------------------------------
+   1. Static Ambient Canvas
+   -------------------------------------------------------------------------- */
+html,
+body {
+  background-color: var(--lg-ambient-base);
+}
+
+@media (max-width: 600px) {
+  body {
+    background-color: var(--lg-ambient-base);
+  }
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--lg-ambient);
+}
+
+.device-phone-frame {
+  background: var(--lg-ambient);
+}
+
+@media (max-width: 600px) {
+  .device-phone-frame {
+    background: transparent;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   2. Floating Glass Navigation Pill + Squish Lens + Scroll Minimize
+   -------------------------------------------------------------------------- */
+.mockup-bottom-nav {
+  --lg-nav-tx: -50%;
+  bottom: var(--lg-nav-bottom);
+  width: calc(min(100vw, 414px) - 24px);
+  max-width: none;
+  border-radius: 9999px;
+  border: 1px solid var(--lg-border);
+  padding: 6px;
+  background-color: var(--lg-chrome);
+  -webkit-backdrop-filter: var(--lg-blur-chrome);
+  backdrop-filter: var(--lg-blur-chrome);
+  box-shadow: var(--lg-shadow-float), var(--lg-specular), var(--lg-inner-glow);
+  isolation: isolate;
+  transform: none;
+  translate: var(--lg-nav-tx) 0;
+  scale: 1;
+  transform-origin: 50% 100%;
+  transition: scale 0.32s var(--lg-spring), translate 0.32s var(--lg-spring);
+}
+
+@media (max-width: 600px) {
+  .mockup-bottom-nav {
+    --lg-nav-tx: 0px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    transform: none;
+    border-radius: 9999px;
+  }
+}
+
+@media (max-width: 390px) {
+  .mockup-bottom-nav {
+    padding: 6px;
+  }
+}
+
+@media (max-width: 360px) {
+  .mockup-bottom-nav {
+    left: 6px;
+    right: 6px;
+    padding: 4px;
+    gap: 1px;
+  }
+
+  .nav-glass-lens {
+    top: 4px;
+    bottom: 4px;
+  }
+
+  .nav-pill-btn.active {
+    padding: 8px 10px;
+  }
+}
+
+html[data-theme="dark"] .mockup-bottom-nav {
+  background-color: var(--lg-chrome);
+  border-color: var(--lg-border);
+  box-shadow: var(--lg-shadow-float), var(--lg-specular), var(--lg-inner-glow);
+}
+
+.mockup-bottom-nav.is-compact {
+  scale: 0.92;
+  translate: var(--lg-nav-tx) 6px;
+}
+
+.mockup-bottom-nav.is-compact:focus-within {
+  scale: 1;
+  translate: var(--lg-nav-tx) 0;
+}
+
+.mockup-bottom-nav::after,
+.toast::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  z-index: 2;
+  background: var(--lg-rim);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+
+.nav-pill-btn {
+  position: relative;
+  z-index: 1;
+  color: var(--lg-nav-ink);
+  transition: color 0.2s ease, transform 0.2s var(--lg-spring);
+}
+
+html[data-theme="dark"] .nav-pill-btn {
+  color: var(--lg-nav-ink);
+}
+
+.nav-glass-lens {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 0;
+  width: var(--lens-w, 0px);
+  transform: translate3d(var(--lens-x, 0px), 0, 0);
+  border-radius: 9999px;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+}
+
+.nav-glass-lens::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--lg-lens);
+  box-shadow: var(--lg-lens-shadow);
+}
+
+.nav-glass-lens.is-squish::before {
+  animation: lgLensSquish 0.46s var(--lg-ease);
+}
+
+@keyframes lgLensSquish {
+  0% {
+    transform: scale(1, 1);
+  }
+  30% {
+    transform: scale(1.10, 0.86);
+  }
+  65% {
+    transform: scale(0.98, 1.04);
+  }
+  100% {
+    transform: scale(1, 1);
+  }
+}
+
+.mockup-bottom-nav.has-lens .nav-glass-lens {
+  opacity: 1;
+}
+
+.mockup-bottom-nav.lens-ready .nav-glass-lens {
+  transition: transform 0.46s var(--lg-spring), width 0.46s var(--lg-spring);
+}
+
+.mockup-bottom-nav.has-lens .nav-pill-btn.active {
+  background-color: transparent;
+  box-shadow: none;
+}
+
+html[data-theme="dark"] .mockup-bottom-nav.has-lens .nav-pill-btn.active {
+  box-shadow: none;
+}
+
+/* --------------------------------------------------------------------------
+   3. Scroll Edge Fade (HIG-style soft fade behind floating chrome, no blur)
+   -------------------------------------------------------------------------- */
+.app-content-area::after {
+  content: "";
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(100vw, 414px);
+  bottom: 0;
+  height: calc(92px + env(safe-area-inset-bottom, 0px));
+  pointer-events: none;
+  z-index: 90;
+  background: linear-gradient(to top, var(--lg-edge-fade) 0%, var(--lg-edge-fade-0) 100%);
+}
+
+@media (max-width: 600px) {
+  .app-content-area::after {
+    left: 0;
+    right: 0;
+    width: auto;
+    transform: none;
+  }
+}
+
+html[data-theme="dark"] .app-content-area::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(env(safe-area-inset-top, 0px) + 12px);
+  pointer-events: none;
+  z-index: 90;
+  background: linear-gradient(to bottom, var(--lg-edge-fade) 0%, var(--lg-edge-fade-0) 100%);
+}
+
+/* --------------------------------------------------------------------------
+   4. Content Cards (Near-Opaque Tactile Surfaces, NO backdrop-filter)
+   -------------------------------------------------------------------------- */
+.quick-log-card,
+.settings-card-block,
+.profile-card,
+.overview-metric-card,
+.chart-container-card,
+.meal-day-card,
+.work-calendar-card,
+.work-summary-hero-card,
+.work-quick-card,
+.work-job-card,
+.meal-checklist-card,
+.diet-food-guide-card,
+.work-search-card,
+.motivation-hero-card,
+.login-container {
+  background-color: var(--lg-surface);
+  border-color: var(--lg-hairline);
+  box-shadow: var(--lg-shadow-card), var(--lg-specular);
+}
+
+html[data-theme="dark"] .login-container,
+html[data-theme="dark"] .motivation-hero-card,
+html[data-theme="dark"] .work-calendar-card,
+html[data-theme="dark"] .work-summary-hero-card,
+html[data-theme="dark"] .work-quick-card,
+html[data-theme="dark"] .work-job-card,
+html[data-theme="dark"] .work-search-card {
+  background-color: var(--lg-surface);
+  border-color: var(--lg-hairline);
+  box-shadow: var(--lg-shadow-card), var(--lg-specular);
+}
+
+/* Keep status-tinted border on debt group cards (amber unpaid / green settled) */
+.work-debt-group-card {
+  background-color: var(--lg-surface);
+  box-shadow: var(--lg-shadow-card), var(--lg-specular);
+}
+
+html[data-theme="dark"] .work-debt-group-card {
+  background-color: var(--lg-surface);
+  box-shadow: var(--lg-shadow-card), var(--lg-specular);
+}
+
+/* Decorative / themed cards keep their semantic backgrounds */
+.daily-score-card,
+.summary-stat-card,
+.summary-themed-card,
+.water-wave-card,
+.fund-goal-card,
+.work-qr-action-card {
+  box-shadow: var(--lg-shadow-card), var(--lg-specular);
+}
+
+html[data-theme="dark"] .work-qr-action-card {
+  box-shadow: var(--lg-shadow-card), var(--lg-specular);
+}
+
+/* --------------------------------------------------------------------------
+   5. Buttons, Chips & Inputs
+   -------------------------------------------------------------------------- */
+.btn-green-pill {
+  background-image: var(--lg-gloss);
+  box-shadow: var(--shadow-btn), inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -1px 0 rgba(30, 59, 19, 0.12);
+  transition: transform 0.2s var(--lg-spring), background-color 0.15s ease;
+}
+
+.btn-secondary-pill,
+.btn-circle-action,
+.borrow-filter-pill,
+.btn-chip-tag {
+  background-color: var(--lg-surface-strong);
+  border-color: var(--lg-control-border);
+  box-shadow: var(--lg-specular);
+}
+
+html[data-theme="dark"] .btn-secondary-pill,
+html[data-theme="dark"] .btn-circle-action,
+html[data-theme="dark"] .borrow-filter-pill,
+html[data-theme="dark"] .btn-chip-tag {
+  background-color: var(--lg-surface-strong);
+  border-color: var(--lg-control-border);
+  box-shadow: var(--lg-specular);
+}
+
+.user-avatar-circle {
+  box-shadow: 0 2px 8px rgba(43, 87, 25, 0.12), var(--lg-specular);
+}
+
+.hero-time-chip {
+  box-shadow: var(--lg-specular);
+}
+
+.form-input,
+.pin-input,
+.work-search-input {
+  background-color: var(--lg-field);
+  border-color: var(--lg-field-border);
+  box-shadow: inset 0 1px 2px rgba(28, 31, 27, 0.06);
+}
+
+html[data-theme="dark"] .form-input,
+html[data-theme="dark"] .pin-input,
+html[data-theme="dark"] .pin-input:focus,
+html[data-theme="dark"] .work-search-input {
+  background-color: var(--lg-field);
+  border-color: var(--lg-field-border);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.22);
+}
+
+/* --------------------------------------------------------------------------
+   6. Frosted Bottom Sheet Modals & Floating Toasts
+   -------------------------------------------------------------------------- */
+.modal-overlay {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.modal-dialog {
+  background-color: var(--lg-sheet);
+  -webkit-backdrop-filter: var(--lg-blur-sheet);
+  backdrop-filter: var(--lg-blur-sheet);
+  border-top: 1px solid var(--lg-border);
+  border-radius: var(--lg-radius-sheet) var(--lg-radius-sheet) 0 0;
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.18), var(--lg-specular), var(--lg-inner-glow);
+}
+
+html[data-theme="dark"] .modal-dialog {
+  background-color: var(--lg-sheet);
+  -webkit-backdrop-filter: var(--lg-blur-sheet);
+  backdrop-filter: var(--lg-blur-sheet);
+  border-top: 1px solid var(--lg-border);
+  border-radius: var(--lg-radius-sheet) var(--lg-radius-sheet) 0 0;
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.55), var(--lg-specular), var(--lg-inner-glow);
+}
+
+/* Avoid glass-on-glass nesting inside modal sheets */
+.modal-dialog .work-quick-card,
+html[data-theme="dark"] .modal-dialog .work-quick-card {
+  background-color: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.toast {
+  position: relative;
+  background-color: var(--lg-chrome);
+  -webkit-backdrop-filter: var(--lg-blur-chrome);
+  backdrop-filter: var(--lg-blur-chrome);
+  border-color: var(--lg-border);
+  border-radius: 18px;
+  box-shadow: var(--lg-shadow-float), var(--lg-specular), var(--lg-inner-glow);
+}
+
+.toast.toast-error {
+  background-color: rgba(255, 245, 245, 0.9);
+  border-color: #FECACA;
+}
+
+html[data-theme="dark"] .toast {
+  background-color: var(--lg-chrome);
+  border-color: var(--lg-border);
+  box-shadow: var(--lg-shadow-float), var(--lg-specular), var(--lg-inner-glow);
+}
+
+/* --------------------------------------------------------------------------
+   7. Fallbacks & Accessibility Overrides
+   -------------------------------------------------------------------------- */
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  :root {
+    --lg-chrome: rgba(250, 252, 249, 0.96);
+    --lg-sheet: #FFFFFF;
+  }
+
+  html[data-theme="dark"] {
+    --lg-chrome: rgba(22, 29, 22, 0.96);
+    --lg-sheet: #141A14;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --lg-surface: #FFFFFF;
+    --lg-surface-strong: #FFFFFF;
+    --lg-chrome: #FFFFFF;
+    --lg-sheet: #FFFFFF;
+    --lg-field: #F4F8F2;
+  }
+
+  html[data-theme="dark"] {
+    --lg-surface: #171E17;
+    --lg-surface-strong: #1B231B;
+    --lg-chrome: #131913;
+    --lg-sheet: #141A14;
+    --lg-field: #1B231B;
+  }
+
+  .mockup-bottom-nav,
+  .toast,
+  .modal-dialog,
+  html[data-theme="dark"] .mockup-bottom-nav,
+  html[data-theme="dark"] .modal-dialog {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .mockup-bottom-nav::after,
+  .toast::after {
+    display: none;
+  }
+
+  body::before {
+    background: var(--lg-ambient-base);
+  }
+
+  .app-content-area::after,
+  html[data-theme="dark"] .app-content-area::before {
+    background: var(--lg-ambient-base);
+    opacity: 0.0;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --lg-hairline: rgba(28, 31, 27, 0.35);
+    --lg-control-border: rgba(28, 31, 27, 0.55);
+    --lg-border: rgba(28, 31, 27, 0.35);
+  }
+
+  html[data-theme="dark"] {
+    --lg-hairline: rgba(255, 255, 255, 0.35);
+    --lg-control-border: rgba(255, 255, 255, 0.5);
+    --lg-border: rgba(255, 255, 255, 0.3);
+  }
+
+  .mockup-bottom-nav::after,
+  .toast::after {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mockup-bottom-nav.is-compact {
+    scale: 1;
+    translate: var(--lg-nav-tx) 0;
+  }
+}

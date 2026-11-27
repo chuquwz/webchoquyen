@@ -793,6 +793,7 @@
     renderDynamicGreeting();
     setupRouting();
     setupTabSwipeGesture();
+    setupNavScrollMinimize();
     setupModalSheetGestures();
     setupWorkJobSwipeGestures();
     bindPendingDeleteFlushListeners();
@@ -906,6 +907,7 @@
     if (loginEl) loginEl.style.display = 'none';
     if (appEl) appEl.style.display = 'block';
     if (navEl) navEl.style.display = 'flex';
+    positionNavLens();
   }
 
   // Xử lý Form đăng nhập
@@ -976,6 +978,51 @@
     return Boolean(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   }
 
+  function positionNavLens() {
+    const nav = document.getElementById('app-bottom-nav');
+    if (!nav) return;
+    const lens = nav.querySelector('.nav-glass-lens');
+    const active = nav.querySelector('.nav-pill-btn.active');
+    if (!lens || !active || active.offsetWidth === 0) return;
+    if (!lens.dataset.squishBound) {
+      lens.dataset.squishBound = '1';
+      lens.addEventListener('animationend', () => lens.classList.remove('is-squish'));
+    }
+    const prevX = lens.dataset.x;
+    const nextX = String(active.offsetLeft);
+    lens.dataset.x = nextX;
+    nav.style.setProperty('--lens-x', nextX + 'px');
+    nav.style.setProperty('--lens-w', active.offsetWidth + 'px');
+    if (!nav.classList.contains('has-lens')) {
+      nav.classList.add('has-lens');
+      requestAnimationFrame(() => requestAnimationFrame(() => nav.classList.add('lens-ready')));
+    } else if (nav.classList.contains('lens-ready') && prevX !== undefined && prevX !== nextX) {
+      lens.classList.remove('is-squish');
+      void lens.offsetWidth;
+      lens.classList.add('is-squish');
+    }
+  }
+
+  function setupNavScrollMinimize() {
+    const nav = document.getElementById('app-bottom-nav');
+    if (!nav || nav.dataset.minimizeBound) return;
+    nav.dataset.minimizeBound = '1';
+    let lastY = window.scrollY || 0;
+    let ticking = false;
+    window.addEventListener('scroll', () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        ticking = false;
+        const y = window.scrollY || 0;
+        const dy = y - lastY;
+        if (Math.abs(dy) < 8) return;
+        nav.classList.toggle('is-compact', dy > 0 && y > 120);
+        lastY = y;
+      });
+    }, { passive: true });
+  }
+
   function updateNavPillSelection(tabId, focusNavBtn = false) {
     document.querySelectorAll('.nav-pill-btn').forEach(el => {
       el.classList.remove('active');
@@ -991,6 +1038,9 @@
         navBtn.focus();
       }
     }
+    const navEl = document.getElementById('app-bottom-nav');
+    if (navEl) navEl.classList.remove('is-compact');
+    positionNavLens();
   }
 
   function applyActiveTabUI(tabId, opts = {}) {
@@ -1138,6 +1188,10 @@
           switchTab(targetTab, { focusNavBtn: true });
         }
       });
+      positionNavLens();
+      if (window.ResizeObserver) new ResizeObserver(positionNavLens).observe(bottomNav);
+      window.addEventListener('resize', positionNavLens);
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(positionNavLens);
     }
 
     const appView = document.getElementById('app-view');
