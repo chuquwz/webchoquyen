@@ -27,6 +27,23 @@
     activeTab: 'work'
   };
 
+  const READONLY_TOAST_MSG = 'Tài khoản Tùng Beng chỉ có quyền xem, không thể thao tác';
+  function isReadOnlyUser() {
+    return state.currentUser === 'dev';
+  }
+  function applyUserRoleUI() {
+    if (isReadOnlyUser()) {
+      document.documentElement.setAttribute('data-readonly', '1');
+    } else {
+      document.documentElement.removeAttribute('data-readonly');
+    }
+  }
+  function guardWriteAction(opts = {}) {
+    if (!isReadOnlyUser()) return true;
+    if (!opts.silent) showToast(READONLY_TOAST_MSG);
+    return false;
+  }
+
   // Utility Toast (hỗ trợ nút Hoàn tác & tạm dừng đếm ngược khi người dùng đang chạm/focus)
   window.showToast = function (msg, isErrOrOpts = false) {
     const container = document.getElementById('toast-container');
@@ -406,6 +423,7 @@
   }
 
   function enqueueSyncOp(opItem) {
+    if (isReadOnlyUser()) return;
     let queue = readSyncQueueSync();
     const item = Object.assign({
       qid: genClientUID('q'),
@@ -526,6 +544,9 @@
   }
 
   async function flushPendingSyncQueues(opts = {}) {
+    if (isReadOnlyUser()) {
+      return { flushedHealth: 0, flushedWork: 0, remaining: 0 };
+    }
     if (syncState.flushing || !syncState.authenticated) {
       return { flushedHealth: 0, flushedWork: 0, remaining: readSyncQueueSync().length };
     }
@@ -739,6 +760,16 @@
     fetchOpts.headers = Object.assign({
       'Content-Type': 'application/json'
     }, opts.headers || {});
+    const method = String(fetchOpts.method || 'GET').toUpperCase();
+    const cleanPath = String(path || '').split('?')[0];
+    if (isReadOnlyUser() && method !== 'GET' && method !== 'HEAD' && cleanPath !== '/api/login' && cleanPath !== '/api/logout') {
+      const err = new Error(READONLY_TOAST_MSG);
+      err.status = 403;
+      if (!silent) {
+        showToast(READONLY_TOAST_MSG);
+      }
+      throw err;
+    }
     try {
       const resp = await fetch(path, fetchOpts);
       if (resp.status === 401) {
@@ -786,6 +817,7 @@
 
   // Khởi tạo & Kiểm tra đăng nhập
   async function init() {
+    applyUserRoleUI();
     initThemeController();
     registerServiceWorker();
     setupHeroGreetingWatcher();
@@ -806,6 +838,7 @@
           state.currentUser = me.user;
           localStorage.setItem('qh_user', me.user);
         }
+        applyUserRoleUI();
         showAppView();
         initMotivationSection();
         await onAuthenticatedBoot();
@@ -924,13 +957,14 @@
           body: JSON.stringify({ pin })
         });
         if (res.ok) {
-          state.currentUser = res.user || (pin === '1401' ? 'dev' : 'quyen');
+          state.currentUser = res.user || (pin === '1407' ? 'dev' : 'quyen');
           localStorage.setItem('qh_user', state.currentUser);
+          applyUserRoleUI();
           showAppView();
           initMotivationSection();
           await onAuthenticatedBoot();
           if (state.currentUser === 'dev') {
-            showToast('Chào mừng Developer! Bạn đang ở chế độ Dev');
+            showToast('Chào Tùng Beng! Tài khoản đang ở chế độ chỉ xem');
           } else {
             showToast('Chào Quyền! Chúc một ngày nhiều sức khoẻ');
           }
@@ -950,6 +984,7 @@
     stopSyncWatcher();
     localStorage.removeItem('qh_user');
     state.currentUser = 'quyen';
+    applyUserRoleUI();
     applyActiveTabUI('work');
     showLoginView();
   };
@@ -1908,7 +1943,7 @@
   function syncMedScheduleFromSettings(settingsObj, apiMedObj) {
     const s = settingsObj || state.settings || {};
     // Tự động đảm bảo mặc định uống thuốc 3 lần/ngày ("08:00,12:30,20:00") cho Quyền
-    if (!localStorage.getItem('qh_med_default_3x_v2')) {
+    if (!localStorage.getItem('qh_med_default_3x_v2') && !isReadOnlyUser()) {
       if (s.remind_med_times === '08:00,12:00' || !s.remind_med_times) {
         s.remind_med_times = '08:00,12:30,20:00';
         api('/api/settings', {
@@ -1961,6 +1996,7 @@
         state.currentUser = data.user;
         localStorage.setItem('qh_user', data.user);
       }
+      applyUserRoleUI();
       state.today = data.date;
       syncState.today = data.date || syncState.today;
       state.settings = data.settings || {};
@@ -2001,7 +2037,7 @@
 
     if (profileNameEl) {
       if (isDev) {
-        profileNameEl.innerHTML = 'Tài khoản Dev <span class="badge-dev-tag">DEVELOPER</span>';
+        profileNameEl.innerHTML = 'Tùng Beng <span class="badge-dev-tag">CHỈ XEM</span>';
       } else {
         profileNameEl.textContent = 'Phùng Văn Quyền';
       }
@@ -2009,7 +2045,7 @@
 
     if (profileSubEl) {
       if (isDev) {
-        profileSubEl.textContent = 'Chế độ thử nghiệm & phát triển hệ thống';
+        profileSubEl.textContent = 'Chế độ chỉ xem — Không thể chỉnh sửa dữ liệu';
       } else {
         profileSubEl.innerHTML = 'Hành trình: 97.0 kg &rarr; Mục tiêu 70.0 kg';
       }
@@ -2358,7 +2394,7 @@
     const nameEl = document.getElementById('user-display-name');
     if (nameEl) {
       if (state.currentUser === 'dev') {
-        nameEl.innerHTML = 'Dev! <span class="badge-dev-tag">DEV</span>';
+        nameEl.innerHTML = 'Tùng Beng! <span class="badge-dev-tag">CHỈ XEM</span>';
       } else {
         const uName = (state.settings && state.settings.name) || 'Quyền';
         nameEl.textContent = `${uName}!`;
@@ -2640,6 +2676,7 @@
   };
 
   window.openWaterModal = function () {
+    if (!guardWriteAction()) return;
     renderWaterWidget();
     const inp = document.getElementById('custom-water-ml');
     if (inp) inp.value = '';
@@ -2662,6 +2699,7 @@
 
   // --- CHECKLIST THUỐC THEO SỐ LẦN ĐẶT LỊCH NHẮC (MẶC ĐỊNH 3 LẦN/NGÀY) ---
   window.openMedModal = function () {
+    if (!guardWriteAction()) return;
     renderMedWidget();
     openModal('modal-med');
   };
@@ -2842,6 +2880,7 @@
 
   // --- CÂN NẶNG HÔM NAY (POPUP & STEPPER) ---
   window.openWeightModal = function () {
+    if (!guardWriteAction()) return;
     renderWeightStepper();
     openModal('modal-weight');
   };
@@ -2971,6 +3010,7 @@
   }
 
   window.openMealsModal = function () {
+    if (!guardWriteAction()) return;
     renderMealsWidget();
     openModal('modal-meals');
   };
@@ -3083,10 +3123,11 @@
         state.currentUser = data.user;
         localStorage.setItem('qh_user', data.user);
       }
+      applyUserRoleUI();
       const s = data.settings || {};
       state.settings = s;
       updateProfileDisplay();
-      if (document.getElementById('set-name')) document.getElementById('set-name').value = state.currentUser === 'dev' ? 'Dev' : (s.name || 'Quyền');
+      if (document.getElementById('set-name')) document.getElementById('set-name').value = state.currentUser === 'dev' ? 'Tùng Beng' : (s.name || 'Quyền');
       if (document.getElementById('set-age')) document.getElementById('set-age').value = s.age || '22';
       if (document.getElementById('set-height')) document.getElementById('set-height').value = s.height || '172';
       if (document.getElementById('set-goal')) document.getElementById('set-goal').value = s.goal_weight || '70';
@@ -3161,6 +3202,7 @@
   }
 
   window.addReminderTime = function (cat, defaultVal) {
+    if (!guardWriteAction()) return;
     if (!reminderState[cat]) reminderState[cat] = [];
     if (reminderState[cat].length >= 10) {
       showToast('Tối đa 10 mốc giờ', true);
@@ -3182,6 +3224,7 @@
   };
 
   window.removeReminderTime = function (cat, idx) {
+    if (!guardWriteAction()) return;
     if (!reminderState[cat]) return;
     reminderState[cat].splice(idx, 1);
     renderReminderChips(cat);
@@ -3201,6 +3244,7 @@
   };
 
   window.saveReminderSchedule = async function (silent = false) {
+    if (!guardWriteAction({ silent: Boolean(silent) })) return;
     const payload = {
       remind_weight_times: (reminderState.weight || []).join(','),
       remind_med_times: (reminderState.med || []).join(','),
@@ -3231,6 +3275,7 @@
 
   window.saveSettings = async function (e) {
     e.preventDefault();
+    if (!guardWriteAction()) return;
     const payload = {
       name: document.getElementById('set-name')?.value.trim() || '',
       age: document.getElementById('set-age')?.value || '',
@@ -3380,6 +3425,7 @@
   }
 
   window.enablePushNotifications = async function () {
+    if (!guardWriteAction()) return;
     const isIOS = isIOSDevice();
     const isStandalone = isStandalonePWA();
 
@@ -3448,6 +3494,7 @@
   };
 
   window.sendTestPush = async function () {
+    if (!guardWriteAction()) return;
     playChimeSound();
     try {
       showToast('Đang gửi thông báo thử tới iPhone qua Apple APNs...');
@@ -3466,10 +3513,15 @@
 
   // --- SAO LƯU & KHÔI PHỤC ---
   window.downloadBackup = function () {
+    if (!guardWriteAction()) return;
     window.location.href = '/api/backup';
   };
 
   window.restoreBackup = async function (e) {
+    if (!guardWriteAction()) {
+      if (e && e.target) e.target.value = '';
+      return;
+    }
     const file = e.target.files[0];
     if (!file) return;
     if (!confirm('Khôi phục sẽ ghi đè toàn bộ dữ liệu trên web. Tiếp tục?')) {
@@ -4668,7 +4720,7 @@
       const srvEmpty = srvJobs.length === 0 && srvLedger.length === 0;
       const dbChanged = Boolean(localVault.db_id && srv.db_id && localVault.db_id !== srv.db_id);
 
-      if (localHasData && (srvEmpty || dbChanged || localVault.dirty)) {
+      if (!isReadOnlyUser() && localHasData && (srvEmpty || dbChanged || localVault.dirty)) {
         const synced = await api('/api/work/vault', {
           method: 'POST',
           silent: Boolean(opts.silent),
@@ -5337,6 +5389,7 @@
   };
 
   window.openAddWorkJobModal = function () {
+    if (!guardWriteAction()) return;
     renderWorkSuggestions();
     openModal('modal-add-work-job');
     setTimeout(() => {
@@ -5347,6 +5400,7 @@
 
   window.submitWorkJob = async function (e) {
     e.preventDefault();
+    if (!guardWriteAction()) return;
     const customer = document.getElementById('work-job-customer').value.trim();
     const service = document.getElementById('work-job-service').value.trim();
     const priceInput = document.getElementById('work-job-price');
@@ -5545,6 +5599,7 @@
   }
 
   window.toggleWorkJobStatus = async function (jobId, nextStatus, opts = {}) {
+    if (!guardWriteAction()) return;
     const existing = findDebtJobById(jobId);
     const jobUid = existing && existing.uid ? existing.uid : '';
     const payload = { uid: jobUid || undefined, status: nextStatus };
@@ -5596,6 +5651,7 @@
   };
 
   window.quickCollectWorkJob = function (jobId) {
+    if (!guardWriteAction()) return;
     const job = findDebtJobById(jobId);
     if (!job || job.status !== 'CTT') return;
     const dt = getDebtJobTotals(job);
@@ -5660,6 +5716,7 @@
   }
 
   window.deleteWorkJobWithUndo = function (jobId) {
+    if (!guardWriteAction()) return;
     const job = findDebtJobById(jobId);
     if (!job) return;
     const key = job.uid || ('id:' + job.id);
@@ -5741,6 +5798,7 @@
   }
 
   window.deleteFundDepositWithUndo = function (ledgerId) {
+    if (!guardWriteAction()) return;
     const item = findLedgerItemById(ledgerId);
     if (!item) return;
     const key = item.uid || ('id:' + item.id);
@@ -5931,6 +5989,7 @@
     }
 
     listEl.addEventListener('touchstart', (e) => {
+      if (isReadOnlyUser()) return;
       cancelDragFrame();
       if (!e.touches || e.touches.length !== 1) return;
 
@@ -6142,6 +6201,7 @@
   };
 
   window.openEditWorkJobModal = function (jobId) {
+    if (!guardWriteAction()) return;
     const job = findDebtJobById(jobId);
     if (!job) return;
 
@@ -6213,6 +6273,7 @@
   };
 
   window.deleteWorkJob = async function (jobId, opts = {}) {
+    if (!guardWriteAction()) return;
     const confirmMsg = opts.fromDebt
       ? 'Xoá toàn bộ đơn nợ này và tất cả các lần trả tiền đã lưu? Thao tác này không thể hoàn tác.'
       : 'Xoá đơn dịch vụ này khỏi sổ công việc? Thao tác này không thể hoàn tác.';
@@ -7121,6 +7182,7 @@
   };
 
   window.payAllCustomerDebt = async function (custEncOrIdx) {
+    if (!guardWriteAction()) return;
     const g = findDebtGroupByKeyOrIdx(custEncOrIdx);
     if (!g || g.total_amount <= 0) return;
     if (!confirm(`Xác nhận đã thu đủ ${formatVND(g.total_amount)} (${g.job_count} đơn) của khách "${g.customer}"?`)) return;
@@ -7173,6 +7235,7 @@
   };
 
   window.openAddWorkLedgerModal = function () {
+    if (!guardWriteAction()) return;
     setWorkLedgerCategory('borrow');
     const dateInp = document.getElementById('work-ledger-date');
     if (dateInp) {
@@ -7188,6 +7251,7 @@
 
   window.submitWorkLedger = async function (e) {
     e.preventDefault();
+    if (!guardWriteAction()) return;
     const category = 'borrow';
     const dateInp = document.getElementById('work-ledger-date');
     const amtInput = document.getElementById('work-ledger-amount');
@@ -8174,6 +8238,7 @@
   };
 
   window.toggleFundsFabMenu = function () {
+    if (!guardWriteAction()) return;
     const menuEl = document.getElementById('funds-fab-menu');
     if (menuEl && menuEl.classList.contains('open')) {
       window.closeFundsFabMenu();
@@ -8238,6 +8303,7 @@
   };
 
   window.openFundDepositModal = function (fundId) {
+    if (!guardWriteAction()) return;
     const model = computeFundsModel();
     const defaultId = (fundId && model.byId.has(fundId)) ? fundId : model.funds[0].id;
 
@@ -8419,6 +8485,7 @@
   };
 
   window.openFundEditorModal = function (fundId) {
+    if (!guardWriteAction()) return;
     const model = computeFundsModel();
     const existing = fundId ? model.byId.get(fundId) : null;
     const isEdit = Boolean(existing);
@@ -8867,6 +8934,7 @@
   }
 
   window.openRepayBorrowModal = function (ledgerId) {
+    if (!guardWriteAction()) return;
     const item = findBorrowLedgerItem(ledgerId);
     if (!item) {
       showToast('Không tìm thấy khoản mượn này', true);
@@ -9054,6 +9122,7 @@
   };
 
   window.deleteBorrowRepayment = async function (repaymentId, ledgerId) {
+    if (!guardWriteAction()) return;
     if (!confirm('Hoàn tác lần trả tiền này? Số tiền nợ còn lại sẽ được cộng lại tương ứng.')) return;
     const targetLedgerId = Number(ledgerId || activeRepayLedgerId);
     const borrowItem = targetLedgerId ? findBorrowLedgerItem(targetLedgerId) : null;
@@ -9100,6 +9169,7 @@
   };
 
   window.deleteWorkLedger = async function (id, opts = {}) {
+    if (!guardWriteAction()) return;
     const msg = opts.isBorrow
       ? 'Xoá toàn bộ khoản mượn này và tất cả các lần trả tiền đã lưu?'
       : 'Xoá khoản mục thu chi này?';
@@ -9199,6 +9269,7 @@
   }
 
   window.openDebtJobPayModal = function (jobId) {
+    if (!guardWriteAction()) return;
     const job = findDebtJobById(jobId);
     if (!job) {
       showToast('Không tìm thấy đơn nợ này', true);
@@ -9386,6 +9457,7 @@
   };
 
   window.deleteDebtJobPayment = async function (paymentId, jobId) {
+    if (!guardWriteAction()) return;
     if (!confirm('Hoàn tác lần trả tiền này? Số tiền nợ còn lại sẽ được cộng lại tương ứng.')) return;
     const targetJobId = Number(jobId || activeDebtJobId);
     const debtJob = targetJobId ? findDebtJobById(targetJobId) : null;
@@ -9432,6 +9504,7 @@
   };
 
   window.exportWorkExcel = function () {
+    if (!guardWriteAction()) return;
     const fallbackDate = new Date().toISOString().slice(0, 10);
     const month = workState.month || (workState.date || state.today || fallbackDate).slice(0, 7);
     window.location.href = `/api/work/export?month=${encodeURIComponent(month)}`;

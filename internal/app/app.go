@@ -239,7 +239,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := ""
-	if subtle.ConstantTimeCompare([]byte(in.Pin), []byte("1401")) == 1 {
+	if subtle.ConstantTimeCompare([]byte(in.Pin), []byte("1407")) == 1 {
 		user = "dev"
 	} else if subtle.ConstantTimeCompare([]byte(in.Pin), []byte("0312")) == 1 ||
 		(s.cfg.Pin != "" && subtle.ConstantTimeCompare([]byte(in.Pin), []byte(s.cfg.Pin)) == 1) {
@@ -279,6 +279,21 @@ func (s *Server) auth(h http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+func (s *Server) authWrite(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user := s.currentUser(r)
+		if user == "" {
+			httpErr(w, http.StatusUnauthorized, "chưa đăng nhập")
+			return
+		}
+		if user != "quyen" {
+			httpErr(w, http.StatusForbidden, "Tài khoản Tùng Beng chỉ có quyền xem, không thể thao tác")
+			return
+		}
+		h(w, r)
+	}
+}
+
 // ---------- routing ----------
 
 func (s *Server) routes() {
@@ -293,38 +308,39 @@ func (s *Server) routes() {
 	m.HandleFunc("POST /api/tick", s.handleTick)
 
 	a := s.auth
+	wAuth := s.authWrite
 	m.HandleFunc("GET /api/me", a(func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 200, map[string]any{"ok": true, "user": s.currentUser(r)})
 	}))
 	m.HandleFunc("GET /api/sync/state", a(s.handleSyncState))
 	m.HandleFunc("GET /api/today", a(s.handleToday))
 	m.HandleFunc("GET /api/settings", a(s.handleGetSettings))
-	m.HandleFunc("PUT /api/settings", a(s.handlePutSettings))
-	m.HandleFunc("POST /api/water", a(s.handleAddWater))
-	m.HandleFunc("DELETE /api/water/{id}", a(s.handleDelWater))
-	m.HandleFunc("POST /api/weight", a(s.handlePostWeight))
-	m.HandleFunc("PUT /api/med", a(s.handlePutMed))
+	m.HandleFunc("PUT /api/settings", wAuth(s.handlePutSettings))
+	m.HandleFunc("POST /api/water", wAuth(s.handleAddWater))
+	m.HandleFunc("DELETE /api/water/{id}", wAuth(s.handleDelWater))
+	m.HandleFunc("POST /api/weight", wAuth(s.handlePostWeight))
+	m.HandleFunc("PUT /api/med", wAuth(s.handlePutMed))
 	m.HandleFunc("GET /api/med", a(s.handleGetMed))
-	m.HandleFunc("POST /api/meals/check", a(s.handleCheckMeal))
-	m.HandleFunc("GET /api/backup", a(s.handleBackup))
-	m.HandleFunc("POST /api/restore", a(s.handleRestore))
+	m.HandleFunc("POST /api/meals/check", wAuth(s.handleCheckMeal))
+	m.HandleFunc("GET /api/backup", wAuth(s.handleBackup))
+	m.HandleFunc("POST /api/restore", wAuth(s.handleRestore))
 	m.HandleFunc("GET /api/push/key", a(s.handlePushKey))
-	m.HandleFunc("POST /api/push/subscribe", a(s.handlePushSubscribe))
-	m.HandleFunc("POST /api/push/test", a(s.handlePushTest))
+	m.HandleFunc("POST /api/push/subscribe", wAuth(s.handlePushSubscribe))
+	m.HandleFunc("POST /api/push/test", wAuth(s.handlePushTest))
 	m.HandleFunc("GET /api/work", a(s.handleGetWork))
 	m.HandleFunc("GET /api/work/vault", a(s.handleGetWorkVault))
-	m.HandleFunc("POST /api/work/vault", a(s.handleSyncWorkVault))
-	m.HandleFunc("POST /api/work/job", a(s.handlePostWorkJob))
-	m.HandleFunc("PUT /api/work/job/{id}", a(s.handlePutWorkJob))
-	m.HandleFunc("POST /api/work/job/{id}/pay", a(s.handlePayWorkJob))
-	m.HandleFunc("DELETE /api/work/job/{id}", a(s.handleDelWorkJob))
-	m.HandleFunc("DELETE /api/work/job-payment/{id}", a(s.handleDelWorkJobPayment))
-	m.HandleFunc("POST /api/work/job/pay-customer", a(s.handlePayCustomerJobs))
-	m.HandleFunc("POST /api/work/ledger", a(s.handlePostWorkLedger))
-	m.HandleFunc("POST /api/work/ledger/{id}/repay", a(s.handleRepayWorkLedger))
-	m.HandleFunc("DELETE /api/work/ledger/{id}", a(s.handleDelWorkLedger))
-	m.HandleFunc("DELETE /api/work/repayment/{id}", a(s.handleDelWorkLedgerRepayment))
-	m.HandleFunc("GET /api/work/export", a(s.handleExportWorkCSV))
+	m.HandleFunc("POST /api/work/vault", wAuth(s.handleSyncWorkVault))
+	m.HandleFunc("POST /api/work/job", wAuth(s.handlePostWorkJob))
+	m.HandleFunc("PUT /api/work/job/{id}", wAuth(s.handlePutWorkJob))
+	m.HandleFunc("POST /api/work/job/{id}/pay", wAuth(s.handlePayWorkJob))
+	m.HandleFunc("DELETE /api/work/job/{id}", wAuth(s.handleDelWorkJob))
+	m.HandleFunc("DELETE /api/work/job-payment/{id}", wAuth(s.handleDelWorkJobPayment))
+	m.HandleFunc("POST /api/work/job/pay-customer", wAuth(s.handlePayCustomerJobs))
+	m.HandleFunc("POST /api/work/ledger", wAuth(s.handlePostWorkLedger))
+	m.HandleFunc("POST /api/work/ledger/{id}/repay", wAuth(s.handleRepayWorkLedger))
+	m.HandleFunc("DELETE /api/work/ledger/{id}", wAuth(s.handleDelWorkLedger))
+	m.HandleFunc("DELETE /api/work/repayment/{id}", wAuth(s.handleDelWorkLedgerRepayment))
+	m.HandleFunc("GET /api/work/export", wAuth(s.handleExportWorkCSV))
 	m.HandleFunc("/", s.assets.serve)
 	s.mux = m
 }

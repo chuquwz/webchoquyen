@@ -193,7 +193,7 @@ func goldenAPISteps() []goldenStep {
 		{name: "login-bad-json", at: d0 + " 06:00", method: "POST", path: "/api/login", body: "{not json"},
 		{name: "login-ok", at: d0 + " 06:00", method: "POST", path: "/api/login", body: map[string]string{"pin": "0312"}},
 		{name: "login-env-pin-https", at: d0 + " 06:00", method: "POST", path: "/api/login", body: map[string]string{"pin": "246810"}, header: map[string]string{"X-Forwarded-Proto": "https"}},
-		{name: "login-dev", at: d0 + " 06:00", method: "POST", path: "/api/login", body: map[string]string{"pin": "1401"}},
+		{name: "login-dev", at: d0 + " 06:00", method: "POST", path: "/api/login", body: map[string]string{"pin": "1407"}},
 		{name: "me", at: d0 + " 06:00", method: "GET", path: "/api/me", auth: A},
 		{name: "me-dev", at: d0 + " 06:00", method: "GET", path: "/api/me", auth: "dev"},
 		{name: "bad-cookie", at: d0 + " 06:00", method: "GET", path: "/api/today", header: map[string]string{"Cookie": "qh=deadbeef"}},

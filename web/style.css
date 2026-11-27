@@ -10697,6 +10697,25 @@ html[data-theme="dark"] .bank-qr-preview-frame {
   outline-color: rgba(255, 255, 255, 0.1);
 }
 
+/* Read-only mode (Tùng Beng) */
+html[data-readonly="1"] .btn-fab-plus,
+html[data-readonly="1"] #funds-fab-menu,
+html[data-readonly="1"] #funds-fab-backdrop,
+html[data-readonly="1"] .job-swipe-underlay-actions,
+html[data-readonly="1"] .job-swipe-underlay-pay,
+html[data-readonly="1"] .btn-fund-deposit-sm,
+html[data-readonly="1"] .btn-fund-edit-gear,
+html[data-readonly="1"] .btn-job-icon.btn-del,
+html[data-readonly="1"] #modal-fund-history .btn-green-pill,
+html[data-readonly="1"] #tab-settings .settings-accordion {
+  display: none !important;
+}
+
+html[data-readonly="1"] #tab-today [role="button"],
+html[data-readonly="1"] #tab-today .bento-card {
+  cursor: default;
+}
+
 /* Media Queries for Accessibility */
 @media (prefers-reduced-motion: reduce) {
 
