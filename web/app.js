@@ -954,12 +954,12 @@
     showLoginView();
   };
 
-  // Quản lý Tab: hôm nay, công việc, thu chi, quỹ, cài đặt
+  // Quản lý Tab: hôm nay, công việc, khoản nợ, quỹ, cài đặt
   const MAIN_TAB_ORDER = ['today', 'work', 'ledger', 'funds', 'settings'];
   const MAIN_TAB_LABELS = {
     today: 'Hôm nay',
     work: 'Công việc',
-    ledger: 'Thu chi',
+    ledger: 'Khoản nợ',
     funds: 'Quỹ',
     settings: 'Cài đặt'
   };
@@ -3970,16 +3970,13 @@
     calendarMonth: '',
     today: '',
     workCalendarExpanded: false,
-    ledgerCalendarExpanded: false,
     heroScope: 'day', // 'day' | 'month'
-    ledgerScope: 'day', // 'day' | 'month'
     subTab: 'jobs', // 'jobs' | 'unpaid'
     jobs: [],
     ledger: [],
     allBorrows: [],
     borrowFilter: 'all', // 'all' | 'unpaid' | 'settled'
     borrowSearchQuery: '',
-    dayRepayments: [],
     daySummary: {},
     monthSummary: {},
     unpaidGroups: [],
@@ -4774,29 +4771,6 @@
       return s;
     };
 
-    const dayRepayments = [];
-    allLedger.forEach(l => {
-      if (l.category !== 'borrow' || !Array.isArray(l.repayments)) return;
-      const bt = getBorrowTotals(l);
-      l.repayments.forEach(r => {
-        if (r && r.date === date) {
-          dayRepayments.push({
-            id: r.id,
-            ledger_id: l.id,
-            borrow_date: l.date,
-            borrow_note: l.note,
-            borrow_amount: bt.orig,
-            remaining_amount: bt.remaining,
-            date: r.date,
-            amount: Number(r.amount) || 0,
-            note: r.note || '',
-            ts: r.ts || 0
-          });
-        }
-      });
-    });
-    dayRepayments.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
-
     const monthJobs = allJobs.filter(j => (j.date || '').startsWith(month + '-'));
     const monthLedger = allLedger.filter(l => (l.date || '').startsWith(month + '-'));
 
@@ -4900,7 +4874,6 @@
     });
     workState.ledger = dayLedger;
     workState.allBorrows = allLedger.filter(l => l && l.category === 'borrow');
-    workState.dayRepayments = dayRepayments;
     workState.daySummary = calcSum(dayJobs, dayLedger, d => d === date);
     workState.monthSummary = calcSum(monthJobs, monthLedger, d => d.startsWith(month + '-'));
     workState.debtGroups = debtGroups;
@@ -5182,7 +5155,6 @@
       workState.jobs = data.jobs || [];
       workState.ledger = data.ledger || [];
       workState.allBorrows = (data.vault_ledger || []).filter(l => l && l.category === 'borrow');
-      workState.dayRepayments = data.day_repayments || [];
       workState.daySummary = data.day_summary || {};
       workState.monthSummary = data.month_summary || {};
       workState.unpaidGroups = data.unpaid_groups || [];
@@ -5260,24 +5232,17 @@
     renderWorkScreen();
   };
 
-  window.setLedgerHeroScope = function (scope) {
-    workState.ledgerScope = scope === 'month' ? 'month' : 'day';
-    renderLedgerScreen();
-  };
-
   window.jumpWorkToday = function () {
     const today = workState.today || state.today;
     if (!today) return;
     const todayMonth = today.slice(0, 7);
-    const scope = state.activeTab === 'ledger' ? 'ledger' : 'work';
     workState.heroScope = 'day';
-    workState.ledgerScope = 'day';
     workState.calendarMonth = todayMonth;
-    if (scope === 'work' && workState.subTab !== 'jobs') {
+    if (workState.subTab !== 'jobs') {
       switchWorkSubTab('jobs');
     }
     syncAndRenderWorkTarget(today, todayMonth);
-    announceCalendarDay(today, scope);
+    announceCalendarDay(today, 'work');
   };
 
   window.switchWorkSubTab = function (sub) {
@@ -5517,22 +5482,31 @@
       const dt = getDebtJobTotals(j);
       const isCTT = j.status === 'CTT';
       const chClass = j.channel === 'FB' ? 'ch-fb' : 'ch-zl';
-      const stClass = isCTT ? 'st-ctt' : 'st-tt';
-      const stLabel = isCTT
-        ? `${workIconSVG('clock', 13)} <span>${dt.paid > 0 ? `Còn nợ ${formatShortK(dt.remaining)} • Trả tiếp` : 'Nợ (CTT) • Bấm để thu'}</span>`
-        : `${workIconSVG('check', 13)} <span>Đã thu (TT)</span>`;
       const partialSub = dt.paid > 0 && isCTT
         ? ` &bull; Đã trả ${formatShortK(dt.paid)}/${formatShortK(dt.orig)}`
         : '';
       const payCueText = dt.paid > 0
         ? `Thu tiếp (${formatShortK(dt.remaining)})`
         : `Thu nhanh (${formatShortK(dt.remaining)})`;
+      const statusChipHtml = isCTT
+        ? `<span class="work-job-status-chip is-unpaid">${workIconSVG('clock', 11)} <span>${dt.paid > 0 ? `Còn nợ ${formatShortK(dt.remaining)}` : 'Chưa thu'}</span></span>`
+        : `<span class="work-job-status-chip is-paid">${workIconSVG('check', 11)} <span>Đã thu</span></span>`;
+      const swipePayBtnHtml = isCTT
+        ? `<button type="button" class="job-swipe-action-btn is-pay-toggle is-mark-paid" tabindex="-1" onclick="closeActiveJobSwipeRow(); ${dt.paid > 0 ? `openDebtJobPayModal(${j.id})` : `toggleWorkJobStatus(${j.id}, 'TT', { undoable: true })`}" aria-label="${dt.paid > 0 ? 'Thu tiếp' : 'Đánh dấu đã thu'} đơn ${escapeHTML(j.customer)}">
+            ${workIconSVG('check', 16)}
+            <span>${dt.paid > 0 ? 'Thu tiếp' : 'Đã thu'}</span>
+          </button>`
+        : `<button type="button" class="job-swipe-action-btn is-pay-toggle is-mark-unpaid" tabindex="-1" onclick="closeActiveJobSwipeRow(); toggleWorkJobStatus(${j.id}, 'CTT')" aria-label="Chuyển đơn ${escapeHTML(j.customer)} về chưa thu">
+            ${workIconSVG('clock', 16)}
+            <span>Chưa thu</span>
+          </button>`;
 
       return `
         <div class="job-swipe-row" data-no-tab-swipe="1" data-job-id="${j.id}" data-job-status="${isCTT ? 'CTT' : 'TT'}" data-job-partial="${dt.paid > 0 ? '1' : '0'}">
           <div class="job-swipe-rail">
             ${isCTT ? `<div class="job-swipe-underlay job-swipe-underlay-pay" aria-hidden="true"><span class="job-swipe-cue">${workIconSVG('check', 16)} <span>${payCueText}</span></span></div>` : ''}
             <div class="job-swipe-underlay job-swipe-underlay-actions" aria-hidden="true" inert>
+              ${swipePayBtnHtml}
               <button type="button" class="job-swipe-action-btn is-edit" tabindex="-1" onclick="closeActiveJobSwipeRow(); openEditWorkJobModal(${j.id})" aria-label="Sửa đơn ${escapeHTML(j.customer)}">
                 <svg class="ui-inline-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                 <span>Sửa</span>
@@ -5555,14 +5529,10 @@
             <div class="work-job-bottom">
               <div style="width: 100%; min-width: 0;">
                 <span class="work-job-service-name">${escapeHTML(j.service)}</span>
-                <div class="font-tabular" style="font-size: 11.5px; color: var(--text-sub); margin-top: 2px;">${escapeHTML(formatDayMonthTime(j.date || workState.date, j.ts))}${partialSub}</div>
-              </div>
-              <div class="work-job-actions">
-                <button type="button" class="btn-status-toggle ${stClass}" onclick="${isCTT && dt.paid > 0 ? `openDebtJobPayModal(${j.id})` : `toggleWorkJobStatus(${j.id}, '${isCTT ? 'TT' : 'CTT'}')`}" aria-label="${isCTT && dt.paid > 0 ? 'Trả tiền đơn' : 'Đổi trạng thái thanh toán đơn'} ${escapeHTML(j.customer)}">
-                  ${stLabel}
-                </button>
-                <button type="button" class="btn-job-icon" onclick="openEditWorkJobModal(${j.id})" aria-label="Sửa đơn ${escapeHTML(j.customer)}">Sửa</button>
-                <button type="button" class="btn-job-icon btn-del" onclick="deleteWorkJobWithUndo(${j.id})" aria-label="Xoá đơn ${escapeHTML(j.customer)}">Xoá</button>
+                <div class="work-job-meta-row">
+                  <span class="font-tabular" style="font-size: 11.5px; color: var(--text-sub);">${escapeHTML(formatDayMonthTime(j.date || workState.date, j.ts))}${partialSub}</span>
+                  ${statusChipHtml}
+                </div>
               </div>
             </div>
           </div>
@@ -5827,7 +5797,7 @@
     listEl.dataset.swipeBound = '1';
 
     const EDGE_ZONE_PX = 36;
-    const ACTION_TRAY_W = 144;
+    const ACTION_TRAY_W = 204;
     const PAY_TRIGGER_X = 76;
     const PAY_MAX_X = 112;
 
@@ -6289,63 +6259,20 @@
     return map;
   }
 
-  function buildLedgerActivityDaysMap(monthStr, ledgerItems) {
-    const map = {};
-    (ledgerItems || []).forEach(item => {
-      if (!item || !item.date || item.category === 'borrow' || isFundLedgerItem(item)) return;
-      if (!item.date.startsWith(monthStr + '-')) return;
-      if (!map[item.date]) {
-        map[item.date] = { date: item.date, count: 0, expense: 0, repay: 0 };
-      }
-      const row = map[item.date];
-      const amt = Number(item.amount) || 0;
-      row.count++;
-      if (item.category === 'expense') row.expense += amt;
-      if (item.category === 'repay') row.repay += amt;
-    });
-    return map;
-  }
-
   function formatWorkActivityAria(brief) {
     return `có ${brief.job_count} đơn, doanh thu ${formatVND(brief.total_revenue || 0)}`;
   }
 
-  function formatLedgerActivityAria(brief) {
-    const parts = [`có ${brief.count} khoản thu chi`];
-    if (brief.expense > 0) parts.push(`chi ${formatVND(brief.expense)}`);
-    if (brief.repay > 0) parts.push(`trả nợ ${formatVND(brief.repay)}`);
-    return parts.join(', ');
-  }
-
-  function getTimedMonthLedgerForMonth(monthStr) {
-    const vault = readFinanceVaultSync();
-    const allLedger = Array.isArray(vault.ledger) && vault.ledger.length > 0
-      ? vault.ledger
-      : (workState.ledger || []);
-    return monthStr
-      ? allLedger.filter(l => l && l.category !== 'borrow' && !isFundLedgerItem(l) && (l.date || '').startsWith(monthStr + '-'))
-      : [];
-  }
-
-  function announceCalendarDay(dateStr, scope) {
-    const isLedger = scope === 'ledger';
-    const liveEl = document.getElementById(isLedger ? 'ledger-cal-live' : 'work-cal-live');
+  function announceCalendarDay(dateStr) {
+    const liveEl = document.getElementById('work-cal-live');
     if (!liveEl || !dateStr) return;
     const monthStr = dateStr.slice(0, 7);
     const vnDate = formatVNDate(dateStr);
-    if (isLedger) {
-      const map = buildLedgerActivityDaysMap(monthStr, getTimedMonthLedgerForMonth(monthStr));
-      const brief = map[dateStr];
-      liveEl.textContent = brief
-        ? `Đang xem ngày ${vnDate}, ${formatLedgerActivityAria(brief)}.`
-        : `Đang xem ngày ${vnDate}, chưa có thu chi.`;
-    } else {
-      const orderMap = buildWorkOrderDaysMap(monthStr);
-      const brief = orderMap[dateStr];
-      liveEl.textContent = (brief && Number(brief.job_count) > 0)
-        ? `Đang xem ngày ${vnDate}, ${brief.job_count} đơn, doanh thu ${formatVND(brief.total_revenue || 0)}.`
-        : `Đang xem ngày ${vnDate}, chưa có đơn.`;
-    }
+    const orderMap = buildWorkOrderDaysMap(monthStr);
+    const brief = orderMap[dateStr];
+    liveEl.textContent = (brief && Number(brief.job_count) > 0)
+      ? `Đang xem ngày ${vnDate}, ${brief.job_count} đơn, doanh thu ${formatVND(brief.total_revenue || 0)}.`
+      : `Đang xem ngày ${vnDate}, chưa có đơn.`;
   }
 
   function syncAndRenderWorkTarget(targetDate, targetMonth) {
@@ -6357,7 +6284,6 @@
       workState.date = targetDate;
       workState.month = targetMonth;
       renderWorkCalendar();
-      renderLedgerCalendar(getTimedMonthLedgerForMonth(targetMonth), targetMonth);
       loadWorkData(targetDate, { month: targetMonth });
     }
   }
@@ -6370,23 +6296,16 @@
     syncAndRenderWorkTarget(targetDate, nextMonth);
   };
 
-  window.selectWorkCalendarDay = function (dateStr, scope) {
+  window.selectWorkCalendarDay = function (dateStr) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr || '')) return;
-    const resolvedScope = scope === 'ledger' || (scope !== 'work' && state.activeTab === 'ledger')
-      ? 'ledger'
-      : 'work';
     const targetMonth = dateStr.slice(0, 7);
     workState.calendarMonth = targetMonth;
-    if (resolvedScope === 'ledger') {
-      workState.ledgerScope = 'day';
-    } else {
-      workState.heroScope = 'day';
-      if (workState.subTab !== 'jobs') {
-        switchWorkSubTab('jobs');
-      }
+    workState.heroScope = 'day';
+    if (workState.subTab !== 'jobs') {
+      switchWorkSubTab('jobs');
     }
     syncAndRenderWorkTarget(dateStr, targetMonth);
-    announceCalendarDay(dateStr, resolvedScope);
+    announceCalendarDay(dateStr);
   };
 
   window.onWorkCalGridKeydown = function (e) {
@@ -6501,12 +6420,11 @@
     }
   }
 
-  function syncCalendarCollapseUI(scope) {
-    const isLedger = scope === 'ledger';
-    const expanded = isLedger ? Boolean(workState.ledgerCalendarExpanded) : Boolean(workState.workCalendarExpanded);
-    const cardEl = document.getElementById(isLedger ? 'ledger-calendar-card' : 'work-calendar-card');
-    const bodyEl = document.getElementById(isLedger ? 'ledger-cal-body' : 'work-cal-body');
-    const btnEl = document.getElementById(isLedger ? 'btn-ledger-cal-toggle' : 'btn-work-cal-toggle');
+  function syncCalendarCollapseUI() {
+    const expanded = Boolean(workState.workCalendarExpanded);
+    const cardEl = document.getElementById('work-calendar-card');
+    const bodyEl = document.getElementById('work-cal-body');
+    const btnEl = document.getElementById('btn-work-cal-toggle');
     if (cardEl) cardEl.classList.toggle('is-collapsed', !expanded);
     if (bodyEl) bodyEl.hidden = !expanded;
     if (btnEl) {
@@ -6530,14 +6448,9 @@
     }
   }
 
-  window.toggleWorkCalendar = function (scope) {
-    const resolved = scope === 'ledger' ? 'ledger' : 'work';
-    if (resolved === 'ledger') {
-      workState.ledgerCalendarExpanded = !workState.ledgerCalendarExpanded;
-    } else {
-      workState.workCalendarExpanded = !workState.workCalendarExpanded;
-    }
-    syncCalendarCollapseUI(resolved);
+  window.toggleWorkCalendar = function () {
+    workState.workCalendarExpanded = !workState.workCalendarExpanded;
+    syncCalendarCollapseUI();
   };
 
   function renderWorkCalendar() {
@@ -6553,23 +6466,7 @@
       formatAriaActivity: formatWorkActivityAria,
       emptyAriaLabel: 'chưa có đơn'
     });
-    syncCalendarCollapseUI('work');
-  }
-
-  function renderLedgerCalendar(timedMonthLedger, calMonthOpt) {
-    const calMonth = calMonthOpt || getResolvedCalendarMonth();
-    renderMonthCalendarGrid({
-      scope: 'ledger',
-      gridId: 'ledger-cal-grid',
-      titleId: 'ledger-cal-month-title',
-      statsId: 'ledger-cal-month-stats',
-      calMonth,
-      activityMap: buildLedgerActivityDaysMap(calMonth, timedMonthLedger),
-      statUnitLabel: 'ngày có thu chi',
-      formatAriaActivity: formatLedgerActivityAria,
-      emptyAriaLabel: 'chưa có thu chi'
-    });
-    syncCalendarCollapseUI('ledger');
+    syncCalendarCollapseUI();
   }
 
   window.setDebtListFilter = function (filter) {
@@ -7146,15 +7043,14 @@
   window.setWorkLedgerNote = function (noteText) {
     const noteInput = document.getElementById('work-ledger-note');
     if (noteInput) noteInput.value = noteText;
-    setWorkLedgerCategory('expense');
+    setWorkLedgerCategory('borrow');
   };
 
-  window.openAddWorkLedgerModal = function (presetCategory) {
-    const hidden = document.getElementById('work-ledger-category');
-    if (presetCategory && ['expense', 'borrow'].includes(presetCategory)) {
-      setWorkLedgerCategory(presetCategory);
-    } else if (hidden && !['expense', 'borrow'].includes(hidden.value)) {
-      setWorkLedgerCategory('expense');
+  window.openAddWorkLedgerModal = function () {
+    setWorkLedgerCategory('borrow');
+    const dateInp = document.getElementById('work-ledger-date');
+    if (dateInp) {
+      dateInp.value = state.today || workState.today || workState.date || new Date().toISOString().slice(0, 10);
     }
     const amtInp = document.getElementById('work-ledger-amount');
     updateWorkLedgerAmountPreview(amtInp ? amtInp.value : '');
@@ -7166,13 +7062,14 @@
 
   window.submitWorkLedger = async function (e) {
     e.preventDefault();
-    const category = document.getElementById('work-ledger-category').value || 'expense';
+    const category = 'borrow';
+    const dateInp = document.getElementById('work-ledger-date');
     const amtInput = document.getElementById('work-ledger-amount');
     const amount = parseMoneyInputVND(amtInput ? amtInput.value : '');
     const note = document.getElementById('work-ledger-note').value.trim();
 
     if (!note) {
-      showToast('Nhập số tiền và nội dung chi tiết', true);
+      showToast('Nhập số tiền và tên khoản nợ', true);
       return;
     }
     if (!amount || amount < 1000 || amount > 500000000) {
@@ -7180,7 +7077,7 @@
       if (amtInput) amtInput.focus();
       return;
     }
-    const ledgerDate = workState.date || state.today || new Date().toISOString().slice(0, 10);
+    const ledgerDate = (dateInp && dateInp.value) || state.today || workState.date || new Date().toISOString().slice(0, 10);
     const clientUid = genClientUID('ldg');
     const nowTs = Math.floor(Date.now() / 1000);
     const bodyPayload = {
@@ -7204,9 +7101,8 @@
       document.getElementById('work-ledger-note').value = '';
       updateWorkLedgerAmountPreview('');
       closeModal('modal-add-work-ledger');
-      showToast('Đã lưu khoản mục vào sổ');
-      workState.calendarMonth = ledgerDate.slice(0, 7);
-      await loadWorkData(ledgerDate, { month: workState.calendarMonth });
+      showToast('Đã lưu khoản nợ mới');
+      await loadWorkData(workState.date || ledgerDate, { month: workState.calendarMonth });
     } catch (err) {
       if (!isQueueableSyncError(err)) return;
       const v = readFinanceVaultSync();
@@ -7230,9 +7126,8 @@
       document.getElementById('work-ledger-note').value = '';
       updateWorkLedgerAmountPreview('');
       closeModal('modal-add-work-ledger');
-      showToast('Đã lưu khoản mục trên máy này (chờ đồng bộ)');
-      workState.calendarMonth = ledgerDate.slice(0, 7);
-      computeWorkFromLocalVault(ledgerDate, workState.calendarMonth);
+      showToast('Đã lưu khoản nợ trên máy này (chờ đồng bộ)');
+      computeWorkFromLocalVault(workState.date || ledgerDate, workState.calendarMonth);
     }
   };
 
@@ -7248,64 +7143,7 @@
   }
 
   function renderLedgerScreen() {
-    const curDate = workState.date || state.today || '';
-    const todayDate = workState.today || state.today || curDate;
-    const curMonth = getResolvedCalendarMonth();
-
-    updateTodayChipButton('btn-ledger-today', curMonth);
-
-    const dayLedger = workState.ledger || [];
-    const timedDayLedger = dayLedger.filter(l => l && l.category !== 'borrow' && !isFundLedgerItem(l));
-    const timedMonthLedger = getTimedMonthLedgerForMonth(curMonth);
-
-    const ds = workState.daySummary || {};
-    const ms = workState.monthSummary || {};
-    const isMonthScope = workState.ledgerScope === 'month';
-    const activeSum = isMonthScope ? ms : ds;
-
-    const btnScopeDay = document.getElementById('btn-ledger-scope-day');
-    const btnScopeMonth = document.getElementById('btn-ledger-scope-month');
-    if (btnScopeDay) btnScopeDay.classList.toggle('active', !isMonthScope);
-    if (btnScopeMonth) btnScopeMonth.classList.toggle('active', isMonthScope);
-
-    let monthHuman = curMonth;
-    if (curMonth && curMonth.includes('-')) {
-      const mParts = curMonth.split('-');
-      monthHuman = `Tháng ${parseInt(mParts[1], 10)}/${mParts[0]}`;
-    }
-
-    const setTxt = (id, val) => {
-      const el = document.getElementById(id);
-      if (el) el.textContent = val;
-    };
-
-    const globalBorrow = getGlobalBorrowSummary();
-
-    setTxt(
-      'ledger-summary-date-label',
-      isMonthScope
-        ? `Tổng chi tiêu ${monthHuman}`
-        : (curDate === todayDate ? 'Tổng chi tiêu hôm nay' : `Chi tiêu ngày ${formatDayMonth(curDate)}`)
-    );
-    setTxt('ledger-day-count-pill', `${isMonthScope ? timedMonthLedger.length : timedDayLedger.length} khoản`);
-
-    const expStr = formatVND(activeSum.expense_amount || 0);
-    setTxt('ledger-hero-expense', expStr);
-    const expEl = document.getElementById('ledger-hero-expense');
-    if (expEl) expEl.classList.toggle('is-long', expStr.length >= 12);
-
-    setTxt('ledger-stat-expense', formatShortK(activeSum.expense_amount || 0));
-    setTxt('ledger-stat-borrow', formatShortK(globalBorrow.remaining));
-    setTxt('ledger-stat-repay', formatShortK(activeSum.repay_amount || 0));
-
-    renderBorrowSummaryButton(globalBorrow);
-    renderWorkLedgerList();
-    renderLedgerCalendar(timedMonthLedger, curMonth);
-
-    const borrowModalEl = document.getElementById('modal-borrow-list');
-    if (borrowModalEl && borrowModalEl.classList.contains('open')) {
-      renderBorrowListModal();
-    }
+    renderBorrowListModal();
   }
 
   function formatBorrowDateTime(dStr, tsSec) {
@@ -7383,36 +7221,6 @@
       `;
   }
 
-  function renderBorrowSummaryButton(summaryOpt) {
-    const sum = summaryOpt || getGlobalBorrowSummary();
-    const btn = document.getElementById('btn-open-borrow-list');
-    const badgeEl = document.getElementById('ledger-borrow-btn-badge');
-    const totalEl = document.getElementById('ledger-borrow-btn-total');
-
-    const hasUnpaid = sum.unpaidCount > 0;
-    const allSettled = sum.totalCount > 0 && !hasUnpaid;
-    if (btn) {
-      btn.classList.toggle('is-has-unpaid', hasUnpaid);
-      btn.classList.toggle('is-all-settled', allSettled);
-    }
-
-    if (badgeEl) {
-      badgeEl.classList.toggle('is-has-unpaid', hasUnpaid);
-      badgeEl.classList.toggle('is-settled', allSettled);
-      if (sum.totalCount === 0) {
-        badgeEl.textContent = '0 khoản';
-      } else if (allSettled) {
-        badgeEl.textContent = '✓ Đã trả xong hết';
-      } else {
-        badgeEl.textContent = `${sum.unpaidCount} khoản chưa xong`;
-      }
-    }
-
-    if (totalEl) {
-      totalEl.textContent = formatVND(sum.remaining);
-    }
-  }
-
   window.setBorrowModalFilter = function (filter) {
     if (!['all', 'unpaid', 'settled'].includes(filter)) filter = 'all';
     workState.borrowFilter = filter;
@@ -7446,11 +7254,7 @@
   };
 
   window.openBorrowListModal = function () {
-    workState.borrowSearchQuery = '';
-    const inputEl = document.getElementById('borrow-search-input');
-    if (inputEl) inputEl.value = '';
-    renderBorrowListModal();
-    openModal('modal-borrow-list');
+    switchTab('ledger');
   };
 
   function renderBorrowListModal() {
@@ -7460,15 +7264,40 @@
       if (el) el.textContent = val;
     };
 
-    setTxt('borrow-modal-total-rem', formatVND(sum.remaining));
+    const remStr = formatVND(sum.remaining);
+    setTxt('borrow-modal-total-rem', remStr);
     setTxt('borrow-modal-total-paid', formatVND(sum.paid));
     setTxt('borrow-modal-total-orig', formatVND(sum.orig));
+    setTxt('borrow-hero-count', `${sum.totalCount} khoản`);
+
+    const hasUnpaid = sum.unpaidCount > 0;
+    const allSettled = sum.totalCount > 0 && !hasUnpaid;
+    const statusPillEl = document.getElementById('borrow-hero-status-pill');
+    if (statusPillEl) {
+      statusPillEl.classList.toggle('is-has-unpaid', hasUnpaid);
+      statusPillEl.classList.toggle('is-settled', allSettled);
+      if (sum.totalCount === 0) {
+        statusPillEl.textContent = '0 khoản';
+      } else if (allSettled) {
+        statusPillEl.textContent = '✓ Đã trả xong hết';
+      } else {
+        statusPillEl.textContent = `${sum.unpaidCount} khoản chưa xong`;
+      }
+    }
+
+    const overallPct = sum.orig > 0 ? Math.min(100, Math.round((sum.paid / sum.orig) * 100)) : 0;
+    setTxt('borrow-hero-progress-pct', `${overallPct}%`);
+    const heroProgressFill = document.getElementById('borrow-hero-progress-fill');
+    if (heroProgressFill) {
+      heroProgressFill.style.width = `${overallPct}%`;
+    }
 
     const remEl = document.getElementById('borrow-modal-total-rem');
     if (remEl) {
       const isZero = sum.remaining <= 0;
       remEl.classList.toggle('is-paid', isZero);
       remEl.classList.toggle('is-remaining', !isZero);
+      remEl.classList.toggle('is-long', remStr.length >= 12);
     }
 
     syncSearchInputUI('borrow-search-input', 'borrow-search-clear', workState.borrowSearchQuery);
@@ -7538,8 +7367,8 @@
       if (sum.totalCount === 0) {
         listEl.innerHTML = `
             <div class="empty-state-box">
-              Quyền chưa có khoản mượn tiền nào.<br>
-              Bấm nút <strong>+ Thêm khoản mượn mới</strong> phía trên để ghi lại.
+              Quyền chưa có khoản nợ nào.<br>
+              Bấm nút <strong>+</strong> ở góc dưới để thêm khoản nợ mới.
             </div>`;
       } else if (rawQuery) {
         if (queryMatched.length > 0 && activeFilter !== 'all') {
@@ -7570,43 +7399,6 @@
     }
 
     listEl.innerHTML = filtered.map(item => buildBorrowCardHTML(item)).join('');
-  }
-
-  function renderWorkLedgerList() {
-    const container = document.getElementById('work-ledger-list');
-    const titleEl = document.getElementById('ledger-day-list-title');
-    const subEl = document.getElementById('ledger-day-list-sub');
-    const curDate = workState.date || '';
-    // Chỉ hiển thị Chi tiêu / Phát sinh và Trả nợ theo ngày; Nộp quỹ nằm ở tab Quỹ, Mượn nằm trong nút gom toàn thời gian.
-    const list = (workState.ledger || []).filter(item => item && item.category !== 'borrow' && !isFundLedgerItem(item));
-    const dm = formatDayMonth(curDate);
-
-    if (titleEl) titleEl.textContent = dm ? `Phát sinh ngày ${dm}` : 'Phát sinh trong ngày';
-    if (subEl) subEl.textContent = `${list.length} khoản`;
-    if (!container) return;
-
-    if (list.length === 0) {
-      container.innerHTML = `<div class="empty-state-box">Chưa có khoản chi tiêu nào trong ngày ${dm || formatVNDate(curDate)}.</div>`;
-      return;
-    }
-
-    container.innerHTML = list.map(item => `
-        <div class="work-job-card">
-          <div class="work-job-top">
-            <div style="min-width: 0; flex: 1;">
-              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                <span class="work-stt-badge">${getLedgerCatLabel(item.category)}</span>
-                <span class="font-tabular" style="font-size: 11.5px; color: var(--text-sub);">${escapeHTML(formatDayMonthTime(item.date || curDate, item.ts))}</span>
-              </div>
-              <div class="work-job-cust-name work-ledger-note">${escapeHTML(item.note)}</div>
-            </div>
-            <div class="work-ledger-right">
-              <span class="work-job-price-val font-tabular">${formatVND(item.amount)}</span>
-              <button type="button" class="btn-job-icon btn-del" onclick="deleteWorkLedger(${Number(item.id)})" aria-label="Xoá khoản mục ${escapeHTML(item.note)}">Xoá</button>
-            </div>
-          </div>
-        </div>
-      `).join('');
   }
 
   // =========================================================================

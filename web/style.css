@@ -3929,7 +3929,9 @@ input.work-mobile-input:not(.work-search-input) {
   margin-left: auto;
   display: flex;
   align-items: stretch;
-  width: 144px;
+  width: 204px;
+  padding: 6px 6px 6px 8px;
+  gap: 6px;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.12s ease-out;
@@ -3945,35 +3947,55 @@ input.work-mobile-input:not(.work-search-input) {
 }
 
 .job-swipe-action-btn {
-  width: 72px;
+  flex: 1;
+  min-width: 0;
   min-height: 44px;
-  border: none;
+  padding: 6px 4px;
+  border-radius: 14px;
+  border: 1px solid transparent;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 5px;
   font-family: inherit;
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 800;
+  line-height: 1.15;
+  text-align: center;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: filter 0.12s ease-out, transform 0.15s ease-out;
+  transition: background-color 0.14s ease-out, border-color 0.14s ease-out, transform 0.15s ease-out, filter 0.14s ease-out;
+}
+
+.job-swipe-action-btn.is-mark-paid {
+  background: linear-gradient(145deg, #B2E48C 0%, #8FD162 100%);
+  border-color: #69AC40;
+  color: #15300B;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.job-swipe-action-btn.is-mark-unpaid {
+  background-color: #FEF3C7;
+  border-color: #F0B94D;
+  color: #854D0E;
 }
 
 .job-swipe-action-btn.is-edit {
-  background-color: #2E5F8A;
-  color: #FFFFFF;
+  background-color: #ECF5E8;
+  border-color: #BDD6B3;
+  color: #1E3B13;
 }
 
 .job-swipe-action-btn.is-delete {
-  background-color: #C92A2A;
-  color: #FFFFFF;
+  background-color: #FCEAEA;
+  border-color: #F0B6B6;
+  color: #B42318;
 }
 
 @media (hover: hover) {
   .job-swipe-action-btn:hover {
-    filter: brightness(1.08);
+    filter: brightness(0.96);
   }
 }
 
@@ -3982,8 +4004,83 @@ input.work-mobile-input:not(.work-search-input) {
 }
 
 .job-swipe-action-btn:focus-visible {
-  outline: 2px solid #FFFFFF;
-  outline-offset: -3px;
+  outline: 2.5px solid var(--color-score-ring);
+  outline-offset: -2px;
+}
+
+html[data-theme="dark"] .job-swipe-action-btn.is-mark-paid {
+  background: rgba(116, 192, 74, 0.28);
+  border-color: rgba(154, 226, 114, 0.56);
+  color: #C7F5A6;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+html[data-theme="dark"] .job-swipe-action-btn.is-mark-unpaid {
+  background-color: rgba(217, 119, 6, 0.24);
+  border-color: rgba(251, 191, 36, 0.48);
+  color: #FDE68A;
+}
+
+html[data-theme="dark"] .job-swipe-action-btn.is-edit {
+  background-color: rgba(38, 56, 40, 0.86);
+  border-color: rgba(164, 219, 122, 0.3);
+  color: #E4F0DF;
+}
+
+html[data-theme="dark"] .job-swipe-action-btn.is-delete {
+  background-color: rgba(127, 29, 29, 0.44);
+  border-color: rgba(248, 113, 113, 0.45);
+  color: #FCA5A5;
+}
+
+@media (hover: hover) {
+  html[data-theme="dark"] .job-swipe-action-btn:hover {
+    filter: brightness(1.12);
+  }
+}
+
+.work-job-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.work-job-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.work-job-status-chip.is-paid {
+  background-color: #E6F4DC;
+  border: 1px solid #B6DDA0;
+  color: #214B12;
+}
+
+.work-job-status-chip.is-unpaid {
+  background-color: #FEF3C7;
+  border: 1px solid #F6C56A;
+  color: #92400E;
+}
+
+html[data-theme="dark"] .work-job-status-chip.is-paid {
+  background-color: rgba(116, 192, 74, 0.2);
+  border-color: rgba(154, 226, 114, 0.42);
+  color: #C7F5A6;
+}
+
+html[data-theme="dark"] .work-job-status-chip.is-unpaid {
+  background-color: rgba(217, 119, 6, 0.22);
+  border-color: rgba(251, 191, 36, 0.44);
+  color: #FDE68A;
 }
 
 .job-swipe-surface {
@@ -6246,6 +6343,66 @@ input.work-mobile-input:not(.work-search-input) {
   background-color: #B45309;
   border-color: #92400E;
   color: #FFFFFF;
+}
+
+/* Tab Khoản nợ của Quyền (#tab-ledger) */
+.debt-personal-hero .work-huge-money.is-remaining {
+  color: #B45309;
+}
+
+.debt-personal-hero .work-huge-money.is-paid {
+  color: #2B5719;
+}
+
+.debt-personal-hero .work-month-cell-val.is-paid {
+  color: #2B5719;
+}
+
+#borrow-hero-status-pill.is-has-unpaid {
+  background-color: #FEF3C7;
+  border: 1px solid #F59E0B;
+  color: #92400E;
+}
+
+#borrow-hero-status-pill.is-settled {
+  background-color: #E2F4D6;
+  border: 1px solid #8CC66E;
+  color: #1E4611;
+}
+
+.borrow-hero-progress-wrap {
+  margin: 10px 0 12px;
+}
+
+.borrow-hero-progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-sub);
+  margin-bottom: 6px;
+}
+
+html[data-theme="dark"] .debt-personal-hero .work-huge-money.is-remaining {
+  color: #FCD34D;
+}
+
+html[data-theme="dark"] .debt-personal-hero .work-huge-money.is-paid,
+html[data-theme="dark"] .debt-personal-hero .work-month-cell-val.is-paid {
+  color: #9AE673;
+}
+
+html[data-theme="dark"] #borrow-hero-status-pill.is-has-unpaid {
+  background-color: rgba(245, 158, 11, 0.2);
+  border-color: rgba(251, 191, 36, 0.45);
+  color: #FDE68A;
+}
+
+html[data-theme="dark"] #borrow-hero-status-pill.is-settled {
+  background-color: rgba(134, 199, 90, 0.2);
+  border-color: rgba(134, 199, 90, 0.45);
+  color: #C7F2B0;
 }
 
 .work-borrow-btn-badge.is-settled {
@@ -9754,6 +9911,97 @@ html[data-theme="dark"] #tab-funds .btn-fund-edit-gear {
   100% {
     opacity: 0;
     transform: translate(var(--sx, 18px), var(--sy, -24px)) scale(1.15) rotate(var(--sr, 75deg));
+  }
+}
+
+/* ==========================================================================
+   Work Tab: Top Controls Row (Mở lịch + Copy QR Banking ngang hàng)
+   ========================================================================== */
+.work-top-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.work-top-controls-row > .work-calendar-card.is-collapsed,
+html[data-theme="dark"] .work-top-controls-row > .work-calendar-card.is-collapsed {
+  margin-bottom: 0;
+  flex: 0 0 auto;
+}
+
+.work-top-controls-row > .work-calendar-card.is-collapsed .btn-work-cal-toggle {
+  min-height: 44px;
+}
+
+.work-top-controls-row > .work-calendar-card:not(.is-collapsed) {
+  flex: 1 1 100%;
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.work-qr-action-card.is-toolbar-compact {
+  margin-bottom: 0;
+  padding: 3px;
+  gap: 4px;
+  border-radius: var(--radius-pill);
+  flex: 0 1 auto;
+  max-width: 100%;
+  min-height: 44px;
+  align-items: center;
+}
+
+.work-qr-action-card.is-toolbar-compact .btn-work-qr-copy {
+  min-height: 36px;
+  padding: 3px 6px 3px 4px;
+  border-radius: var(--radius-pill);
+  gap: 6px;
+  flex: 0 1 auto;
+}
+
+.work-qr-action-card.is-toolbar-compact .work-qr-btn-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+
+.work-qr-action-card.is-toolbar-compact .work-qr-cta-pill {
+  padding: 5px 10px 5px 8px;
+  font-size: 12px;
+}
+
+.work-qr-action-card.is-toolbar-compact .btn-work-qr-preview {
+  min-width: 36px;
+  width: 36px;
+  min-height: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+@media (max-width: 350px) {
+  .work-top-controls-row {
+    gap: 6px;
+  }
+
+  .work-top-controls-row > .work-calendar-card.is-collapsed .btn-work-cal-toggle {
+    padding: 8px 11px;
+    font-size: 12.5px;
+  }
+
+  .work-qr-action-card.is-toolbar-compact .work-qr-btn-icon {
+    display: none;
+  }
+
+  .work-qr-action-card.is-toolbar-compact .btn-work-qr-copy {
+    padding: 2px 3px;
+  }
+
+  .work-qr-action-card.is-toolbar-compact .work-qr-cta-pill {
+    padding: 5px 9px 5px 7px;
+    font-size: 11.5px;
   }
 }
 

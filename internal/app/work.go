@@ -50,19 +50,6 @@ type workLedgerRepayment struct {
 	Ts       int64  `json:"ts"`
 }
 
-type workBorrowRepaymentView struct {
-	ID              int64  `json:"id"`
-	LedgerID        int64  `json:"ledger_id"`
-	BorrowDate      string `json:"borrow_date"`
-	BorrowNote      string `json:"borrow_note"`
-	BorrowAmount    int    `json:"borrow_amount"`
-	RemainingAmount int    `json:"remaining_amount"`
-	Date            string `json:"date"`
-	Amount          int    `json:"amount"`
-	Note            string `json:"note"`
-	Ts              int64  `json:"ts"`
-}
-
 type workLedger struct {
 	ID              int64                 `json:"id"`
 	UID             string                `json:"uid,omitempty"`
@@ -393,35 +380,6 @@ func (s *Server) attachJobPaymentsMode(out []workJob, all bool) error {
 	return nil
 }
 
-func (s *Server) queryWorkJobsByDate(date string) ([]workJob, error) {
-	rows, err := s.db.Query(`SELECT id, COALESCE(uid, ''), date, customer, channel, service, price, status, note, ts, COALESCE(updated_at, 0) FROM work_jobs WHERE date=? ORDER BY id ASC`, date)
-	if err != nil {
-		return nil, err
-	}
-	out := []workJob{}
-	for rows.Next() {
-		var j workJob
-		if err := rows.Scan(&j.ID, &j.UID, &j.Date, &j.Customer, &j.Channel, &j.Service, &j.Price, &j.Status, &j.Note, &j.Ts, &j.UpdatedAt); err != nil {
-			rows.Close()
-			return nil, err
-		}
-		out = append(out, j)
-	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		return nil, err
-	}
-	rows.Close()
-	if err := s.attachJobPayments(out); err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (s *Server) attachLedgerRepayments(out []workLedger) error {
-	return s.attachLedgerRepaymentsMode(out, false)
-}
-
 func (s *Server) attachLedgerRepaymentsMode(out []workLedger, all bool) error {
 	borrowIDs := make([]int64, 0)
 	idxByID := make(map[int64]int)
@@ -479,61 +437,6 @@ func (s *Server) attachLedgerRepaymentsMode(out []workLedger, all bool) error {
 		out[i].RemainingAmount = rem
 	}
 	return nil
-}
-
-func (s *Server) queryWorkLedgerByDate(date string) ([]workLedger, error) {
-	rows, err := s.db.Query(`SELECT id, COALESCE(uid, ''), date, category, amount, note, ts, COALESCE(updated_at, 0) FROM work_ledger WHERE date=? ORDER BY id ASC`, date)
-	if err != nil {
-		return nil, err
-	}
-	out := []workLedger{}
-	for rows.Next() {
-		var l workLedger
-		if err := rows.Scan(&l.ID, &l.UID, &l.Date, &l.Category, &l.Amount, &l.Note, &l.Ts, &l.UpdatedAt); err != nil {
-			rows.Close()
-			return nil, err
-		}
-		out = append(out, l)
-	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		return nil, err
-	}
-	rows.Close()
-	if err := s.attachLedgerRepayments(out); err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (s *Server) queryWorkRepaymentsByDate(date string) ([]workBorrowRepaymentView, error) {
-	rows, err := s.db.Query(`
-		SELECT r.id, r.ledger_id, wl.date, wl.note, wl.amount,
-		       COALESCE((SELECT SUM(r2.amount) FROM work_ledger_repayments r2 WHERE r2.ledger_id = wl.id), 0),
-		       r.date, r.amount, r.note, r.ts
-		FROM work_ledger_repayments r
-		JOIN work_ledger wl ON wl.id = r.ledger_id
-		WHERE r.date=?
-		ORDER BY r.id ASC`, date)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	out := []workBorrowRepaymentView{}
-	for rows.Next() {
-		var v workBorrowRepaymentView
-		var totalPaid int
-		if err := rows.Scan(&v.ID, &v.LedgerID, &v.BorrowDate, &v.BorrowNote, &v.BorrowAmount, &totalPaid, &v.Date, &v.Amount, &v.Note, &v.Ts); err != nil {
-			return nil, err
-		}
-		rem := v.BorrowAmount - totalPaid
-		if rem < 0 {
-			rem = 0
-		}
-		v.RemainingAmount = rem
-		out = append(out, v)
-	}
-	return out, rows.Err()
 }
 
 func monthDateRange(month string) (string, string) {
@@ -908,11 +811,6 @@ func (s *Server) handleGetWork(w http.ResponseWriter, r *http.Request) {
 		serverErr(w, err)
 		return
 	}
-	dayRepayments, err := s.queryWorkRepaymentsByDate(date)
-	if err != nil {
-		serverErr(w, err)
-		return
-	}
 
 	jobs := []workJob{}
 	for _, j := range allJobs {
@@ -943,7 +841,6 @@ func (s *Server) handleGetWork(w http.ResponseWriter, r *http.Request) {
 		"today":             s.today(),
 		"jobs":              jobs,
 		"ledger":            ledger,
-		"day_repayments":    dayRepayments,
 		"day_summary":       daySum,
 		"month_summary":     monthSum,
 		"unpaid_groups":     unpaidGroups,
