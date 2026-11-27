@@ -2643,12 +2643,39 @@ body:not(.is-logged-in) #app-bottom-nav {
   margin-bottom: 28px;
 }
 
-.work-calendar-card.is-collapsed {
-  padding-top: 12px;
+.work-calendar-card.is-collapsed,
+html[data-theme="dark"] .work-calendar-card.is-collapsed {
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: flex-start;
 }
 
 .work-calendar-card.is-collapsed .work-cal-header {
-  margin-bottom: 0;
+  display: none;
+}
+
+.work-calendar-card.is-collapsed .work-cal-toggle-wrap {
+  position: static;
+  transform: none;
+}
+
+.work-calendar-card.is-collapsed .btn-work-cal-toggle {
+  min-height: 40px;
+  padding: 8px 14px;
+  font-size: 13px;
+  gap: 6px;
+}
+
+.work-cal-toggle-icon {
+  flex-shrink: 0;
+}
+
+.btn-work-cal-toggle.is-expanded .work-cal-toggle-icon {
+  display: none;
 }
 
 .work-cal-body[hidden] {
@@ -8157,6 +8184,16 @@ html[data-theme="dark"] .btn-fab-plus {
   overflow-wrap: anywhere;
 }
 
+.fund-target-sub {
+  font-size: 14px;
+  line-height: 1.2;
+  font-weight: 600;
+  color: var(--text-muted);
+  opacity: 0.85;
+  letter-spacing: -0.01em;
+  margin-top: -2px;
+}
+
 .fund-dial-wrap {
   position: relative;
   width: 88px;
@@ -8220,7 +8257,7 @@ html[data-theme="dark"] .btn-fab-plus {
 
 .fund-ring-pct {
   position: static;
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 800;
   color: var(--fund-text-strong);
 }
@@ -8257,9 +8294,18 @@ html[data-theme="dark"] .btn-fab-plus {
 
 .fund-card-actions {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 48px;
+  gap: 8px;
+  align-items: stretch;
   padding-top: 2px;
+}
+
+.fund-card-actions .btn-fund-edit-gear {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  border-radius: 16px;
+  border-width: 1.5px;
 }
 
 .btn-fund-deposit-sm,
@@ -8291,6 +8337,13 @@ html[data-theme="dark"] .btn-fab-plus {
 
   .fund-ring-pct {
     font-size: 15px;
+  }
+
+  .btn-fund-deposit-sm,
+  .btn-fund-history-sm {
+    padding: 10px 8px;
+    font-size: 13px;
+    white-space: nowrap;
   }
 }
 

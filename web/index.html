@@ -53,43 +53,58 @@
       } catch (_) { }
     })();
   </script>
-  <link rel="stylesheet" href="/style.css?v=105">
-  <link rel="stylesheet" href="/liquid-glass.css?v=105">
+  <link rel="stylesheet" href="/style.css?v=106">
+  <link rel="stylesheet" href="/liquid-glass.css?v=106">
 </head>
 
 <body>
   <!-- Bộ lọc SVG khúc xạ Snell's Law & tán sắc RGB cho Chromium -->
   <svg class="lg-svg-defs" width="0" height="0" aria-hidden="true">
     <defs>
-      <filter id="lg-refract-pill" filterUnits="objectBoundingBox" x="0%" y="0%" width="100%" height="100%" color-interpolation-filters="sRGB">
-        <feImage id="lg-map-pill" href="" preserveAspectRatio="none" x="0%" y="0%" width="100%" height="100%" result="map" />
-        <feDisplacementMap in="SourceGraphic" in2="map" scale="28" xChannelSelector="R" yChannelSelector="G" result="dispR" />
+      <filter id="lg-refract-pill" filterUnits="objectBoundingBox" x="0%" y="0%" width="100%" height="100%"
+        color-interpolation-filters="sRGB">
+        <feImage id="lg-map-pill" href="" preserveAspectRatio="none" x="0%" y="0%" width="100%" height="100%"
+          result="map" />
+        <feDisplacementMap in="SourceGraphic" in2="map" scale="28" xChannelSelector="R" yChannelSelector="G"
+          result="dispR" />
         <feColorMatrix in="dispR" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="chanR" />
-        <feDisplacementMap in="SourceGraphic" in2="map" scale="23" xChannelSelector="R" yChannelSelector="G" result="dispG" />
+        <feDisplacementMap in="SourceGraphic" in2="map" scale="23" xChannelSelector="R" yChannelSelector="G"
+          result="dispG" />
         <feColorMatrix in="dispG" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="chanG" />
-        <feDisplacementMap in="SourceGraphic" in2="map" scale="18" xChannelSelector="R" yChannelSelector="G" result="dispB" />
+        <feDisplacementMap in="SourceGraphic" in2="map" scale="18" xChannelSelector="R" yChannelSelector="G"
+          result="dispB" />
         <feColorMatrix in="dispB" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="chanB" />
         <feBlend in="chanR" in2="chanG" mode="screen" result="rg" />
         <feBlend in="rg" in2="chanB" mode="screen" />
       </filter>
-      <filter id="lg-refract-orb" filterUnits="objectBoundingBox" x="0%" y="0%" width="100%" height="100%" color-interpolation-filters="sRGB">
-        <feImage id="lg-map-orb" href="" preserveAspectRatio="none" x="0%" y="0%" width="100%" height="100%" result="map" />
-        <feDisplacementMap in="SourceGraphic" in2="map" scale="24" xChannelSelector="R" yChannelSelector="G" result="dispR" />
+      <filter id="lg-refract-orb" filterUnits="objectBoundingBox" x="0%" y="0%" width="100%" height="100%"
+        color-interpolation-filters="sRGB">
+        <feImage id="lg-map-orb" href="" preserveAspectRatio="none" x="0%" y="0%" width="100%" height="100%"
+          result="map" />
+        <feDisplacementMap in="SourceGraphic" in2="map" scale="24" xChannelSelector="R" yChannelSelector="G"
+          result="dispR" />
         <feColorMatrix in="dispR" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="chanR" />
-        <feDisplacementMap in="SourceGraphic" in2="map" scale="19" xChannelSelector="R" yChannelSelector="G" result="dispG" />
+        <feDisplacementMap in="SourceGraphic" in2="map" scale="19" xChannelSelector="R" yChannelSelector="G"
+          result="dispG" />
         <feColorMatrix in="dispG" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="chanG" />
-        <feDisplacementMap in="SourceGraphic" in2="map" scale="14" xChannelSelector="R" yChannelSelector="G" result="dispB" />
+        <feDisplacementMap in="SourceGraphic" in2="map" scale="14" xChannelSelector="R" yChannelSelector="G"
+          result="dispB" />
         <feColorMatrix in="dispB" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="chanB" />
         <feBlend in="chanR" in2="chanG" mode="screen" result="rg" />
         <feBlend in="rg" in2="chanB" mode="screen" />
       </filter>
-      <filter id="lg-refract-card" filterUnits="objectBoundingBox" x="0%" y="0%" width="100%" height="100%" color-interpolation-filters="sRGB">
-        <feImage id="lg-map-card" href="" preserveAspectRatio="none" x="0%" y="0%" width="100%" height="100%" result="map" />
-        <feDisplacementMap in="SourceGraphic" in2="map" scale="22" xChannelSelector="R" yChannelSelector="G" result="dispR" />
+      <filter id="lg-refract-card" filterUnits="objectBoundingBox" x="0%" y="0%" width="100%" height="100%"
+        color-interpolation-filters="sRGB">
+        <feImage id="lg-map-card" href="" preserveAspectRatio="none" x="0%" y="0%" width="100%" height="100%"
+          result="map" />
+        <feDisplacementMap in="SourceGraphic" in2="map" scale="22" xChannelSelector="R" yChannelSelector="G"
+          result="dispR" />
         <feColorMatrix in="dispR" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="chanR" />
-        <feDisplacementMap in="SourceGraphic" in2="map" scale="18" xChannelSelector="R" yChannelSelector="G" result="dispG" />
+        <feDisplacementMap in="SourceGraphic" in2="map" scale="18" xChannelSelector="R" yChannelSelector="G"
+          result="dispG" />
         <feColorMatrix in="dispG" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="chanG" />
-        <feDisplacementMap in="SourceGraphic" in2="map" scale="14" xChannelSelector="R" yChannelSelector="G" result="dispB" />
+        <feDisplacementMap in="SourceGraphic" in2="map" scale="14" xChannelSelector="R" yChannelSelector="G"
+          result="dispB" />
         <feColorMatrix in="dispB" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="chanB" />
         <feBlend in="chanR" in2="chanG" mode="screen" result="rg" />
         <feBlend in="rg" in2="chanB" mode="screen" />
@@ -826,6 +841,14 @@
               <button type="button" id="btn-work-cal-toggle" class="btn-work-cal-toggle" aria-expanded="false"
                 aria-controls="work-cal-body" aria-label="Mở lịch — mở rộng bảng lịch tháng"
                 onclick="toggleWorkCalendar('work')">
+                <svg class="work-cal-toggle-icon" viewBox="0 0 24 24" width="15" height="15" fill="none"
+                  stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
+                  aria-hidden="true">
+                  <rect x="3" y="4" width="18" height="18" rx="3" />
+                  <line x1="16" y1="2" x2="16" y2="6" />
+                  <line x1="8" y1="2" x2="8" y2="6" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
                 <span class="work-cal-toggle-label">Mở lịch</span>
                 <svg class="work-cal-toggle-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none"
                   stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
@@ -910,8 +933,8 @@
               </span>
               <span class="work-qr-cta-pill">
                 <span class="qr-copy-icon-stack" aria-hidden="true">
-                  <svg class="qr-icon-copy" viewBox="0 0 24 24" width="14" height="14" fill="none"
-                    stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                  <svg class="qr-icon-copy" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+                    stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                   </svg>
@@ -992,7 +1015,6 @@
 
             <div id="debt-search-panel" class="work-search-card" role="search" aria-label="Tìm kiếm sổ nợ">
               <div class="work-search-field-group">
-                <label class="work-search-label" for="debt-search-input">Tìm tên khách hàng, dịch vụ hoặc ngày</label>
                 <div class="work-search-input-wrap">
                   <svg class="work-search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none"
                     stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
@@ -1001,8 +1023,8 @@
                     <line x1="21" y1="21" x2="16.65" y2="16.65" />
                   </svg>
                   <input type="search" id="debt-search-input" class="form-input work-mobile-input work-search-input"
-                    placeholder="Ví dụ: Tiến, FRP OPPO, 15/11" autocomplete="off" enterkeyhint="search"
-                    oninput="onDebtSearchInput(this.value)" onkeydown="onDebtSearchKeydown(event)">
+                    aria-label="Tìm theo tên khách hàng" placeholder="Tìm theo tên khách hàng..." autocomplete="off"
+                    enterkeyhint="search" oninput="onDebtSearchInput(this.value)" onkeydown="onDebtSearchKeydown(event)">
                   <button type="button" id="debt-search-clear" class="work-search-clear"
                     aria-label="Xoá từ khoá tìm kiếm sổ nợ" onclick="clearDebtSearch()" hidden>
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4"
@@ -1011,49 +1033,6 @@
                       <line x1="6" y1="6" x2="18" y2="18" />
                     </svg>
                   </button>
-                </div>
-              </div>
-
-              <div class="work-time-filter-group">
-                <span id="debt-time-label" class="work-search-label">Thời gian</span>
-                <div id="debt-time-modes" class="work-time-mode-bar" role="group" aria-labelledby="debt-time-label">
-                  <button type="button" class="work-time-mode-pill active" data-mode="all" aria-pressed="true"
-                    onclick="setDebtTimeMode('all')">Tất cả</button>
-                  <button type="button" class="work-time-mode-pill" data-mode="day" aria-pressed="false"
-                    onclick="setDebtTimeMode('day')">Theo ngày</button>
-                  <button type="button" class="work-time-mode-pill" data-mode="month" aria-pressed="false"
-                    onclick="setDebtTimeMode('month')">Theo tháng</button>
-                  <button type="button" class="work-time-mode-pill" data-mode="range" aria-pressed="false"
-                    onclick="setDebtTimeMode('range')">Từ – Đến</button>
-                </div>
-
-                <div id="debt-time-day-row" class="work-time-detail-row" hidden>
-                  <div class="work-time-day-wrap">
-                    <label class="sr-only" for="debt-filter-date">Chọn ngày cần tìm trong sổ nợ</label>
-                    <input type="date" id="debt-filter-date" class="form-input work-mobile-input font-tabular"
-                      onchange="onDebtTimeDetailChange()">
-                    <button type="button" class="btn-work-today-chip work-time-today-btn"
-                      onclick="setDebtFilterToday()">Hôm nay</button>
-                  </div>
-                </div>
-
-                <div id="debt-time-month-row" class="work-time-detail-row" hidden>
-                  <label class="sr-only" for="debt-filter-month">Chọn tháng cần tìm trong sổ nợ</label>
-                  <select id="debt-filter-month" class="form-input work-mobile-input font-tabular"
-                    onchange="onDebtTimeDetailChange()"></select>
-                </div>
-
-                <div id="debt-time-range-row" class="work-time-detail-row work-time-range-grid" hidden>
-                  <div class="work-time-range-cell">
-                    <label class="work-time-sub-label" for="debt-filter-from">Từ ngày</label>
-                    <input type="date" id="debt-filter-from" class="form-input work-mobile-input font-tabular"
-                      onchange="onDebtTimeDetailChange()">
-                  </div>
-                  <div class="work-time-range-cell">
-                    <label class="work-time-sub-label" for="debt-filter-to">Đến ngày</label>
-                    <input type="date" id="debt-filter-to" class="form-input work-mobile-input font-tabular"
-                      onchange="onDebtTimeDetailChange()">
-                  </div>
                 </div>
               </div>
             </div>
@@ -1150,6 +1129,14 @@
               <button type="button" id="btn-ledger-cal-toggle" class="btn-work-cal-toggle" aria-expanded="false"
                 aria-controls="ledger-cal-body" aria-label="Mở lịch — mở rộng bảng lịch tháng"
                 onclick="toggleWorkCalendar('ledger')">
+                <svg class="work-cal-toggle-icon" viewBox="0 0 24 24" width="15" height="15" fill="none"
+                  stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
+                  aria-hidden="true">
+                  <rect x="3" y="4" width="18" height="18" rx="3" />
+                  <line x1="16" y1="2" x2="16" y2="6" />
+                  <line x1="8" y1="2" x2="8" y2="6" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
                 <span class="work-cal-toggle-label">Mở lịch</span>
                 <svg class="work-cal-toggle-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none"
                   stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
@@ -1203,8 +1190,8 @@
             <button type="button" id="btn-open-borrow-list" class="work-borrow-summary-btn"
               onclick="openBorrowListModal()" aria-haspopup="dialog" aria-controls="modal-borrow-list">
               <span class="work-borrow-btn-icon" aria-hidden="true">
-                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="18" height="18" fill="none"
-                  stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                  stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                   <line x1="17" y1="7" x2="7" y2="17" />
                   <polyline points="17 17 7 17 7 7" />
                 </svg>
@@ -1242,16 +1229,8 @@
              MÀN HÌNH: QUỸ TIẾT KIỆM & MỤC TIÊU (ĐA QUỸ + LỊCH SỬ NẠP TỪNG QUỸ)
              ===================================================================== -->
         <section id="tab-funds" class="tab-pane" role="tabpanel" aria-label="Quỹ tiết kiệm">
-          <div class="screen-nav-header">
-            <button type="button" class="btn-circle-action" aria-label="Quay lại trang Hôm nay"
-              onclick="switchTab('today')">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <path d="M15 18l-6-6 6-6" />
-              </svg>
-            </button>
+          <div class="screen-nav-header" style="justify-content: center;">
             <h1 class="screen-nav-title">Quỹ tiết kiệm</h1>
-            <div style="width: 40px;" aria-hidden="true"></div>
           </div>
 
           <!-- Danh sách các quỹ -->
@@ -1853,7 +1832,8 @@
           <input type="text" id="work-ledger-note" class="form-input work-mobile-input"
             placeholder="Ví dụ: Mua cơm, Thuê tools, Đổ xăng..." maxlength="300" required>
           <div class="work-chips-scroll" style="margin-top: 6px;" aria-label="Gợi ý nội dung chi tiêu">
-            <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Thuê tools')">Thuê tools</button>
+            <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Thuê tools')">Thuê
+              tools</button>
             <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Mua cơm')">Mua cơm</button>
             <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Ăn sáng')">Ăn sáng</button>
             <button type="button" class="work-suggest-chip" onclick="setWorkLedgerNote('Đổ xăng')">Đổ xăng</button>
@@ -2001,8 +1981,8 @@
             <span id="debt-pay-amount-preview" class="work-price-preview font-tabular"></span>
           </div>
           <input type="number" id="debt-pay-amount" name="debt_pay_amount"
-            class="form-input work-mobile-input font-tabular" placeholder="Ví dụ: 500" inputmode="numeric"
-            min="0.001" step="any" required oninput="updateDebtPayPreview()">
+            class="form-input work-mobile-input font-tabular" placeholder="Ví dụ: 500" inputmode="numeric" min="0.001"
+            step="any" required oninput="updateDebtPayPreview()">
           <p id="debt-pay-amount-after" class="repay-after-hint font-tabular" role="status"></p>
           <p id="debt-pay-amount-error" class="repay-error-text" role="alert" style="display: none;"></p>
           <div id="debt-pay-quick-chips" class="repay-chips-grid" aria-label="Chọn nhanh số tiền trả"></div>
@@ -2084,8 +2064,8 @@
             aria-label="Gợi ý ghi chú nạp quỹ">
             <button type="button" class="work-suggest-chip" onclick="setFundDepositNote('Nộp quỹ ngày')">Nộp quỹ
               ngày</button>
-            <button type="button" class="work-suggest-chip"
-              onclick="setFundDepositNote('Trích doanh thu')">Trích doanh thu</button>
+            <button type="button" class="work-suggest-chip" onclick="setFundDepositNote('Trích doanh thu')">Trích doanh
+              thu</button>
             <button type="button" class="work-suggest-chip" onclick="setFundDepositNote('Tiền thưởng')">Tiền
               thưởng</button>
             <button type="button" class="work-suggest-chip" onclick="setFundDepositNote('Tiết kiệm tuần')">Tiết
@@ -2251,8 +2231,7 @@
       </div>
 
       <div class="bank-qr-preview-frame">
-        <img id="bank-qr-modal-img" class="bank-qr-modal-img"
-          alt="Mã QR chuyển khoản BIDV 8867350944 Phùng Văn Quyền">
+        <img id="bank-qr-modal-img" class="bank-qr-modal-img" alt="Mã QR chuyển khoản BIDV 8867350944 Phùng Văn Quyền">
       </div>
 
       <div class="bank-qr-info-strip">
@@ -2283,7 +2262,7 @@
     </div>
   </div>
 
-  <script src="/app.js?v=105"></script>
+  <script src="/app.js?v=106"></script>
 </body>
 
 </html>

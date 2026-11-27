@@ -501,6 +501,31 @@ html[data-theme="dark"] .work-search-card {
   box-shadow: var(--lg-shadow-card), var(--lg-specular), var(--lg-inner-glow);
 }
 
+.work-calendar-card.is-collapsed,
+html[data-theme="dark"] .work-calendar-card.is-collapsed {
+  background-color: transparent;
+  background-image: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.work-calendar-card.is-collapsed::after {
+  display: none;
+}
+
+.work-calendar-card.is-collapsed .btn-work-cal-toggle,
+html[data-theme="dark"] .work-calendar-card.is-collapsed .btn-work-cal-toggle {
+  background-color: var(--lg-surface);
+  background-image: var(--lg-card-sheen);
+  -webkit-backdrop-filter: blur(14px) saturate(190%);
+  backdrop-filter: blur(14px) saturate(190%);
+  border: 1px solid var(--lg-border);
+  color: var(--text-main);
+  box-shadow: var(--lg-shadow-card), var(--lg-specular);
+}
+
 /* List cards: lighter blur for smooth scroll FPS; debt group keeps status border */
 .work-job-card {
   background-color: var(--lg-surface-list);
@@ -938,6 +963,8 @@ html.lg-refract-ok .login-container {
   html[data-theme="dark"] .work-qr-action-card,
   html[data-theme="dark"] .quick-action-tile,
   html[data-theme="dark"] .btn-fab-plus,
+  .work-calendar-card.is-collapsed .btn-work-cal-toggle,
+  html[data-theme="dark"] .work-calendar-card.is-collapsed .btn-work-cal-toggle,
   html.lg-refract-ok .mockup-bottom-nav,
   html.lg-refract-ok .toast,
   html.lg-refract-ok .btn-fab-plus,
