@@ -125,7 +125,7 @@ func (s *Server) handleBackup(w http.ResponseWriter, r *http.Request) {
 		rows.Close()
 	}
 
-	if rows, err := s.db.Query(`SELECT date, kg, ts FROM weight_log ORDER BY date`); err == nil {
+	if rows, err := s.db.Query(`SELECT date, kg, ts FROM weight_log ORDER BY date DESC LIMIT 1`); err == nil {
 		for rows.Next() {
 			var x backupWeight
 			if rows.Scan(&x.Date, &x.Kg, &x.Ts) == nil {
@@ -267,11 +267,22 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	for _, x := range b.Weight {
+	if _, err := tx.Exec(`DELETE FROM weight_log`); err != nil {
+		serverErr(w, err)
+		return
+	}
+	var latestW *backupWeight
+	for i := range b.Weight {
+		x := &b.Weight[i]
 		if x.Kg < 30 || x.Kg > 300 || !validDate(x.Date) {
 			continue
 		}
-		if _, err := tx.Exec(`INSERT INTO weight_log(date,kg,ts) VALUES(?,?,?) ON CONFLICT(date) DO UPDATE SET kg=excluded.kg, ts=excluded.ts`, x.Date, x.Kg, x.Ts); err != nil {
+		if latestW == nil || x.Date > latestW.Date || (x.Date == latestW.Date && x.Ts > latestW.Ts) {
+			latestW = x
+		}
+	}
+	if latestW != nil {
+		if _, err := tx.Exec(`INSERT INTO weight_log(date,kg,ts) VALUES(?,?,?)`, latestW.Date, latestW.Kg, latestW.Ts); err != nil {
 			serverErr(w, err)
 			return
 		}

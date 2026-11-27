@@ -24,7 +24,6 @@
     todayMeals: [],
     mealsTarget: 3,
     mealDayRows: [],
-    weights: [],
     activeTab: 'work'
   };
 
@@ -207,7 +206,7 @@
     const metaTheme = document.querySelector('meta[name="theme-color"]');
     if (metaTheme) metaTheme.setAttribute('content', resolved === 'dark' ? '#0A110C' : '#E7F1E6');
     const metaApple = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
-    if (metaApple) metaApple.setAttribute('content', resolved === 'dark' ? 'black-translucent' : 'default');
+    if (metaApple) metaApple.setAttribute('content', 'black-translucent');
 
     if (overrideStyle) {
       void root.offsetHeight;
@@ -1969,14 +1968,11 @@
 
         if (data.weight) {
           state.todayWeight = data.weight.today;
-          state.weights = Array.isArray(data.weight.rows) ? data.weight.rows : [];
           if (data.weight.last) {
             state.currentWeight = data.weight.last.kg;
           } else if (state.settings.start_weight) {
             state.currentWeight = parseFloat(state.settings.start_weight);
           }
-        } else {
-          state.weights = [];
         }
 
         state.todayMeals = data.meals || [];
@@ -2519,96 +2515,6 @@
       }
     }
 
-    // Mở modal giải thích chi tiết điểm tuân thủ hôm nay
-    window.openScoreBreakdownModal = function () {
-      const minWater = parseInt((state.settings && state.settings.water_min) || 2500);
-      const curWater = state.waterTotal || 0;
-      const waterRatio = Math.min(1, curWater / minWater);
-      const waterPts = Math.round(waterRatio * 40);
-
-      const medTarget = Math.max(1, state.medTargetCount || (state.medTimes && state.medTimes.length) || 3);
-      const medCount = Math.min(medTarget, Math.max(0, state.medTakenCount || 0));
-      const medPts = Math.round((medCount / medTarget) * 30);
-
-      const hasWeight = state.todayWeight !== null && state.todayWeight !== undefined;
-      const weightPts = hasWeight ? 15 : 0;
-
-      const meals = state.todayMeals || [];
-      const mainMeals = meals.filter(m => ['breakfast', 'lunch', 'dinner'].includes(m.slot));
-      const doneMeals = mainMeals.filter(m => m.status === 'done').length;
-      const mealPts = Math.min(15, doneMeals * 5);
-
-      const totalScore = Math.min(100, waterPts + medPts + weightPts + mealPts);
-
-      const container = document.getElementById('score-breakdown-content');
-      if (container) {
-        container.innerHTML = `
-        <div style="text-align: center; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--border-card);">
-          <div style="font-size: 38px; font-weight: 800; color: var(--color-score-ring); line-height: 1.1;" class="font-tabular">${totalScore}<span style="font-size: 18px; color: var(--text-muted); font-weight: 600;">/100</span></div>
-          <div style="font-size: 13px; font-weight: 600; color: var(--text-sub); margin-top: 4px;">Điểm tuân thủ bảo vệ sức khoẻ gan & cân nặng</div>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
-          <div class="score-breakdown-item">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-              <span style="font-weight: 700; font-size: 13.5px; color: var(--text-main); display: inline-flex; align-items: center; gap: 6px;">
-                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="var(--blue-accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
-                <span>Uống nước lọc</span>
-              </span>
-              <span style="font-weight: 800; color: ${waterPts > 0 ? 'var(--color-score-ring)' : 'var(--text-muted)'};" class="font-tabular">${waterPts}/40 đ</span>
-            </div>
-            <div style="font-size: 12.5px; color: var(--text-sub);">
-              Đã uống <strong class="font-tabular">${curWater.toLocaleString('vi-VN')}</strong> / ${minWater.toLocaleString('vi-VN')} ml (${Math.min(100, Math.round(waterRatio * 100))}%)
-            </div>
-          </div>
-
-          <div class="score-breakdown-item">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-              <span style="font-weight: 700; font-size: 13.5px; color: var(--text-main); display: inline-flex; align-items: center; gap: 6px;">
-                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="var(--color-score-ring)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/></svg>
-                <span>Thuốc bổ gan</span>
-              </span>
-              <span style="font-weight: 800; color: ${medPts ? 'var(--color-score-ring)' : 'var(--text-muted)'};" class="font-tabular">${medPts}/30 đ</span>
-            </div>
-            <div style="font-size: 12.5px;">
-              ${medCount >= medTarget
-            ? `<span class="text-status-ok" style="font-weight: 600;">Đã uống đủ ${medCount}/${medTarget} lần theo lịch nhắc hôm nay</span>`
-            : `<span class="text-status-warn">Đã uống <strong class="font-tabular">${medCount}/${medTarget}</strong> lần (bấm ô Thuốc bổ gan để đánh dấu)</span>`}
-            </div>
-          </div>
-
-          <div class="score-breakdown-item">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-              <span style="font-weight: 700; font-size: 13.5px; color: var(--text-main); display: inline-flex; align-items: center; gap: 6px;">
-                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="var(--pink-accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                <span>Cân sáng sớm</span>
-              </span>
-              <span style="font-weight: 800; color: ${weightPts ? 'var(--color-score-ring)' : 'var(--text-muted)'};" class="font-tabular">${weightPts}/15 đ</span>
-            </div>
-            <div style="font-size: 12.5px;">
-              ${hasWeight ? `<span class="text-status-ok" style="font-weight: 600;">Đã ghi nhận: ${state.todayWeight.toFixed(1)} kg</span>` : '<span class="text-status-warn">Chưa cân sáng nay (bấm ô Cân nặng để nhập)</span>'}
-            </div>
-          </div>
-
-          <div class="score-breakdown-item">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-              <span style="font-weight: 700; font-size: 13.5px; color: var(--text-main); display: inline-flex; align-items: center; gap: 6px;">
-                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="var(--color-score-ring)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-                <span>Bữa ăn Healthy (3 bữa)</span>
-              </span>
-              <span style="font-weight: 800; color: ${mealPts ? 'var(--color-score-ring)' : 'var(--text-muted)'};" class="font-tabular">${mealPts}/15 đ</span>
-            </div>
-            <div style="font-size: 12.5px; color: var(--text-sub);">
-              Đã ăn <strong class="font-tabular">${doneMeals}/3</strong> bữa Healthy hôm nay (5 điểm mỗi bữa)
-            </div>
-          </div>
-        </div>
-
-        <button class="btn-green-pill" style="width: 100%;" onclick="closeModal('modal-score-breakdown')">Đã hiểu</button>
-      `;
-      }
-      openModal('modal-score-breakdown');
-    };
-
     // --- UỐNG NƯỚC ---
     function renderWaterWidget() {
       const min = parseInt(state.settings.water_min || 2500);
@@ -2783,24 +2689,6 @@
       const takenCount = Math.min(target, state.medDosesTaken.filter(Boolean).length);
       state.medTakenCount = takenCount;
       state.medTaken = takenCount >= target;
-      const pct = Math.min(100, Math.round((takenCount / target) * 100));
-
-      const curEl = document.getElementById('med-cur-count');
-      if (curEl) curEl.textContent = String(takenCount);
-
-      const targetEl = document.getElementById('med-target-count');
-      if (targetEl) targetEl.textContent = `${target} lần`;
-
-      const pctEl = document.getElementById('med-percent-badge');
-      if (pctEl) pctEl.textContent = `${pct}%`;
-
-      const fillEl = document.getElementById('med-progress-fill');
-      if (fillEl) fillEl.style.width = `${pct}%`;
-
-      const schedTxt = document.getElementById('med-schedule-count-txt');
-      if (schedTxt) {
-        schedTxt.textContent = times.length > 0 ? `${times.length} lần/ngày` : '3 lần/ngày';
-      }
 
       const grid = document.getElementById('med-dose-pills-grid');
       if (grid) {
@@ -2966,7 +2854,6 @@
       }
 
       const btnSave = document.getElementById('btn-save-weight');
-      const sub = document.getElementById('weight-status-sub');
       if (btnSave) {
         if (state.todayWeight !== null) {
           btnSave.textContent = 'Cập nhật cân nặng (' + state.todayWeight.toFixed(1) + ' kg)';
@@ -2975,62 +2862,7 @@
         }
         btnSave.className = 'btn-green-pill';
       }
-      if (sub) {
-        if (state.todayWeight !== null) {
-          sub.textContent = `Hôm nay đã ghi nhận ${state.todayWeight.toFixed(1)} kg. Điều chỉnh nếu cần sửa lại.`;
-        } else {
-          sub.textContent = 'Cân vào sáng sớm sau khi vệ sinh cá nhân, trước khi ăn sáng.';
-        }
-      }
-      renderWeightModalHistory();
       renderDailyHealthScore();
-    }
-
-    function renderWeightModalHistory() {
-      const listEl = document.getElementById('weight-modal-history-list');
-      const countEl = document.getElementById('weight-modal-history-count');
-      if (!listEl) return;
-
-      const list = Array.isArray(state.weights)
-        ? state.weights.slice().sort((a, b) => String(a.date).localeCompare(String(b.date)))
-        : [];
-      if (countEl) {
-        countEl.textContent = `${list.length} lần đo`;
-      }
-      if (list.length === 0) {
-        listEl.innerHTML = '<div style="font-size: 12.5px; color: var(--text-muted); padding: 6px 0;">Chưa có lịch sử cân nặng nào được lưu.</div>';
-        return;
-      }
-
-      let html = '';
-      for (let i = list.length - 1; i >= 0; i--) {
-        const item = list[i];
-        let diffHtml = '<span style="color: var(--text-muted); font-size: 12px;">Mốc đầu</span>';
-        if (i > 0) {
-          const prev = list[i - 1];
-          const diff = Math.round((item.kg - prev.kg) * 10) / 10;
-          if (diff > 0) {
-            diffHtml = `<span class="text-status-danger" style="font-weight: 700; font-size: 12px;">+${diff.toFixed(1)} kg</span>`;
-          } else if (diff < 0) {
-            diffHtml = `<span class="text-status-ok" style="font-weight: 700; font-size: 12px;">${diff.toFixed(1)} kg</span>`;
-          } else {
-            diffHtml = '<span style="color: var(--text-sub); font-size: 12px;">0.0 kg</span>';
-          }
-        }
-        const dm = formatDayMonth(item.date);
-        const hm = item.ts ? formatTimeHM(item.ts) : '';
-        const baseDate = item.date === state.today ? `Hôm nay (${dm})` : `Ngày ${dm}`;
-        const dateLabel = hm ? `${baseDate} • ${hm}` : baseDate;
-        html += `
-        <div class="weight-hist-row${item.date === state.today ? ' is-today' : ''}">
-          <span class="font-tabular" style="font-size: 12.5px; color: var(--text-sub); font-weight: ${item.date === state.today ? '700' : '500'};">${escapeHtml(dateLabel)}</span>
-          <div style="display: flex; align-items: center; gap: 10px;">
-            ${diffHtml}
-            <strong style="font-size: 13.5px; color: var(--text-main);">${Number(item.kg).toFixed(1)} kg</strong>
-          </div>
-        </div>`;
-      }
-      listEl.innerHTML = html;
     }
 
     window.adjustWeight = function (delta) {
@@ -3077,9 +2909,6 @@
         });
         if (res && typeof res.health_rev === 'number') {
           syncState.healthRev = Math.max(syncState.healthRev, res.health_rev);
-        }
-        if (res && Array.isArray(res.rows)) {
-          state.weights = res.rows;
         }
         state.todayWeight = kg;
         state.currentWeight = kg;
@@ -3146,12 +2975,6 @@
     function renderMealsWidget() {
       const mealsList = normalizeTodayHealthyMeals();
       state.todayMeals = mealsList;
-      const target = mealsList.length;
-      const doneCount = mealsList.filter(m => m.status === 'done').length;
-      const pct = Math.min(100, Math.round((doneCount / target) * 100));
-
-      const fillEl = document.getElementById('meal-progress-fill');
-      if (fillEl) fillEl.style.width = `${pct}%`;
 
       const grid = document.getElementById('today-meal-checklist-grid');
       if (grid) {

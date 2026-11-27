@@ -143,8 +143,8 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 	s.handleGetSettings(w, r)
 }
 
-// pruneOldHealthData xoá dữ liệu sức khoẻ của các ngày cũ (nước, thuốc, bữa ăn),
-// chỉ giữ lại dữ liệu sức khoẻ của ngày hôm nay và toàn bộ lịch sử cân nặng (weight_log).
+// pruneOldHealthData xoá dữ liệu sức khoẻ của các ngày cũ (nước, thuốc, bữa ăn)
+// và xoá lịch sử cân nặng cũ, chỉ giữ lại tối đa 1 mốc cân mới nhất trong weight_log.
 func (s *Server) pruneOldHealthData(today string) {
 	if today == "" {
 		today = s.today()
@@ -152,6 +152,7 @@ func (s *Server) pruneOldHealthData(today string) {
 	_, _ = s.db.Exec(`DELETE FROM water_log WHERE date <> ?`, today)
 	_, _ = s.db.Exec(`DELETE FROM med_log WHERE date <> ?`, today)
 	_, _ = s.db.Exec(`DELETE FROM meal_plan WHERE date <> ?`, today)
+	_, _ = s.db.Exec(`DELETE FROM weight_log WHERE date <> (SELECT date FROM weight_log ORDER BY date DESC LIMIT 1)`)
 }
 
 // ---------- nước ----------
@@ -240,21 +241,12 @@ type weightRow struct {
 	Ts   int64   `json:"ts"`
 }
 
-func (s *Server) weights(days int) []weightRow {
-	from := addDays(s.today(), -days+1)
-	out := []weightRow{}
-	rows, err := s.db.Query(`SELECT date, kg, COALESCE(ts, 0) FROM weight_log WHERE date>=? ORDER BY date`, from)
-	if err != nil {
-		return out
+func (s *Server) latestWeight() *weightRow {
+	var x weightRow
+	if s.db.QueryRow(`SELECT date, kg, COALESCE(ts, 0) FROM weight_log ORDER BY date DESC LIMIT 1`).Scan(&x.Date, &x.Kg, &x.Ts) != nil {
+		return nil
 	}
-	defer rows.Close()
-	for rows.Next() {
-		var x weightRow
-		if rows.Scan(&x.Date, &x.Kg, &x.Ts) == nil {
-			out = append(out, x)
-		}
-	}
-	return out
+	return &x
 }
 
 func (s *Server) handlePostWeight(w http.ResponseWriter, r *http.Request) {
@@ -269,13 +261,16 @@ func (s *Server) handlePostWeight(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	kg := math.Round(in.Kg*10) / 10
+	today := s.today()
+	now := s.now().Unix()
 	if _, err := s.db.Exec(`INSERT INTO weight_log(date,kg,ts) VALUES(?,?,?) ON CONFLICT(date) DO UPDATE SET kg=excluded.kg, ts=excluded.ts`,
-		s.today(), kg, s.now().Unix()); err != nil {
+		today, kg, now); err != nil {
 		serverErr(w, err)
 		return
 	}
+	_, _ = s.db.Exec(`DELETE FROM weight_log WHERE date <> ?`, today)
 	rev := s.bumpHealthRev()
-	writeJSON(w, 200, map[string]any{"rows": s.weights(3650), "health_rev": rev})
+	writeJSON(w, 200, map[string]any{"today": kg, "last": &weightRow{Date: today, Kg: kg, Ts: now}, "health_rev": rev})
 }
 
 // ---------- thuốc ----------
@@ -522,16 +517,10 @@ func (s *Server) handleToday(w http.ResponseWriter, r *http.Request) {
 	set := s.settings()
 	entries, total := s.waterEntries(date)
 
-	ws := s.weights(3650)
+	last := s.latestWeight()
 	var todayKg *float64
-	var last *weightRow
-	for i := range ws {
-		if ws[i].Date == date {
-			todayKg = &ws[i].Kg
-		}
-	}
-	if n := len(ws); n > 0 {
-		last = &ws[n-1]
+	if last != nil && last.Date == date {
+		todayKg = &last.Kg
 	}
 	todayMeals, err := s.loadTodayMeals(date)
 	if err != nil {
@@ -549,7 +538,7 @@ func (s *Server) handleToday(w http.ResponseWriter, r *http.Request) {
 		"health_rev": s.healthRev.Load(),
 		"settings":   set,
 		"water":      map[string]any{"total": total, "entries": entries},
-		"weight":     map[string]any{"today": todayKg, "last": last, "rows": ws},
+		"weight":     map[string]any{"today": todayKg, "last": last},
 		"med": map[string]any{
 			"taken":        medCount >= medTarget,
 			"taken_count":  medCount,

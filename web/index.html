@@ -7,7 +7,7 @@
   <title>Quyền Anh - Sức Khoẻ &amp; Công Việc</title>
   <meta name="theme-color" content="#E7F1E6">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Quyền Anh">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/png" href="/icons/icon-192.png?v=31">
@@ -49,12 +49,12 @@
         var tc = document.querySelector('meta[name="theme-color"]');
         if (tc) tc.setAttribute('content', resolved === 'dark' ? '#0A110C' : '#E7F1E6');
         var sb = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
-        if (sb) sb.setAttribute('content', resolved === 'dark' ? 'black-translucent' : 'default');
+        if (sb) sb.setAttribute('content', 'black-translucent');
       } catch (_) { }
     })();
   </script>
-  <link rel="stylesheet" href="/style.css?v=104">
-  <link rel="stylesheet" href="/liquid-glass.css?v=104">
+  <link rel="stylesheet" href="/style.css?v=105">
+  <link rel="stylesheet" href="/liquid-glass.css?v=105">
 </head>
 
 <body>
@@ -203,9 +203,7 @@
             </div>
 
             <!-- Vòng tròn Gauge SVG kèm biểu tượng sức khoẻ -->
-            <div class="daily-score-gauge-wrap" onclick="openScoreBreakdownModal()" style="cursor: pointer;"
-              role="button" tabindex="0" aria-label="Xem chi tiết điểm tuân thủ hôm nay"
-              onkeydown="if(event.key==='Enter'||event.key===' ') openScoreBreakdownModal()">
+            <div class="daily-score-gauge-wrap">
               <span class="score-gauge-halo" aria-hidden="true"></span>
               <svg class="daily-score-svg" viewBox="0 0 100 100" width="92" height="92">
                 <circle class="score-track" cx="50" cy="50" r="40" stroke="#E2F0D6" stroke-width="8" fill="none" />
@@ -1417,8 +1415,6 @@
         <div id="water-fill" class="log-progress-fill" style="width: 0%;"></div>
       </div>
 
-      <div class="field-hint" style="margin-bottom: 8px; font-size: 12px; color: var(--text-sub); font-weight: 600;">Bấm
-        chọn nhanh lượng nước vừa uống:</div>
       <div class="water-pill-grid">
         <button type="button" class="btn-water-chip font-tabular" onclick="addWater(200)">+200ml</button>
         <button type="button" class="btn-water-chip font-tabular" onclick="addWater(300)">+300ml</button>
@@ -1428,10 +1424,10 @@
 
       <form onsubmit="submitCustomWater(event)" class="water-custom-form">
         <div class="form-group">
-          <label class="form-label" for="custom-water-ml">Hoặc tự gõ số ml (1 - 2.000 ml)</label>
           <div class="water-custom-input-row">
             <input type="number" id="custom-water-ml" class="form-input work-mobile-input font-tabular"
-              placeholder="Ví dụ: 350" min="1" max="2000" inputmode="numeric" required>
+              aria-label="Nhập lượng nước uống (ml)" placeholder="Ví dụ: 350" min="1" max="2000" inputmode="numeric"
+              required>
             <button type="submit" class="btn-green-pill" style="white-space: nowrap;">Thêm nước</button>
           </div>
         </div>
@@ -1459,8 +1455,6 @@
           <span id="weight-val" class="weight-modal-num">97.0</span>
           <span class="weight-modal-unit">kg</span>
         </div>
-        <p id="weight-status-sub" class="weight-modal-sub">Cân vào sáng sớm sau khi vệ sinh cá nhân, trước khi ăn sáng.
-        </p>
       </div>
 
       <div class="weight-stepper-row" style="justify-content: center; margin-bottom: 14px;">
@@ -1472,25 +1466,13 @@
 
       <form onsubmit="saveWeight(event)">
         <div class="form-group">
-          <label class="form-label" for="weight-direct-input">Hoặc nhập trực tiếp số cân (kg)</label>
           <input type="number" step="0.1" min="40" max="200" inputmode="decimal" id="weight-direct-input"
-            class="form-input work-mobile-input font-tabular" placeholder="Ví dụ: 96.5"
-            oninput="syncWeightFromInput(this.value)" required>
+            class="form-input work-mobile-input font-tabular" aria-label="Nhập số cân nặng (kg)"
+            placeholder="Ví dụ: 96.5" oninput="syncWeightFromInput(this.value)" required>
         </div>
         <button type="submit" id="btn-save-weight" class="btn-green-pill" style="width: 100%; margin-top: 14px;">Lưu cân
           nặng</button>
       </form>
-
-      <div class="weight-modal-history-section"
-        style="margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border-subtle);">
-        <div class="section-title-header" style="margin-bottom: 8px;">
-          <h4 class="form-label" style="margin: 0; font-size: 13px; color: var(--text-main);">Lịch sử cân nặng đã lưu
-          </h4>
-          <span id="weight-modal-history-count" class="footer-caption font-tabular">0 lần đo</span>
-        </div>
-        <div id="weight-modal-history-list" class="font-tabular"
-          style="max-height: 190px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;"></div>
-      </div>
     </div>
   </div>
 
@@ -1502,30 +1484,6 @@
         <button type="button" class="modal-close" aria-label="Đóng" onclick="closeModal('modal-med')">&times;</button>
       </div>
 
-      <div class="log-card-header" style="align-items: center; margin-bottom: 10px;">
-        <div class="log-card-subtitle" style="margin-top: 0; font-size: 13.5px;">
-          Đã uống <strong id="med-cur-count" class="font-tabular" style="color: var(--text-main);">0</strong> / <span
-            id="med-target-count" class="font-tabular">3 lần</span>
-          <span id="med-percent-badge" class="log-badge-pct font-tabular">0%</span>
-        </div>
-        <button type="button" id="btn-med-schedule-link" class="btn-med-schedule-pill font-tabular"
-          onclick="closeModal('modal-med'); jumpToMedScheduleSettings()"
-          title="Thay đổi giờ nhắc uống thuốc trong Cài đặt">
-          <svg class="ui-inline-svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
-            stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="9" />
-            <path d="M12 7v5l3 2" />
-          </svg>
-          <span id="med-schedule-count-txt">3 lần/ngày</span>
-        </button>
-      </div>
-
-      <div class="log-progress-track">
-        <div id="med-progress-fill" class="log-progress-fill" style="width: 0%;"></div>
-      </div>
-
-      <div class="field-hint" style="margin-bottom: 8px; font-size: 12px; color: var(--text-sub); font-weight: 600;">Bấm
-        vào từng lần uống trong ngày để đánh dấu hoặc bỏ chọn:</div>
       <div id="med-dose-pills-grid" class="med-dose-grid modal-med-dose-list" role="group"
         aria-label="Các lần uống thuốc trong ngày"></div>
 
@@ -1542,28 +1500,11 @@
         <button type="button" class="modal-close" aria-label="Đóng" onclick="closeModal('modal-meals')">&times;</button>
       </div>
 
-      <div class="log-progress-track">
-        <div id="meal-progress-fill" class="log-progress-fill" style="width: 0%;"></div>
-      </div>
-
       <div id="today-meal-checklist-grid" class="med-dose-grid modal-med-dose-list" role="group"
         aria-label="Checklist Bữa ăn Healthy hôm nay"></div>
 
       <button type="button" class="btn-secondary-pill" style="width: 100%; margin-top: 16px;"
         onclick="closeModal('modal-meals')">Xong</button>
-    </div>
-  </div>
-
-  <!-- MODAL: Chi Tiết Điểm Tuân Thủ Hôm Nay -->
-  <div id="modal-score-breakdown" class="modal-overlay" role="dialog" aria-modal="true"
-    aria-labelledby="modal-score-title">
-    <div class="modal-dialog">
-      <div class="modal-header">
-        <h3 id="modal-score-title" class="modal-title">Điểm tuân thủ hôm nay</h3>
-        <button type="button" class="modal-close" aria-label="Đóng"
-          onclick="closeModal('modal-score-breakdown')">&times;</button>
-      </div>
-      <div id="score-breakdown-content" class="modal-scroll-body">Đang tính toán...</div>
     </div>
   </div>
 
@@ -2342,7 +2283,7 @@
     </div>
   </div>
 
-  <script src="/app.js?v=104"></script>
+  <script src="/app.js?v=105"></script>
 </body>
 
 </html>

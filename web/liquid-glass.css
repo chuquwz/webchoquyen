@@ -184,10 +184,14 @@ body {
 body::before {
   content: "";
   position: fixed;
-  inset: 0;
+  inset: -60px 0 -60px 0;
   z-index: -1;
   pointer-events: none;
   background: var(--lg-ambient);
+}
+
+.app-content-area {
+  padding-top: max(16px, calc(env(safe-area-inset-top, 0px) + 10px));
 }
 
 .device-phone-frame {
@@ -431,16 +435,23 @@ html[data-theme="dark"] .mockup-bottom-nav.has-lens .nav-pill-btn.active .nav-ic
   }
 }
 
-html[data-theme="dark"] .app-content-area::before {
-  content: "";
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: calc(env(safe-area-inset-top, 0px) + 12px);
-  pointer-events: none;
-  z-index: 90;
-  background: linear-gradient(to bottom, var(--lg-edge-fade) 0%, var(--lg-edge-fade-0) 100%);
+@media (display-mode: standalone) {
+  html:not([data-theme="dark"]) .app-content-area::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: calc(env(safe-area-inset-top, 0px) + 6px);
+    pointer-events: none;
+    z-index: 90;
+    background: linear-gradient(
+      to bottom,
+      rgba(18, 42, 20, 0.56) 0%,
+      rgba(18, 42, 20, 0.34) 70%,
+      rgba(18, 42, 20, 0) 100%
+    );
+  }
 }
 
 /* --------------------------------------------------------------------------
@@ -1001,8 +1012,7 @@ html.lg-refract-ok .login-container {
     background: var(--lg-ambient-base);
   }
 
-  .app-content-area::after,
-  html[data-theme="dark"] .app-content-area::before {
+  .app-content-area::after {
     background: var(--lg-ambient-base);
     opacity: 0.0;
   }

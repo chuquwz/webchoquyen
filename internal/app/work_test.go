@@ -315,13 +315,13 @@ func TestMealChecklistDefault3Meals(t *testing.T) {
 	}
 }
 
-func TestPruneOldHealthDataKeepsWeightHistory(t *testing.T) {
+func TestPruneOldHealthDataPrunesWeightHistory(t *testing.T) {
 	srv := newTestServer(t)
 	h := srv.Handler()
 	today := srv.today()
 	yesterday := addDays(today, -1)
 
-	// Ghi dữ liệu sức khoẻ ngày hôm qua và lịch sử cân nặng nhiều ngày
+	// Ghi dữ liệu sức khoẻ ngày hôm qua và cân nặng 2 ngày
 	if _, err := srv.db.Exec(`INSERT INTO water_log(ts, date, ml) VALUES(?, ?, ?)`, 1000, yesterday, 500); err != nil {
 		t.Fatalf("insert old water: %v", err)
 	}
@@ -335,7 +335,7 @@ func TestPruneOldHealthDataKeepsWeightHistory(t *testing.T) {
 		t.Fatalf("insert weights: %v", err)
 	}
 
-	// Gọi GET /api/today -> tự động xoá nước/thuốc/bữa ăn ngày cũ nhưng giữ toàn bộ cân nặng
+	// Gọi GET /api/today -> tự động xoá nước/thuốc/bữa ăn ngày cũ và xoá lịch sử cân cũ (chỉ giữ 1 mốc mới nhất)
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, authedReq(srv, "GET", "/api/today", nil))
 	if w.Code != 200 {
@@ -356,20 +356,26 @@ func TestPruneOldHealthDataKeepsWeightHistory(t *testing.T) {
 		t.Fatalf("expected old meal_plan deleted, got %d", cnt)
 	}
 	_ = srv.db.QueryRow(`SELECT COUNT(*) FROM weight_log`).Scan(&cnt)
-	if cnt != 2 {
-		t.Fatalf("expected both yesterday and today weight_log preserved, got %d", cnt)
+	if cnt != 1 {
+		t.Fatalf("expected only latest weight_log preserved, got %d", cnt)
 	}
 
 	var todayResp struct {
-		Weight struct {
-			Rows []weightRow `json:"rows"`
-		} `json:"weight"`
+		Weight map[string]json.RawMessage `json:"weight"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &todayResp); err != nil {
-		t.Fatalf("unmarshal /api/today weight rows: %v", err)
+		t.Fatalf("unmarshal /api/today weight: %v", err)
 	}
-	if len(todayResp.Weight.Rows) != 2 {
-		t.Fatalf("expected 2 weight rows in /api/today, got %d", len(todayResp.Weight.Rows))
+	if _, hasRows := todayResp.Weight["rows"]; hasRows {
+		t.Fatalf("expected /api/today weight.rows removed, got %s", string(todayResp.Weight["rows"]))
+	}
+	var todayVal float64
+	if err := json.Unmarshal(todayResp.Weight["today"], &todayVal); err != nil || todayVal != 97.0 {
+		t.Fatalf("expected weight.today == 97.0, got %s (%v)", string(todayResp.Weight["today"]), err)
+	}
+	var lastRow weightRow
+	if err := json.Unmarshal(todayResp.Weight["last"], &lastRow); err != nil || lastRow.Kg != 97.0 {
+		t.Fatalf("expected weight.last.kg == 97.0, got %s (%v)", string(todayResp.Weight["last"]), err)
 	}
 }
 
