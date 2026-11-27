@@ -8061,6 +8061,7 @@
     const heroFillEl = document.getElementById('funds-hero-progress-fill');
     if (heroFillEl) {
       heroFillEl.style.width = `${model.overallPctClamped}%`;
+      heroFillEl.classList.toggle('is-empty', model.overallPctClamped <= 0);
     }
 
     setTxt('funds-hero-stat-count', `${model.fundCount} quỹ`);

@@ -8906,8 +8906,11 @@ html[data-theme="dark"] .fund-filter-pill.active {
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  border-radius: 30px;
-  padding: 22px 20px 18px;
+  aspect-ratio: 85.6 / 53.98;
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  padding: 16px 18px 14px;
   margin-bottom: 20px;
   background:
     radial-gradient(120% 95% at 92% 6%, rgba(229, 193, 104, 0.22) 0%, rgba(229, 193, 104, 0) 58%),
@@ -9000,17 +9003,19 @@ html[data-theme="dark"] .fund-filter-pill.active {
   border-width: 0;
 }
 
-.royal-corner.c-tl { top: 10px; left: 10px; border-top-width: 1.5px; border-left-width: 1.5px; border-top-left-radius: 6px; }
-.royal-corner.c-tr { top: 10px; right: 10px; border-top-width: 1.5px; border-right-width: 1.5px; border-top-right-radius: 6px; }
-.royal-corner.c-bl { bottom: 10px; left: 10px; border-bottom-width: 1.5px; border-left-width: 1.5px; border-bottom-left-radius: 6px; }
-.royal-corner.c-br { bottom: 10px; right: 10px; border-bottom-width: 1.5px; border-right-width: 1.5px; border-bottom-right-radius: 6px; }
+.royal-corner.c-tl { top: 8px; left: 8px; border-top-width: 1.5px; border-left-width: 1.5px; border-top-left-radius: 8px; }
+.royal-corner.c-tr { top: 8px; right: 8px; border-top-width: 1.5px; border-right-width: 1.5px; border-top-right-radius: 8px; }
+.royal-corner.c-bl { bottom: 8px; left: 8px; border-bottom-width: 1.5px; border-left-width: 1.5px; border-bottom-left-radius: 8px; }
+.royal-corner.c-br { bottom: 8px; right: 8px; border-bottom-width: 1.5px; border-right-width: 1.5px; border-bottom-right-radius: 8px; }
 
 .royal-vault-content {
   position: relative;
   z-index: 2;
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .royal-hero-top {
@@ -9053,7 +9058,7 @@ html[data-theme="dark"] .fund-filter-pill.active {
 }
 
 .royal-hero-balance {
-  font-size: clamp(28px, 8.6vw, 37px);
+  font-size: clamp(24px, 7.2vw, 31px);
   font-weight: 800;
   line-height: 1.08;
   letter-spacing: -0.03em;
@@ -9115,13 +9120,24 @@ html[data-theme="dark"] .fund-filter-pill.active {
   overflow: visible;
 }
 
-.royal-progress-fill::before {
-  content: "";
+.royal-progress-shimmer {
   position: absolute;
   inset: 0;
   border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.royal-progress-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
   background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.52) 50%, transparent 100%);
   transform: translateX(-100%);
+}
+
+.royal-progress-fill.is-empty .royal-progress-diamond {
+  opacity: 0;
 }
 
 .royal-progress-diamond {
@@ -9135,13 +9151,14 @@ html[data-theme="dark"] .fund-filter-pill.active {
   border: 1px solid #6E4A0C;
   box-shadow: 0 0 10px rgba(255, 238, 178, 0.9);
   transform: translateY(-50%) rotate(45deg);
+  transition: opacity 0.2s ease-out;
 }
 
 .royal-hero-stats-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
-  padding-top: 12px;
+  padding-top: 9px;
   border-top: 1px solid rgba(232, 196, 106, 0.2);
 }
 
@@ -9203,6 +9220,11 @@ html[data-theme="dark"] .fund-filter-pill.active {
   --ry: 0deg;
   --gx: 50%;
   --gy: 20%;
+  aspect-ratio: 85.6 / 53.98;
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  padding: 15px 16px 14px;
   background:
     radial-gradient(110% 85% at 96% 0%, rgba(232, 196, 106, 0.16) 0%, transparent 56%),
     linear-gradient(155deg, #FFFFFF 0%, var(--fund-bg) 100%);
@@ -9212,6 +9234,12 @@ html[data-theme="dark"] .fund-filter-pill.active {
     0 3px 8px rgba(18, 28, 20, 0.04),
     inset 0 1px 0 rgba(255, 255, 255, 0.92),
     inset 0 0 0 1px rgba(212, 164, 60, 0.14);
+}
+
+#tab-funds .fund-card-body {
+  flex: 1;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 #tab-funds .fund-goal-card.fund-theme-sage {
@@ -9280,12 +9308,15 @@ html[data-theme="dark"] .fund-filter-pill.active {
   border-width: 0;
 }
 
-.fund-corner-ornament.c-tl { top: 9px; left: 9px; border-top-width: 1.5px; border-left-width: 1.5px; border-top-left-radius: 5px; }
-.fund-corner-ornament.c-tr { top: 9px; right: 9px; border-top-width: 1.5px; border-right-width: 1.5px; border-top-right-radius: 5px; }
-.fund-corner-ornament.c-bl { bottom: 9px; left: 9px; border-bottom-width: 1.5px; border-left-width: 1.5px; border-bottom-left-radius: 5px; }
-.fund-corner-ornament.c-br { bottom: 9px; right: 9px; border-bottom-width: 1.5px; border-right-width: 1.5px; border-bottom-right-radius: 5px; }
+.fund-corner-ornament.c-tl { top: 8px; left: 8px; border-top-width: 1.5px; border-left-width: 1.5px; border-top-left-radius: 8px; }
+.fund-corner-ornament.c-tr { top: 8px; right: 8px; border-top-width: 1.5px; border-right-width: 1.5px; border-top-right-radius: 8px; }
+.fund-corner-ornament.c-bl { bottom: 8px; left: 8px; border-bottom-width: 1.5px; border-left-width: 1.5px; border-bottom-left-radius: 8px; }
+.fund-corner-ornament.c-br { bottom: 8px; right: 8px; border-bottom-width: 1.5px; border-right-width: 1.5px; border-bottom-right-radius: 8px; }
 
 #tab-funds .fund-card-icon-badge {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
   background: linear-gradient(145deg, #FFFFFF 0%, var(--fund-badge-bg) 100%);
   border: 1.5px solid rgba(197, 150, 54, 0.35);
   box-shadow:
@@ -9295,9 +9326,52 @@ html[data-theme="dark"] .fund-filter-pill.active {
 
 #tab-funds .fund-card-name {
   font-family: var(--royal-serif);
-  font-size: 19px;
+  font-size: 17px;
   font-weight: 700;
   letter-spacing: -0.01em;
+}
+
+#tab-funds .fund-hero-showcase {
+  padding: 2px 0;
+  gap: 10px;
+}
+
+#tab-funds .fund-saved-val {
+  font-size: clamp(23px, 6.8vw, 29px);
+}
+
+#tab-funds .fund-target-sub {
+  font-size: 13px;
+}
+
+#tab-funds .fund-dial-wrap,
+#tab-funds .fund-dial-svg {
+  width: 74px;
+  height: 74px;
+}
+
+#tab-funds .fund-ring-pct {
+  font-size: 15.5px;
+}
+
+#tab-funds .fund-card-actions {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px;
+  padding-top: 0;
+}
+
+#tab-funds .fund-card-actions .btn-fund-edit-gear {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: 10px;
+}
+
+#tab-funds .btn-fund-deposit-sm,
+#tab-funds .btn-fund-history-sm {
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 13.5px;
 }
 
 #tab-funds .fund-goal-done-badge {
@@ -9536,12 +9610,12 @@ html[data-theme="dark"] #tab-funds .btn-fund-edit-gear {
 
 @media (max-width: 360px) {
   .funds-royal-vault-hero {
-    padding: 18px 15px 15px;
-    border-radius: 26px;
+    padding: 14px 14px 12px;
+    border-radius: 14px;
   }
 
   .royal-hero-balance {
-    font-size: clamp(24px, 8.2vw, 32px);
+    font-size: clamp(22px, 7.2vw, 27px);
   }
 
   .royal-hero-stats-grid {
@@ -9554,6 +9628,21 @@ html[data-theme="dark"] #tab-funds .btn-fund-edit-gear {
 
   .royal-stat-val {
     font-size: 13px;
+  }
+
+  #tab-funds .fund-goal-card {
+    padding: 13px 13px 12px;
+    border-radius: 14px;
+  }
+
+  #tab-funds .fund-dial-wrap,
+  #tab-funds .fund-dial-svg {
+    width: 68px;
+    height: 68px;
+  }
+
+  #tab-funds .fund-ring-pct {
+    font-size: 14px;
   }
 }
 
@@ -9589,7 +9678,7 @@ html[data-theme="dark"] #tab-funds .btn-fund-edit-gear {
     animation: fundVaultSheen 6.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   }
 
-  .royal-progress-fill::before {
+  .royal-progress-shimmer::after {
     animation: fundBarShimmer 3.2s ease-in-out infinite;
   }
 
