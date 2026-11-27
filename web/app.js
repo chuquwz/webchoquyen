@@ -5798,6 +5798,7 @@
 
     const EDGE_ZONE_PX = 36;
     const ACTION_TRAY_W = Number(opts.trayWidth) || 204;
+    const getRowTrayW = (r) => Number(r && r.dataset && r.dataset.trayW) || ACTION_TRAY_W;
     const PAY_TRIGGER_X = 76;
     const PAY_MAX_X = 112;
     const onRightTrigger = typeof opts.onRightTrigger === 'function' ? opts.onRightTrigger : null;
@@ -5852,9 +5853,10 @@
       }
 
       if (surface) {
+        const trayW = getRowTrayW(row);
         surface.classList.remove('is-dragging');
         surface.classList.add('is-settling');
-        surface.style.transform = open ? `translate3d(-${ACTION_TRAY_W}px, 0, 0)` : 'translate3d(0, 0, 0)';
+        surface.style.transform = open ? `translate3d(-${trayW}px, 0, 0)` : 'translate3d(0, 0, 0)';
         if (prefersReducedMotion()) {
           surface.classList.remove('is-settling');
           if (!open) surface.style.transform = '';
@@ -5956,15 +5958,17 @@
       }
 
       clearRowTimer(row);
+      const rowTrayW = getRowTrayW(row);
       drag = {
         row,
         surface,
+        trayW: rowTrayW,
         isUnpaid: row.dataset.jobStatus === 'CTT',
-        baseX: openRow === row ? -ACTION_TRAY_W : 0,
+        baseX: openRow === row ? -rowTrayW : 0,
         startX: touch.clientX,
         startY: touch.clientY,
         originX: touch.clientX,
-        lastAppliedX: openRow === row ? -ACTION_TRAY_W : 0,
+        lastAppliedX: openRow === row ? -rowTrayW : 0,
         axis: null,
         hapticFired: false,
         samples: [{ x: touch.clientX, t: nowMs() }]
@@ -6023,8 +6027,8 @@
         } else {
           visualX = Math.min(18, rawX * 0.15);
         }
-      } else if (rawX < -ACTION_TRAY_W) {
-        visualX = -ACTION_TRAY_W + (rawX + ACTION_TRAY_W) * 0.22;
+      } else if (rawX < -drag.trayW) {
+        visualX = -drag.trayW + (rawX + drag.trayW) * 0.22;
       }
 
       pendingX = visualX;
@@ -6068,7 +6072,7 @@
       if (!isCancel && d.isUnpaid && (x >= PAY_TRIGGER_X || (vx >= 0.35 && x >= 42))) {
         setRowOpen(d.row, false);
         if (onRightTrigger) {
-          onRightTrigger(Number(d.row.dataset.jobId));
+          onRightTrigger(Number(d.row.dataset.jobId), d.row);
         }
         return;
       }
@@ -6114,6 +6118,16 @@
     setupSwipeListController('borrow-modal-list', {
       trayWidth: 144,
       onRightTrigger: (id) => window.openRepayBorrowModal(id)
+    });
+    setupSwipeListController('work-unpaid-groups-list', {
+      trayWidth: 204,
+      onRightTrigger: (id, row) => {
+        if (row && row.dataset.rightAction === 'pay-group' && row.dataset.custEnc) {
+          window.payAllCustomerDebt(row.dataset.custEnc);
+        } else if (id > 0) {
+          window.openDebtJobPayModal(id);
+        }
+      }
     });
   }
 
@@ -6720,6 +6734,7 @@
     const totalEl = document.getElementById('work-unpaid-total-all');
     const countEl = document.getElementById('work-unpaid-count-all');
     const listEl = document.getElementById('work-unpaid-groups-list');
+    closeActiveJobSwipeRow();
     if (totalEl) totalEl.textContent = formatVND(workState.totalUnpaidAll || 0);
     if (countEl) countEl.textContent = `${workState.totalUnpaidJobs || 0} đơn nợ`;
 
@@ -6874,70 +6889,164 @@
             ? `${unpaidJobCnt}/${totalJobCnt} đơn chưa trả • Đã thu ${formatShortK(groupPaidAmt)}`
             : `${unpaidJobCnt} đơn chưa thanh toán`));
 
+      if (g._visibleJobs.length === 1) {
+        const j = g._visibleJobs[0];
+        const dt = getDebtJobTotals(j);
+        const jobSettled = dt.remaining <= 0;
+        const chClass = g.channel === 'FB' ? 'ch-fb' : 'ch-zl';
+        const footHtml = buildInstallmentFootHTML(dt.orig, dt.paid, dt.remaining, dt.overpaid, dt.payments, j.date);
+        const rightAction = dt.paid > 0 ? 'pay-job' : 'pay-group';
+        const rightCueText = dt.paid > 0
+          ? `Trả tiếp (${formatShortK(dt.remaining)})`
+          : `Thu hết (${formatShortK(groupUnpaidAmt)})`;
+        const statusChipHtml = jobSettled
+          ? `<span class="work-job-status-chip is-paid">${workIconSVG('check', 11)} <span>Đã trả xong</span></span>`
+          : `<span class="work-job-status-chip is-unpaid">${workIconSVG('clock', 11)} <span>${dt.paid > 0 ? 'Đang trả góp' : 'Chưa trả'}</span></span>`;
+        const payBtnHtml = jobSettled
+          ? `<button type="button" class="job-swipe-action-btn is-edit" tabindex="-1" onclick="closeActiveJobSwipeRow(); openDebtJobPayModal(${Number(j.id)})" aria-label="Xem lịch sử trả tiền ${safeCust}">
+              ${workIconSVG('clock', 16)}
+              <span>Lịch sử</span>
+            </button>`
+          : `<button type="button" class="job-swipe-action-btn is-mark-paid" tabindex="-1" onclick="closeActiveJobSwipeRow(); openDebtJobPayModal(${Number(j.id)})" aria-label="Trả tiền đơn ${escapeHTML(j.service)} của ${safeCust}">
+              ${workIconSVG('check', 16)}
+              <span>Trả tiền</span>
+            </button>`;
+
+        return `
+          <div class="job-swipe-row" data-no-tab-swipe="1" data-tray-w="204" data-job-id="${Number(j.id)}" data-job-status="${jobSettled ? 'TT' : 'CTT'}" data-right-action="${rightAction}" data-cust-enc="${encCust}">
+            <div class="job-swipe-rail">
+              ${!jobSettled ? `<div class="job-swipe-underlay job-swipe-underlay-pay" aria-hidden="true"><span class="job-swipe-cue">${workIconSVG('check', 16)} <span>${rightCueText}</span></span></div>` : ''}
+              <div class="job-swipe-underlay job-swipe-underlay-actions" aria-hidden="true" inert>
+                ${payBtnHtml}
+                <button type="button" class="job-swipe-action-btn is-edit" tabindex="-1" onclick="closeActiveJobSwipeRow(); copyCustomerDebtText('${encCust}')" aria-label="${jobSettled ? 'Copy lịch sử trả' : 'Copy báo nợ'} ${safeCust}">
+                  ${workIconSVG('copy', 16)}
+                  <span>${jobSettled ? 'Copy LS' : 'Copy nợ'}</span>
+                </button>
+                <button type="button" class="job-swipe-action-btn is-delete" tabindex="-1" onclick="closeActiveJobSwipeRow(); deleteWorkJob(${Number(j.id)}, { fromDebt: true })" aria-label="Xoá đơn nợ ${escapeHTML(j.service)} của ${safeCust}">
+                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                  <span>Xoá</span>
+                </button>
+              </div>
+            </div>
+            <div class="work-job-card ${jobSettled ? 'is-borrow-settled' : 'is-unpaid'} job-swipe-surface">
+              <div class="work-job-top">
+                <div class="work-job-cust-wrap">
+                  <span class="work-ch-badge ${chClass}">${escapeHTML(g.channel)}</span>
+                  <span class="work-job-cust-name">${safeCust}</span>
+                </div>
+                <div class="work-ledger-amt-col font-tabular">
+                  <span class="work-job-price-val font-tabular${jobSettled ? ' is-settled-amt' : ''}">${jobSettled ? '0đ' : formatVND(dt.remaining)}</span>
+                  ${dt.paid > 0 ? `<span class="work-borrow-orig-sub">Gốc ${formatShortK(dt.orig)}${dt.overpaid > 0 ? ` • Thừa +${formatShortK(dt.overpaid)}` : ''}</span>` : ''}
+                </div>
+              </div>
+              <div class="work-job-bottom">
+                <div style="width: 100%; min-width: 0;">
+                  <span class="work-job-service-name">${escapeHTML(j.service)}</span>
+                  <div class="work-job-meta-row">
+                    <span class="font-tabular" style="font-size: 11.5px; color: var(--text-sub);">${escapeHTML(formatVNDate(j.date).slice(0, 5))}</span>
+                    ${statusChipHtml}
+                  </div>
+                </div>
+              </div>
+              ${footHtml}
+            </div>
+          </div>
+        `;
+      }
+
       const itemsHtml = g._visibleJobs.map(j => {
         const dt = getDebtJobTotals(j);
         const jobSettled = dt.remaining <= 0;
-        const badgeHtml = jobSettled
-          ? '<span class="work-debt-status-badge is-settled">&#10003; Đã trả xong</span>'
-          : (dt.paid > 0
-            ? '<span class="work-debt-status-badge">Đang trả góp</span>'
-            : '<span class="work-debt-status-badge">Chưa trả xong</span>');
+        const statusChipHtml = jobSettled
+          ? `<span class="work-job-status-chip is-paid">${workIconSVG('check', 11)} <span>Đã trả xong</span></span>`
+          : `<span class="work-job-status-chip is-unpaid">${workIconSVG('clock', 11)} <span>${dt.paid > 0 ? 'Đang trả góp' : 'Chưa trả'}</span></span>`;
+        const payBtnHtml = jobSettled
+          ? `<button type="button" class="job-swipe-action-btn is-edit" tabindex="-1" onclick="closeActiveJobSwipeRow(); openDebtJobPayModal(${Number(j.id)})" aria-label="Xem lịch sử trả tiền đơn ${escapeHTML(j.service)} của ${safeCust}">
+              ${workIconSVG('clock', 16)}
+              <span>Lịch sử</span>
+            </button>`
+          : `<button type="button" class="job-swipe-action-btn is-mark-paid" tabindex="-1" onclick="closeActiveJobSwipeRow(); openDebtJobPayModal(${Number(j.id)})" aria-label="Trả tiền đơn ${escapeHTML(j.service)} của ${safeCust}">
+              ${workIconSVG('check', 16)}
+              <span>Trả tiền</span>
+            </button>`;
         const footHtml = buildInstallmentFootHTML(dt.orig, dt.paid, dt.remaining, dt.overpaid, dt.payments, j.date);
 
         return `
-        <div class="work-debt-item-row font-tabular${jobSettled ? ' is-debt-settled' : ''}">
-          <div class="work-debt-item-top">
-            <div class="work-debt-item-main">
-              <div class="work-debt-item-title-line">
-                <strong>${formatVNDate(j.date).slice(0, 5)}</strong>:
-                <span>${escapeHTML(j.service)}</span>
+        <div class="job-swipe-row" data-no-tab-swipe="1" data-tray-w="144" data-job-id="${Number(j.id)}" data-job-status="${jobSettled ? 'TT' : 'CTT'}" data-right-action="pay-job">
+          <div class="job-swipe-rail">
+            ${!jobSettled ? `<div class="job-swipe-underlay job-swipe-underlay-pay" aria-hidden="true"><span class="job-swipe-cue">${workIconSVG('check', 16)} <span>Trả tiền (${formatShortK(dt.remaining)})</span></span></div>` : ''}
+            <div class="job-swipe-underlay job-swipe-underlay-actions is-two-actions" aria-hidden="true" inert>
+              ${payBtnHtml}
+              <button type="button" class="job-swipe-action-btn is-delete" tabindex="-1" onclick="closeActiveJobSwipeRow(); deleteWorkJob(${Number(j.id)}, { fromDebt: true })" aria-label="Xoá đơn nợ ${escapeHTML(j.service)} của ${safeCust}">
+                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                <span>Xoá</span>
+              </button>
+            </div>
+          </div>
+          <div class="work-job-card work-debt-item-card ${jobSettled ? 'is-borrow-settled' : 'is-unpaid'} job-swipe-surface">
+            <div class="work-job-top">
+              <div class="work-job-cust-wrap">
+                <span class="work-stt-badge font-tabular">${escapeHTML(formatVNDate(j.date).slice(0, 5))}</span>
+                <span class="work-job-cust-name">${escapeHTML(j.service)}</span>
               </div>
-              <div class="work-debt-item-meta">
-                ${badgeHtml}
+              <div class="work-ledger-amt-col font-tabular">
+                <span class="work-job-price-val font-tabular${jobSettled ? ' is-settled-amt' : ''}">${jobSettled ? '0đ' : formatVND(dt.remaining)}</span>
                 ${dt.paid > 0 ? `<span class="work-borrow-orig-sub">Gốc ${formatShortK(dt.orig)}${dt.overpaid > 0 ? ` • Thừa +${formatShortK(dt.overpaid)}` : ''}</span>` : ''}
               </div>
             </div>
-            <div class="work-debt-item-right">
-              <span class="work-debt-item-amt${jobSettled ? ' is-settled' : ''}">${jobSettled ? '0đ' : formatVND(dt.remaining)}</span>
-              <div class="work-debt-item-actions">
-                <button type="button" class="btn-ledger-repay${jobSettled ? ' is-settled' : ''}" onclick="openDebtJobPayModal(${Number(j.id)})" aria-label="${jobSettled ? 'Xem lịch sử trả tiền' : 'Trả tiền'} đơn ${escapeHTML(j.service)} của ${safeCust}">${jobSettled ? 'Lịch sử' : 'Trả tiền'}</button>
-                <button type="button" class="btn-job-icon btn-del" onclick="deleteWorkJob(${Number(j.id)}, { fromDebt: true })" aria-label="Xoá đơn nợ ${escapeHTML(j.service)} của ${safeCust}">Xoá</button>
-              </div>
+            <div class="work-job-meta-row">
+              <span class="font-tabular" style="font-size: 11.5px; color: var(--text-sub);">${escapeHTML(formatDayMonthTime(j.date, j.ts))}</span>
+              ${statusChipHtml}
             </div>
+            ${footHtml}
           </div>
-          ${footHtml}
         </div>
       `;
       }).join('');
 
       const visibleCount = g._visibleJobs.length;
-      const canToggle = visibleCount >= 2;
-      const isExpanded = !canToggle || Boolean(workState.debtExpandedKeys && workState.debtExpandedKeys[custKey]);
+      const isExpanded = Boolean(workState.debtExpandedKeys && workState.debtExpandedKeys[custKey]);
       const itemsListId = `debt-group-items-${groupIdx}`;
-      const toggleBtnHtml = canToggle
-        ? `<button type="button" class="btn-debt-items-toggle${isExpanded ? ' is-expanded' : ''}" data-count="${visibleCount}" aria-expanded="${isExpanded ? 'true' : 'false'}" aria-controls="${itemsListId}" aria-label="${isExpanded ? `Ẩn chi tiết ${visibleCount} đơn của ${safeCust}` : `Hiện chi tiết ${visibleCount} đơn của ${safeCust}`}" onclick="toggleDebtGroupItems('${encCust}', '${itemsListId}', this)"><span class="debt-toggle-label">${isExpanded ? `Ẩn chi tiết (${visibleCount} đơn)` : `Hiện chi tiết (${visibleCount} đơn)`}</span><svg class="debt-toggle-chevron" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg></button>`
-        : '';
+      const chClass = g.channel === 'FB' ? 'ch-fb' : 'ch-zl';
+      const headerTrayW = groupSettled ? 76 : 144;
+      const headerTrayClass = groupSettled ? 'is-one-action' : 'is-two-actions';
 
       return `
-        <div class="work-debt-group-card${groupSettled ? ' is-debt-settled' : ''}">
-          <div class="work-debt-group-header">
-            <div style="min-width: 0;">
-              <div class="work-debt-cust-title">${safeCust} <span class="work-ch-badge ${g.channel === 'FB' ? 'ch-fb' : 'ch-zl'}">${escapeHTML(g.channel)}</span>${groupSettled ? ' <span class="work-borrow-settled-badge">&#10003; Đã trả xong</span>' : ''}</div>
-              <span style="font-size: 11.5px; color: var(--text-sub);">${subText}</span>
+        <div class="work-debt-group-shell${groupSettled ? ' is-debt-settled' : ''}">
+          <div class="job-swipe-row" data-no-tab-swipe="1" data-tray-w="${headerTrayW}" data-job-status="${groupSettled ? 'TT' : 'CTT'}" data-right-action="pay-group" data-cust-enc="${encCust}">
+            <div class="job-swipe-rail">
+              ${!groupSettled ? `<div class="job-swipe-underlay job-swipe-underlay-pay" aria-hidden="true"><span class="job-swipe-cue">${workIconSVG('check', 16)} <span>Thu hết (${formatShortK(groupUnpaidAmt)})</span></span></div>` : ''}
+              <div class="job-swipe-underlay job-swipe-underlay-actions ${headerTrayClass}" aria-hidden="true" inert>
+                ${groupSettled ? '' : `<button type="button" class="job-swipe-action-btn is-mark-paid" tabindex="-1" onclick="closeActiveJobSwipeRow(); payAllCustomerDebt('${encCust}')" aria-label="Thu hết sổ nợ của ${safeCust}">${workIconSVG('check', 16)}<span>Thu hết</span></button>`}
+                <button type="button" class="job-swipe-action-btn is-edit" tabindex="-1" onclick="closeActiveJobSwipeRow(); copyCustomerDebtText('${encCust}')" aria-label="${groupSettled ? 'Copy lịch sử trả' : 'Copy báo nợ'} của ${safeCust}">
+                  ${workIconSVG('copy', 16)}
+                  <span>${groupSettled ? 'Copy LS' : 'Copy nợ'}</span>
+                </button>
+              </div>
             </div>
-            <div class="work-ledger-amt-col font-tabular">
-              <span class="work-debt-total-val">${formatVND(headerDisplayAmt)}</span>
-              ${isPartialView
+            <div class="work-job-card ${groupSettled ? 'is-borrow-settled' : 'is-unpaid'} job-swipe-surface">
+              <div class="work-job-top">
+                <div class="work-job-cust-wrap">
+                  <span class="work-ch-badge ${chClass}">${escapeHTML(g.channel)}</span>
+                  <span class="work-job-cust-name">${safeCust}</span>
+                </div>
+                <div class="work-ledger-amt-col font-tabular">
+                  <span class="work-job-price-val font-tabular${groupSettled ? ' is-settled-amt' : ''}">${formatVND(headerDisplayAmt)}</span>
+                  ${isPartialView
           ? (visibleOrigAmt > 0 ? `<span class="work-borrow-orig-sub">Gốc khớp ${formatShortK(visibleOrigAmt)}</span>` : '')
           : (groupPaidAmt > 0 ? `<span class="work-borrow-orig-sub">Gốc ${formatShortK(groupOrigAmt)}</span>` : '')}
+                </div>
+              </div>
+              <div class="work-job-meta-row">
+                <span style="font-size: 11.5px; color: var(--text-sub);">${subText}</span>
+                <button type="button" class="btn-debt-items-toggle is-compact${isExpanded ? ' is-expanded' : ''}" data-count="${visibleCount}" aria-expanded="${isExpanded ? 'true' : 'false'}" aria-controls="${itemsListId}" aria-label="${isExpanded ? `Ẩn chi tiết ${visibleCount} đơn của ${safeCust}` : `Hiện chi tiết ${visibleCount} đơn của ${safeCust}`}" onclick="toggleDebtGroupItems('${encCust}', '${itemsListId}', this)">
+                  <span class="debt-toggle-label">${isExpanded ? `Ẩn chi tiết (${visibleCount})` : `Xem ${visibleCount} đơn`}</span>
+                  <svg class="debt-toggle-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+                </button>
+              </div>
             </div>
           </div>
-          ${toggleBtnHtml}
           <div id="${itemsListId}" class="work-debt-items-list"${isExpanded ? '' : ' hidden'}>${itemsHtml}</div>
-          <div class="work-debt-group-actions${groupSettled ? ' is-single' : ''}">
-            <button type="button" class="btn-debt-copy" onclick="copyCustomerDebtText('${encCust}')">${workIconSVG('copy', 14)} <span>${groupSettled ? 'Copy lịch sử trả' : 'Copy báo nợ'}</span></button>
-            ${groupSettled ? '' : `<button type="button" class="btn-debt-payall" onclick="payAllCustomerDebt('${encCust}')">${workIconSVG('check', 14)} <span>${isPartialView ? `Thu hết sổ (${formatShortK(groupUnpaidAmt)})` : `Đã thu hết (${formatShortK(groupUnpaidAmt)})`}</span></button>`}
-          </div>
         </div>
       `;
     }).join('');
@@ -6972,7 +7081,7 @@
       );
       const lblEl = btnEl.querySelector('.debt-toggle-label');
       if (lblEl) {
-        lblEl.textContent = nextExpanded ? `Ẩn chi tiết (${count} đơn)` : `Hiện chi tiết (${count} đơn)`;
+        lblEl.textContent = nextExpanded ? `Ẩn chi tiết (${count})` : `Xem ${count} đơn`;
       }
     }
   };

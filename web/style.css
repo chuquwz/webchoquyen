@@ -3942,6 +3942,10 @@ input.work-mobile-input:not(.work-search-input) {
   width: 144px;
 }
 
+.job-swipe-underlay-actions.is-one-action {
+  width: 76px;
+}
+
 .job-swipe-row.is-swiping-left .job-swipe-underlay-actions,
 .job-swipe-row.is-actions-open .job-swipe-underlay-actions {
   opacity: 1;
@@ -4136,6 +4140,56 @@ html[data-theme="dark"] .work-job-status-chip.is-unpaid {
   color: var(--text-sub);
   line-height: 1.45;
   margin-bottom: 12px;
+}
+
+.work-debt-group-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.work-debt-group-shell .work-debt-items-list {
+  padding-left: 10px;
+  border-left: 2px solid #FDBA74;
+  gap: 8px;
+}
+
+.work-debt-group-shell.is-debt-settled .work-debt-items-list {
+  border-left-color: #B9DCAA;
+}
+
+.work-debt-item-card {
+  padding: 12px 13px;
+}
+
+.btn-debt-items-toggle.is-compact {
+  width: auto;
+  min-height: 30px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  justify-content: center;
+  gap: 4px;
+}
+
+html[data-theme="dark"] .work-debt-group-shell .work-debt-items-list {
+  border-left-color: rgba(251, 191, 36, 0.42);
+}
+
+html[data-theme="dark"] .work-debt-group-shell.is-debt-settled .work-debt-items-list {
+  border-left-color: rgba(134, 199, 90, 0.42);
+}
+
+html[data-theme="dark"] .btn-debt-items-toggle.is-compact {
+  background-color: rgba(245, 158, 11, 0.16);
+  border-color: rgba(251, 191, 36, 0.4);
+  color: #FDE68A;
+}
+
+html[data-theme="dark"] .work-debt-group-shell.is-debt-settled .btn-debt-items-toggle.is-compact {
+  background-color: rgba(134, 199, 90, 0.16);
+  border-color: rgba(134, 199, 90, 0.4);
+  color: #C7F2B0;
 }
 
 .work-debt-group-card {
@@ -7612,7 +7666,57 @@ html[data-theme="dark"] .repay-metric-val.is-remaining {
   color: #FDBA74;
 }
 
-html[data-theme="dark"] .work-debt-group-card {
+html[data-theme="dark"] .work-debt-group-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.work-debt-group-shell .work-debt-items-list {
+  padding-left: 10px;
+  border-left: 2px solid #FDBA74;
+  gap: 8px;
+}
+
+.work-debt-group-shell.is-debt-settled .work-debt-items-list {
+  border-left-color: #B9DCAA;
+}
+
+.work-debt-item-card {
+  padding: 12px 13px;
+}
+
+.btn-debt-items-toggle.is-compact {
+  width: auto;
+  min-height: 30px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  justify-content: center;
+  gap: 4px;
+}
+
+html[data-theme="dark"] .work-debt-group-shell .work-debt-items-list {
+  border-left-color: rgba(251, 191, 36, 0.42);
+}
+
+html[data-theme="dark"] .work-debt-group-shell.is-debt-settled .work-debt-items-list {
+  border-left-color: rgba(134, 199, 90, 0.42);
+}
+
+html[data-theme="dark"] .btn-debt-items-toggle.is-compact {
+  background-color: rgba(245, 158, 11, 0.16);
+  border-color: rgba(251, 191, 36, 0.4);
+  color: #FDE68A;
+}
+
+html[data-theme="dark"] .work-debt-group-shell.is-debt-settled .btn-debt-items-toggle.is-compact {
+  background-color: rgba(134, 199, 90, 0.16);
+  border-color: rgba(134, 199, 90, 0.4);
+  color: #C7F2B0;
+}
+
+.work-debt-group-card {
   border-color: #8D4E1D;
 }
 
