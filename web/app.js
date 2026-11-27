@@ -5424,7 +5424,7 @@
 
   const pendingJobDeletes = new Map();
   const pendingLedgerDeletes = new Map();
-  let activeJobSwipeCloser = null;
+  const activeSwipeClosers = [];
 
   function isJobPendingDelete(j) {
     if (!j || pendingJobDeletes.size === 0) return false;
@@ -5449,9 +5449,9 @@
   }
 
   window.closeActiveJobSwipeRow = function () {
-    if (typeof activeJobSwipeCloser === 'function') {
-      activeJobSwipeCloser();
-    }
+    activeSwipeClosers.forEach(fn => {
+      if (typeof fn === 'function') fn();
+    });
   };
 
   function renderWorkJobsList() {
@@ -5791,15 +5791,16 @@
     });
   }
 
-  function setupWorkJobSwipeGestures() {
-    const listEl = document.getElementById('work-jobs-list');
+  function setupSwipeListController(listId, opts = {}) {
+    const listEl = document.getElementById(listId);
     if (!listEl || listEl.dataset.swipeBound) return;
     listEl.dataset.swipeBound = '1';
 
     const EDGE_ZONE_PX = 36;
-    const ACTION_TRAY_W = 204;
+    const ACTION_TRAY_W = Number(opts.trayWidth) || 204;
     const PAY_TRIGGER_X = 76;
     const PAY_MAX_X = 112;
+    const onRightTrigger = typeof opts.onRightTrigger === 'function' ? opts.onRightTrigger : null;
 
     const scheduleFrame = typeof window.requestAnimationFrame === 'function'
       ? window.requestAnimationFrame.bind(window)
@@ -5870,13 +5871,13 @@
       }
     }
 
-    activeJobSwipeCloser = () => {
+    activeSwipeClosers.push(() => {
       if (openRow && openRow.isConnected) {
         setRowOpen(openRow, false);
       } else {
         openRow = null;
       }
-    };
+    });
 
     function cancelDragFrame() {
       if (rafId) {
@@ -6066,7 +6067,9 @@
 
       if (!isCancel && d.isUnpaid && (x >= PAY_TRIGGER_X || (vx >= 0.35 && x >= 42))) {
         setRowOpen(d.row, false);
-        window.quickCollectWorkJob(Number(d.row.dataset.jobId));
+        if (onRightTrigger) {
+          onRightTrigger(Number(d.row.dataset.jobId));
+        }
         return;
       }
       if (!isCancel && (x <= -56 || (vx <= -0.3 && x <= -28))) {
@@ -6101,6 +6104,17 @@
         setRowOpen(openRow, false);
       }
     }, { passive: true });
+  }
+
+  function setupWorkJobSwipeGestures() {
+    setupSwipeListController('work-jobs-list', {
+      trayWidth: 204,
+      onRightTrigger: (id) => window.quickCollectWorkJob(id)
+    });
+    setupSwipeListController('borrow-modal-list', {
+      trayWidth: 144,
+      onRightTrigger: (id) => window.openRepayBorrowModal(id)
+    });
   }
 
   window.updateEditJobPricePreview = function (rawVal) {
@@ -7193,30 +7207,51 @@
     const { orig, paid, remaining, overpaid, repayments } = getBorrowTotals(item);
     const isSettled = remaining <= 0 && orig > 0;
     const footHtml = buildInstallmentFootHTML(orig, paid, remaining, overpaid, repayments, item.date);
+    const safeNote = escapeHTML(item.note);
+    const statusChipHtml = isSettled
+      ? `<span class="work-job-status-chip is-paid">${workIconSVG('check', 11)} <span>Đã trả xong</span></span>`
+      : `<span class="work-job-status-chip is-unpaid">${workIconSVG('clock', 11)} <span>${paid > 0 ? 'Đang trả dần' : 'Chưa trả'}</span></span>`;
+    const swipeActionBtnHtml = isSettled
+      ? `<button type="button" class="job-swipe-action-btn is-edit" tabindex="-1" onclick="closeActiveJobSwipeRow(); openRepayBorrowModal(${Number(item.id)})" aria-label="Xem lịch sử trả tiền ${safeNote}">
+          ${workIconSVG('clock', 16)}
+          <span>Lịch sử</span>
+        </button>`
+      : `<button type="button" class="job-swipe-action-btn is-mark-paid" tabindex="-1" onclick="closeActiveJobSwipeRow(); openRepayBorrowModal(${Number(item.id)})" aria-label="Trả tiền khoản nợ ${safeNote}">
+          ${workIconSVG('check', 16)}
+          <span>Trả tiền</span>
+        </button>`;
 
     return `
-        <div class="work-job-card${isSettled ? ' is-borrow-settled' : ''}">
-          <div class="work-job-top">
-            <div style="min-width: 0; flex: 1;">
-              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                <span class="work-stt-badge">${getLedgerCatLabel('borrow')}</span>
-                <span class="font-tabular" style="font-size: 11.5px; color: var(--text-sub);">${escapeHTML(formatBorrowDateTime(item.date, item.ts))}</span>
-                ${isSettled ? '<span class="work-borrow-settled-badge">&#10003; Đã trả xong</span>' : ''}
-              </div>
-              <div class="work-job-cust-name work-ledger-note">${escapeHTML(item.note)}</div>
+        <div class="job-swipe-row" data-no-tab-swipe="1" data-job-id="${Number(item.id)}" data-job-status="${isSettled ? 'TT' : 'CTT'}">
+          <div class="job-swipe-rail">
+            ${!isSettled ? `<div class="job-swipe-underlay job-swipe-underlay-pay" aria-hidden="true"><span class="job-swipe-cue">${workIconSVG('check', 16)} <span>Trả tiền (${formatShortK(remaining)})</span></span></div>` : ''}
+            <div class="job-swipe-underlay job-swipe-underlay-actions is-two-actions" aria-hidden="true" inert>
+              ${swipeActionBtnHtml}
+              <button type="button" class="job-swipe-action-btn is-delete" tabindex="-1" onclick="closeActiveJobSwipeRow(); deleteWorkLedger(${Number(item.id)}, { isBorrow: true })" aria-label="Xoá khoản nợ ${safeNote}">
+                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                <span>Xoá</span>
+              </button>
             </div>
-            <div class="work-ledger-right">
+          </div>
+          <div class="work-job-card ${isSettled ? 'is-borrow-settled' : 'is-unpaid'} job-swipe-surface">
+            <div class="work-job-top">
+              <div style="min-width: 0; flex: 1;">
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                  <span class="work-stt-badge">${getLedgerCatLabel('borrow')}</span>
+                </div>
+                <div class="work-job-cust-name work-ledger-note">${safeNote}</div>
+              </div>
               <div class="work-ledger-amt-col font-tabular">
                 <span class="work-job-price-val font-tabular${isSettled ? ' is-settled-amt' : ''}">${formatVND(remaining)}</span>
                 ${paid > 0 ? `<span class="work-borrow-orig-sub">Gốc ${formatShortK(orig)}${overpaid > 0 ? ` • Thừa +${formatShortK(overpaid)}` : ''}</span>` : ''}
               </div>
-              <div class="work-ledger-actions">
-                <button type="button" class="btn-ledger-repay${isSettled ? ' is-settled' : ''}" onclick="openRepayBorrowModal(${Number(item.id)})" aria-label="${isSettled ? 'Xem lịch sử trả tiền' : 'Trả tiền'} khoản mượn ${escapeHTML(item.note)}">${isSettled ? 'Lịch sử' : 'Trả tiền'}</button>
-                <button type="button" class="btn-job-icon btn-del" onclick="deleteWorkLedger(${Number(item.id)}, { isBorrow: true })" aria-label="Xoá khoản mượn ${escapeHTML(item.note)}">Xoá</button>
-              </div>
             </div>
+            <div class="work-job-meta-row">
+              <span class="font-tabular" style="font-size: 11.5px; color: var(--text-sub);">${escapeHTML(formatBorrowDateTime(item.date, item.ts))}</span>
+              ${statusChipHtml}
+            </div>
+            ${footHtml}
           </div>
-          ${footHtml}
         </div>
       `;
   }
@@ -7258,6 +7293,7 @@
   };
 
   function renderBorrowListModal() {
+    closeActiveJobSwipeRow();
     const sum = getGlobalBorrowSummary();
     const setTxt = (id, val) => {
       const el = document.getElementById(id);
@@ -7268,22 +7304,6 @@
     setTxt('borrow-modal-total-rem', remStr);
     setTxt('borrow-modal-total-paid', formatVND(sum.paid));
     setTxt('borrow-modal-total-orig', formatVND(sum.orig));
-    setTxt('borrow-hero-count', `${sum.totalCount} khoản`);
-
-    const hasUnpaid = sum.unpaidCount > 0;
-    const allSettled = sum.totalCount > 0 && !hasUnpaid;
-    const statusPillEl = document.getElementById('borrow-hero-status-pill');
-    if (statusPillEl) {
-      statusPillEl.classList.toggle('is-has-unpaid', hasUnpaid);
-      statusPillEl.classList.toggle('is-settled', allSettled);
-      if (sum.totalCount === 0) {
-        statusPillEl.textContent = '0 khoản';
-      } else if (allSettled) {
-        statusPillEl.textContent = '✓ Đã trả xong hết';
-      } else {
-        statusPillEl.textContent = `${sum.unpaidCount} khoản chưa xong`;
-      }
-    }
 
     const overallPct = sum.orig > 0 ? Math.min(100, Math.round((sum.paid / sum.orig) * 100)) : 0;
     setTxt('borrow-hero-progress-pct', `${overallPct}%`);

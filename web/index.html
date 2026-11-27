@@ -54,8 +54,8 @@
       } catch (_) { }
     })();
   </script>
-  <link rel="stylesheet" href="/style.css?v=113">
-  <link rel="stylesheet" href="/liquid-glass.css?v=113">
+  <link rel="stylesheet" href="/style.css?v=114">
+  <link rel="stylesheet" href="/liquid-glass.css?v=114">
 </head>
 
 <body>
@@ -1061,23 +1061,14 @@
              MÀN HÌNH 3: KHOẢN NỢ CỦA QUYỀN (TOÀN BỘ KHOẢN NỢ + TRẢ DẦN)
              ===================================================================== -->
         <section id="tab-ledger" class="tab-pane" role="tabpanel" aria-label="Khoản nợ của Quyền">
-          <div class="screen-nav-header">
-            <button type="button" class="btn-circle-action" aria-label="Quay lại sổ công việc"
-              onclick="switchTab('work')">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2"
-                stroke-linecap="round" stroke-linejoin="round">
-                <path d="M15 18l-6-6 6-6" />
-              </svg>
-            </button>
+          <div class="screen-nav-header" style="justify-content: center;">
             <h1 class="screen-nav-title">Khoản nợ của Quyền</h1>
-            <div style="width: 40px;" aria-hidden="true"></div>
           </div>
 
           <!-- Thẻ Tổng Kết Khoản Nợ -->
           <div class="work-summary-hero-card debt-personal-hero" role="region" aria-label="Tổng hợp khoản nợ của Quyền">
             <div class="work-bank-header-row">
               <span class="work-summary-eyebrow">Còn phải trả</span>
-              <span id="borrow-hero-status-pill" class="work-job-count-pill font-tabular">0 khoản</span>
             </div>
 
             <div class="work-bank-balance-row">
@@ -1094,7 +1085,7 @@
               </div>
             </div>
 
-            <div class="work-month-grid-3 font-tabular">
+            <div class="work-month-grid-2 font-tabular">
               <div class="work-month-cell">
                 <span class="work-month-cell-lbl">Tổng đã trả</span>
                 <strong id="borrow-modal-total-paid" class="work-month-cell-val is-paid">0đ</strong>
@@ -1103,10 +1094,6 @@
                 <span class="work-month-cell-lbl">Tổng nợ gốc</span>
                 <strong id="borrow-modal-total-orig" class="work-month-cell-val">0đ</strong>
               </div>
-              <div class="work-month-cell">
-                <span class="work-month-cell-lbl">Số khoản</span>
-                <strong id="borrow-hero-count" class="work-month-cell-val">0 khoản</strong>
-              </div>
             </div>
           </div>
 
@@ -1114,7 +1101,7 @@
           <div id="borrow-search-panel" class="work-search-card work-search-card-compact" style="margin-top: 14px;"
             role="search" aria-label="Tìm kiếm khoản nợ theo tên">
             <div class="work-search-field-group">
-              <label class="work-search-label" for="borrow-search-input">Tìm khoản nợ theo tên</label>
+              <label class="sr-only" for="borrow-search-input">Tìm khoản nợ theo tên</label>
               <div class="work-search-input-wrap">
                 <svg class="work-search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none"
                   stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
@@ -1123,7 +1110,7 @@
                   <line x1="21" y1="21" x2="16.65" y2="16.65" />
                 </svg>
                 <input type="search" id="borrow-search-input" class="form-input work-mobile-input work-search-input"
-                  placeholder="Ví dụ: Anh Nam, Chị Hoa, Tiền nhà" autocomplete="off" enterkeyhint="search"
+                  placeholder="Tìm khoản nợ theo tên..." autocomplete="off" enterkeyhint="search"
                   oninput="onBorrowSearchInput(this.value)" onkeydown="onBorrowSearchKeydown(event)">
                 <button type="button" id="borrow-search-clear" class="work-search-clear"
                   aria-label="Xoá từ khoá tìm kiếm khoản nợ" onclick="clearBorrowSearch()" hidden>
@@ -2187,7 +2174,7 @@
     </div>
   </div>
 
-  <script src="/app.js?v=113"></script>
+  <script src="/app.js?v=114"></script>
 </body>
 
 </html>
