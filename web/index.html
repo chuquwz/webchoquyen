@@ -54,8 +54,8 @@
       } catch (_) { }
     })();
   </script>
-  <link rel="stylesheet" href="/style.css?v=116">
-  <link rel="stylesheet" href="/liquid-glass.css?v=116">
+  <link rel="stylesheet" href="/style.css?v=118">
+  <link rel="stylesheet" href="/liquid-glass.css?v=118">
 </head>
 
 <body>
@@ -409,15 +409,15 @@
                ===================================================================== -->
           <div class="section-container" style="margin-top: 22px; margin-bottom: 28px;">
             <div class="section-title-header">
-              <span class="motivation-heart-badge">
-                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="13" height="13" fill="currentColor"
-                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                  aria-hidden="true">
+              <h2 class="section-heading motivation-heading-inline">
+                <svg class="ui-inline-svg motivation-heading-heart" viewBox="0 0 24 24" width="13" height="13"
+                  fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" aria-hidden="true">
                   <path
                     d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
                 </svg>
                 <span>Vì người tôi yêu</span>
-              </span>
+              </h2>
               <button type="button" class="btn-link-action" style="display: inline-flex; align-items: center; gap: 4px;"
                 onclick="shuffleMotivationPhoto()" title="Đổi ảnh ngẫu nhiên">
                 <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
@@ -432,7 +432,7 @@
               </button>
             </div>
 
-            <!-- Thẻ Động Lực Nổi Bật -->
+            <!-- Thẻ Động Lực Nổi Bật (Tối giản) -->
             <div class="motivation-hero-card">
               <div class="motivation-image-container" onclick="openMotivationModal()" role="button" tabindex="0"
                 aria-label="Xem ảnh động lực phóng to"
@@ -440,14 +440,11 @@
                 <img id="motivation-hero-img" src="/ali/igexport-Dae9kAVCbKL.webp"
                   alt="Động lực giảm cân của Phùng Văn Quyền" class="motivation-hero-img" loading="lazy">
                 <div class="motivation-image-overlay">
-                  <span class="motivation-badge-tag">Mục tiêu 70kg vì em</span>
+                  <span class="motivation-eyebrow">Mục tiêu 70kg</span>
                   <p id="motivation-quote-text" class="motivation-quote">"Mỗi ngày kiên trì một chút, để trở thành phiên
                     bản phong độ và khoẻ mạnh nhất bên người mình yêu."</p>
                 </div>
               </div>
-
-              <!-- Dải ảnh cuộn ngang xem nhanh (Horizontal Thumbnails Strip) -->
-              <div class="motivation-thumbs-strip" id="motivation-thumbs-strip"></div>
             </div>
           </div>
         </section>
@@ -958,7 +955,7 @@
 
           <!-- Thẻ Tổng Kết Ngày & Tháng Tự Động (Bố cục chuẩn App Ngân Hàng - Cố định kết cấu) -->
           <div class="work-summary-hero-card" role="region" aria-label="Tổng kết doanh thu và chi tiêu">
-            <!-- Hàng 0: Chuyển nhanh chế độ xem Theo Ngày / Cả Tháng ngay trên thẻ chính -->
+            <!-- Hàng 0: Chuyển nhanh chế độ xem Theo Ngày / Cả Tháng + Tổng khách đang nợ -->
             <div class="work-hero-scope-bar">
               <div class="work-hero-scope-toggle" role="group" aria-label="Chế độ xem tổng kết">
                 <button type="button" id="btn-hero-scope-day" class="work-scope-btn active"
@@ -966,6 +963,11 @@
                 <button type="button" id="btn-hero-scope-month" class="work-scope-btn"
                   onclick="setWorkHeroScope('month')">Cả tháng</button>
               </div>
+              <button type="button" id="work-unpaid-banner" class="work-hero-debt-chip"
+                onclick="switchWorkSubTab('unpaid')" aria-label="Xem sổ nợ khách hàng">
+                <span class="work-hero-debt-chip-lbl">Tổng khách nợ</span>
+                <strong id="work-unpaid-total-all" class="work-hero-debt-chip-val font-tabular">0đ</strong>
+              </button>
             </div>
 
             <!-- Hàng 1: Nhãn tiêu đề (Trái) & Số lượng đơn (Phải) - Luôn cố định 1 dòng -->
@@ -1053,14 +1055,6 @@
                PHÂN KHU 2: SỔ NỢ KHÁCH HÀNG (GOM ĐƠN CTT THEO KHÁCH)
                =============================================================== -->
           <div id="work-subpane-unpaid" class="work-subpane">
-            <div id="work-unpaid-banner" class="work-unpaid-banner">
-              <div>
-                <span class="work-unpaid-banner-label">Tổng tiền khách đang nợ (CTT)</span>
-                <div id="work-unpaid-total-all" class="work-unpaid-banner-val font-tabular">0đ</div>
-              </div>
-              <span id="work-unpaid-count-all" class="work-job-count-pill badge-alert font-tabular">0 đơn nợ</span>
-            </div>
-
             <div id="debt-search-panel" class="work-search-card" role="search" aria-label="Tìm kiếm sổ nợ">
               <div class="work-search-field-group">
                 <div class="work-search-input-wrap">
@@ -2220,7 +2214,7 @@
     </div>
   </div>
 
-  <script src="/app.js?v=116"></script>
+  <script src="/app.js?v=118"></script>
 </body>
 
 </html>

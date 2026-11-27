@@ -3845,8 +3845,9 @@
   let motivationInitialized = false;
 
   function initMotivationSection() {
+    const heroImg = document.getElementById('motivation-hero-img');
+    if (!heroImg) return;
     const strip = document.getElementById('motivation-thumbs-strip');
-    if (!strip) return;
 
     if (!motivationInitialized) {
       const saved = localStorage.getItem('quyen_motivation_idx');
@@ -3856,9 +3857,11 @@
         currentMotivationIdx = Math.floor(Math.random() * ALI_PHOTOS.length);
       }
 
-      strip.innerHTML = ALI_PHOTOS.map((file, idx) => `
-        <img src="/ali/${file}" alt="Ảnh Ali ${idx + 1}" class="motivation-thumb-item ${idx === currentMotivationIdx ? 'active' : ''}" loading="lazy" onclick="selectMotivationPhoto(${idx})">
-      `).join('');
+      if (strip) {
+        strip.innerHTML = ALI_PHOTOS.map((file, idx) => `
+          <img src="/ali/${file}" alt="Ảnh Ali ${idx + 1}" class="motivation-thumb-item ${idx === currentMotivationIdx ? 'active' : ''}" loading="lazy" onclick="selectMotivationPhoto(${idx})">
+        `).join('');
+      }
       motivationInitialized = true;
     }
 

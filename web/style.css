@@ -2474,16 +2474,15 @@ body:not(.is-logged-in) #app-bottom-nav {
 /* --------------------------------------------------------------------------
    Khu vực ĐỘNG LỰC (Motivation Section)
    -------------------------------------------------------------------------- */
-.motivation-heart-badge {
+.motivation-heading-inline {
   display: inline-flex;
   align-items: center;
-  font-size: 11.5px;
-  font-weight: 700;
-  color: #D94862;
-  background-color: #FFF0F3;
-  border: 1px solid #FFE0E6;
-  border-radius: var(--radius-pill);
-  padding: 3px 10px;
+  gap: 6px;
+}
+
+.motivation-heading-heart {
+  color: #E55B6C;
+  flex-shrink: 0;
 }
 
 .motivation-hero-card {
@@ -2499,11 +2498,13 @@ body:not(.is-logged-in) #app-bottom-nav {
 .motivation-image-container {
   position: relative;
   width: 100%;
-  aspect-ratio: 4 / 4.8;
-  max-height: 420px;
+  aspect-ratio: 4 / 4.2;
+  max-height: 360px;
   overflow: hidden;
   cursor: pointer;
   background-color: #F0F4EC;
+  outline: 1px solid rgba(0, 0, 0, 0.1);
+  outline-offset: -1px;
 }
 
 .motivation-hero-img {
@@ -2514,8 +2515,10 @@ body:not(.is-logged-in) #app-bottom-nav {
   transition: transform 0.35s ease, opacity 0.25s ease;
 }
 
-.motivation-image-container:hover .motivation-hero-img {
-  transform: scale(1.02);
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .motivation-image-container:hover .motivation-hero-img {
+    transform: scale(1.02);
+  }
 }
 
 .motivation-image-overlay {
@@ -2523,32 +2526,27 @@ body:not(.is-logged-in) #app-bottom-nav {
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 24px 18px 16px;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.45) 30%, rgba(0, 0, 0, 0.88) 100%);
+  padding: 28px 16px 14px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.36) 40%, rgba(0, 0, 0, 0.72) 100%);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
 
-.motivation-badge-tag {
-  display: inline-block;
-  width: fit-content;
-  background-color: var(--color-pill-green);
-  color: var(--color-pill-text);
-  font-size: 11px;
-  font-weight: 800;
+.motivation-eyebrow {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 4px 10px;
-  border-radius: var(--radius-pill);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .motivation-quote {
-  font-size: 13.5px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
   line-height: 1.45;
-  color: #FFFFFF;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  color: rgba(255, 255, 255, 0.96);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   margin: 0;
 }
 
@@ -3254,7 +3252,79 @@ html[data-theme="dark"] .work-calendar-card.is-collapsed {
   margin-bottom: 10px;
   padding-bottom: 9px;
   border-bottom: 1px solid #EEF3EC;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
+}
+
+.work-hero-debt-chip {
+  margin-left: auto;
+  min-height: 36px;
+  padding: 5px 10px;
+  border-radius: 12px;
+  border: 1px solid #FDBA74;
+  background-color: #FFF7ED;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 1px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.14s ease-out, border-color 0.14s ease-out, transform 0.15s ease-out;
+}
+
+.work-hero-debt-chip-lbl {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  line-height: 1.1;
+  color: #9A3412;
+}
+
+.work-hero-debt-chip-val {
+  font-size: 13.5px;
+  font-weight: 800;
+  line-height: 1.15;
+  color: #B45309;
+  white-space: nowrap;
+}
+
+.work-hero-debt-chip:focus-visible {
+  outline: 2.5px solid #B45309;
+  outline-offset: 2px;
+}
+
+@media (hover: hover) {
+  .work-hero-debt-chip:hover {
+    background-color: #FFEDD5;
+    border-color: #F59E0B;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .work-hero-debt-chip:not(:disabled):active {
+    transform: scale(0.96);
+  }
+}
+
+html[data-theme="dark"] .work-hero-debt-chip {
+  background-color: rgba(217, 119, 6, 0.16);
+  border-color: rgba(251, 191, 36, 0.38);
+}
+
+html[data-theme="dark"] .work-hero-debt-chip-lbl {
+  color: rgba(252, 211, 77, 0.85);
+}
+
+html[data-theme="dark"] .work-hero-debt-chip-val {
+  color: #FBBF24;
+}
+
+@media (hover: hover) {
+  html[data-theme="dark"] .work-hero-debt-chip:hover {
+    background-color: rgba(217, 119, 6, 0.24);
+    border-color: rgba(251, 191, 36, 0.56);
+  }
 }
 
 .work-hero-scope-toggle {
@@ -7538,14 +7608,13 @@ html[data-theme="dark"] #summary-meals-display[data-status="empty"] {
   color: #FDE68A;
 }
 
-html[data-theme="dark"] .motivation-heart-badge {
-  background-color: #2E1920;
-  border-color: #6B3242;
+html[data-theme="dark"] .motivation-heading-heart {
   color: #FDA4AF;
 }
 
 html[data-theme="dark"] .motivation-image-container {
   background-color: #1B231B;
+  outline-color: rgba(255, 255, 255, 0.1);
 }
 
 html[data-theme="dark"] .motivation-thumbs-strip {
