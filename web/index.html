@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Quyền Anh - Sức Khoẻ &amp; Công Việc</title>
-  <meta name="theme-color" content="#F5F7F4">
+  <meta name="theme-color" content="#E7F1E6">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Quyền Anh">
@@ -47,17 +47,55 @@
         }
         document.documentElement.setAttribute('data-theme', resolved);
         var tc = document.querySelector('meta[name="theme-color"]');
-        if (tc) tc.setAttribute('content', resolved === 'dark' ? '#111611' : '#F5F7F4');
+        if (tc) tc.setAttribute('content', resolved === 'dark' ? '#0A110C' : '#E7F1E6');
         var sb = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
         if (sb) sb.setAttribute('content', resolved === 'dark' ? 'black-translucent' : 'default');
       } catch (_) { }
     })();
   </script>
-  <link rel="stylesheet" href="/style.css?v=103">
-  <link rel="stylesheet" href="/liquid-glass.css?v=103">
+  <link rel="stylesheet" href="/style.css?v=104">
+  <link rel="stylesheet" href="/liquid-glass.css?v=104">
 </head>
 
 <body>
+  <!-- Bộ lọc SVG khúc xạ Snell's Law & tán sắc RGB cho Chromium -->
+  <svg class="lg-svg-defs" width="0" height="0" aria-hidden="true">
+    <defs>
+      <filter id="lg-refract-pill" filterUnits="objectBoundingBox" x="0%" y="0%" width="100%" height="100%" color-interpolation-filters="sRGB">
+        <feImage id="lg-map-pill" href="" preserveAspectRatio="none" x="0%" y="0%" width="100%" height="100%" result="map" />
+        <feDisplacementMap in="SourceGraphic" in2="map" scale="28" xChannelSelector="R" yChannelSelector="G" result="dispR" />
+        <feColorMatrix in="dispR" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="chanR" />
+        <feDisplacementMap in="SourceGraphic" in2="map" scale="23" xChannelSelector="R" yChannelSelector="G" result="dispG" />
+        <feColorMatrix in="dispG" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="chanG" />
+        <feDisplacementMap in="SourceGraphic" in2="map" scale="18" xChannelSelector="R" yChannelSelector="G" result="dispB" />
+        <feColorMatrix in="dispB" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="chanB" />
+        <feBlend in="chanR" in2="chanG" mode="screen" result="rg" />
+        <feBlend in="rg" in2="chanB" mode="screen" />
+      </filter>
+      <filter id="lg-refract-orb" filterUnits="objectBoundingBox" x="0%" y="0%" width="100%" height="100%" color-interpolation-filters="sRGB">
+        <feImage id="lg-map-orb" href="" preserveAspectRatio="none" x="0%" y="0%" width="100%" height="100%" result="map" />
+        <feDisplacementMap in="SourceGraphic" in2="map" scale="24" xChannelSelector="R" yChannelSelector="G" result="dispR" />
+        <feColorMatrix in="dispR" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="chanR" />
+        <feDisplacementMap in="SourceGraphic" in2="map" scale="19" xChannelSelector="R" yChannelSelector="G" result="dispG" />
+        <feColorMatrix in="dispG" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="chanG" />
+        <feDisplacementMap in="SourceGraphic" in2="map" scale="14" xChannelSelector="R" yChannelSelector="G" result="dispB" />
+        <feColorMatrix in="dispB" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="chanB" />
+        <feBlend in="chanR" in2="chanG" mode="screen" result="rg" />
+        <feBlend in="rg" in2="chanB" mode="screen" />
+      </filter>
+      <filter id="lg-refract-card" filterUnits="objectBoundingBox" x="0%" y="0%" width="100%" height="100%" color-interpolation-filters="sRGB">
+        <feImage id="lg-map-card" href="" preserveAspectRatio="none" x="0%" y="0%" width="100%" height="100%" result="map" />
+        <feDisplacementMap in="SourceGraphic" in2="map" scale="22" xChannelSelector="R" yChannelSelector="G" result="dispR" />
+        <feColorMatrix in="dispR" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="chanR" />
+        <feDisplacementMap in="SourceGraphic" in2="map" scale="18" xChannelSelector="R" yChannelSelector="G" result="dispG" />
+        <feColorMatrix in="dispG" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="chanG" />
+        <feDisplacementMap in="SourceGraphic" in2="map" scale="14" xChannelSelector="R" yChannelSelector="G" result="dispB" />
+        <feColorMatrix in="dispB" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="chanB" />
+        <feBlend in="chanR" in2="chanG" mode="screen" result="rg" />
+        <feBlend in="rg" in2="chanB" mode="screen" />
+      </filter>
+    </defs>
+  </svg>
   <!-- Container Toast thông báo -->
   <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
@@ -2304,7 +2342,7 @@
     </div>
   </div>
 
-  <script src="/app.js?v=103"></script>
+  <script src="/app.js?v=104"></script>
 </body>
 
 </html>

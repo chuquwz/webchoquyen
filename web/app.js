@@ -205,7 +205,7 @@
 
     root.setAttribute('data-theme', resolved);
     const metaTheme = document.querySelector('meta[name="theme-color"]');
-    if (metaTheme) metaTheme.setAttribute('content', resolved === 'dark' ? '#111611' : '#F5F7F4');
+    if (metaTheme) metaTheme.setAttribute('content', resolved === 'dark' ? '#0A110C' : '#E7F1E6');
     const metaApple = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
     if (metaApple) metaApple.setAttribute('content', resolved === 'dark' ? 'black-translucent' : 'default');
 
@@ -794,6 +794,8 @@
     setupRouting();
     setupTabSwipeGesture();
     setupNavScrollMinimize();
+    setupLiquidGlassRefraction();
+    setupLiquidGlassLight();
     setupModalSheetGestures();
     setupWorkJobSwipeGestures();
     bindPendingDeleteFlushListeners();
@@ -1007,6 +1009,7 @@
     const nav = document.getElementById('app-bottom-nav');
     if (!nav || nav.dataset.minimizeBound) return;
     nav.dataset.minimizeBound = '1';
+    const reduceMotion = prefersReducedMotion();
     let lastY = window.scrollY || 0;
     let ticking = false;
     window.addEventListener('scroll', () => {
@@ -1015,12 +1018,142 @@
       requestAnimationFrame(() => {
         ticking = false;
         const y = window.scrollY || 0;
+        if (!reduceMotion) {
+          document.documentElement.style.setProperty('--lg-rim-angle', (135 + Math.sin(y / 180) * 32).toFixed(1) + 'deg');
+        }
         const dy = y - lastY;
         if (Math.abs(dy) < 8) return;
         nav.classList.toggle('is-compact', dy > 0 && y > 120);
         lastY = y;
       });
     }, { passive: true });
+  }
+
+  function setupLiquidGlassRefraction() {
+    const reduceTrans = window.matchMedia && window.matchMedia('(prefers-reduced-transparency: reduce)').matches;
+    if (prefersReducedMotion() || reduceTrans) return;
+    const ua = navigator.userAgent || '';
+    const isIOS = /iP(hone|ad|od)/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isBlink = !isIOS && /Chrome|Chromium|Edg\//.test(ua) && !/Firefox/.test(ua);
+    if (!isBlink) return;
+
+    function buildRefractionMap(w, h, radius, bezel, ior) {
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return '';
+      const img = ctx.createImageData(w, h);
+      const data = img.data;
+      const hx = w / 2;
+      const hy = h / 2;
+      const ir = Math.min(radius, hx, hy);
+      const bx = hx - ir;
+      const by = hy - ir;
+      const sdf = (px, py) => {
+        const qx = Math.abs(px) - bx;
+        const qy = Math.abs(py) - by;
+        return Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - ir;
+      };
+      const total = w * h;
+      const vxArr = new Float32Array(total);
+      const vyArr = new Float32Array(total);
+      const activeArr = new Uint8Array(total);
+      const eps = 0.5;
+      let maxMag = 0;
+
+      for (let y = 0; y < h; y++) {
+        const py = y + 0.5 - hy;
+        for (let x = 0; x < w; x++) {
+          const px = x + 0.5 - hx;
+          const idx = y * w + x;
+          const dist = -sdf(px, py);
+          if (dist <= 0 || dist >= bezel) continue;
+
+          const nx = -(sdf(px + eps, py) - sdf(px - eps, py));
+          const ny = -(sdf(px, py + eps) - sdf(px, py - eps));
+          const len = Math.hypot(nx, ny) || 1;
+          const t = Math.max(0.04, dist / bezel);
+          const u = 1 - t;
+          const u4 = Math.pow(u, 4);
+          const oneMinusU4 = Math.max(1e-4, 1 - u4);
+          const height = Math.pow(oneMinusU4, 0.25);
+          const slope = Math.pow(u, 3) / Math.pow(oneMinusU4, 0.75);
+          const inc = Math.atan(slope);
+          const sinR = Math.sin(inc) / ior;
+          const ref = Math.asin(Math.min(0.99, Math.max(-0.99, sinR)));
+          const mag = Math.tan(inc - ref) * height;
+
+          const vx = (nx / len) * mag;
+          const vy = (ny / len) * mag;
+          vxArr[idx] = vx;
+          vyArr[idx] = vy;
+          activeArr[idx] = 1;
+          const a = Math.hypot(vx, vy);
+          if (a > maxMag) maxMag = a;
+        }
+      }
+
+      const norm = maxMag > 1e-6 ? maxMag : 1;
+      for (let i = 0; i < total; i++) {
+        const p = i * 4;
+        if (!activeArr[i]) {
+          data[p] = 128;
+          data[p + 1] = 128;
+          data[p + 2] = 128;
+          data[p + 3] = 255;
+        } else {
+          data[p] = Math.max(0, Math.min(255, Math.round(128 + (vxArr[i] / norm) * 127)));
+          data[p + 1] = Math.max(0, Math.min(255, Math.round(128 + (vyArr[i] / norm) * 127)));
+          data[p + 2] = 128;
+          data[p + 3] = 255;
+        }
+      }
+      ctx.putImageData(img, 0, 0);
+      return canvas.toDataURL('image/png');
+    }
+
+    const specs = [
+      ['lg-map-pill', 240, 48, 24, 18, 1.52],
+      ['lg-map-orb', 64, 64, 32, 22, 1.54],
+      ['lg-map-card', 240, 150, 26, 22, 1.50]
+    ];
+    let applied = 0;
+    for (let i = 0; i < specs.length; i++) {
+      const [id, w, h, r, bezel, ior] = specs[i];
+      const feImg = document.getElementById(id);
+      if (!feImg) continue;
+      const url = buildRefractionMap(w, h, r, bezel, ior);
+      if (!url) continue;
+      feImg.setAttribute('href', url);
+      feImg.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', url);
+      applied++;
+    }
+    if (applied === specs.length) {
+      document.documentElement.classList.add('lg-refract-ok');
+    }
+  }
+
+  function setupLiquidGlassLight() {
+    if (prefersReducedMotion()) return;
+    const nav = document.getElementById('app-bottom-nav');
+    if (!nav || nav.dataset.glareBound) return;
+    nav.dataset.glareBound = '1';
+    let glareRaf = 0;
+    let pendingPct = 30;
+    const updateGlare = (e) => {
+      const rect = nav.getBoundingClientRect();
+      if (!rect || rect.width <= 0) return;
+      const clientX = typeof e.clientX === 'number' ? e.clientX : (rect.left + rect.width * 0.3);
+      pendingPct = Math.max(8, Math.min(92, ((clientX - rect.left) / rect.width) * 100));
+      if (glareRaf) return;
+      glareRaf = requestAnimationFrame(() => {
+        glareRaf = 0;
+        nav.style.setProperty('--lg-glare-x', pendingPct.toFixed(1) + '%');
+      });
+    };
+    nav.addEventListener('pointerdown', updateGlare, { passive: true });
+    nav.addEventListener('pointermove', updateGlare, { passive: true });
   }
 
   function updateNavPillSelection(tabId, focusNavBtn = false) {
