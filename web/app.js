@@ -815,9 +815,25 @@
     await checkRemoteSyncState({ silent: true, force: true });
   }
 
+  function setupDisableLongPressCopy() {
+    const isEditable = (target) => Boolean(
+      target && target.closest && target.closest('input, textarea, select, [contenteditable="true"]')
+    );
+    document.addEventListener('contextmenu', (e) => {
+      if (!isEditable(e.target)) e.preventDefault();
+    });
+    document.addEventListener('selectstart', (e) => {
+      if (!isEditable(e.target)) e.preventDefault();
+    });
+    document.addEventListener('copy', (e) => {
+      if (!isEditable(e.target)) e.preventDefault();
+    });
+  }
+
   // Khởi tạo & Kiểm tra đăng nhập
   async function init() {
     applyUserRoleUI();
+    setupDisableLongPressCopy();
     initThemeController();
     registerServiceWorker();
     setupHeroGreetingWatcher();
