@@ -54,8 +54,8 @@
       } catch (_) { }
     })();
   </script>
-  <link rel="stylesheet" href="/style.css?v=115">
-  <link rel="stylesheet" href="/liquid-glass.css?v=115">
+  <link rel="stylesheet" href="/style.css?v=116">
+  <link rel="stylesheet" href="/liquid-glass.css?v=116">
 </head>
 
 <body>
@@ -453,17 +453,11 @@
         </section>
 
         <!-- =====================================================================
-             MÀN HÌNH: HỒ SƠ & CÀI ĐẶT
+             MÀN HÌNH: HỒ SƠ & CÀI ĐẶT (TỐI GIẢN)
              ===================================================================== -->
         <section id="tab-settings" class="tab-pane" role="tabpanel" aria-label="Hồ sơ và Cài đặt">
-          <div class="screen-nav-header">
-            <button type="button" class="btn-circle-action" aria-label="Quay lại" onclick="switchTab('today')">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2">
-                <path d="M15 18l-6-6 6-6" />
-              </svg>
-            </button>
-            <h1 class="screen-nav-title">Hồ sơ & Cài đặt</h1>
-            <div style="width: 40px;"></div>
+          <div class="screen-nav-header" style="justify-content: center;">
+            <h1 class="screen-nav-title">Cài đặt</h1>
           </div>
 
           <div class="profile-card">
@@ -478,8 +472,10 @@
 
           <!-- Giao diện & Chế độ tối -->
           <div class="settings-card-block" id="settings-theme-card">
-            <h3 class="settings-block-title">Giao diện &amp; Chế độ tối</h3>
-            <p id="theme-status-desc" class="settings-block-desc">Tự động thay đổi theo cài đặt hệ thống</p>
+            <div class="settings-card-head-row">
+              <h3 class="settings-block-title">Giao diện</h3>
+              <p id="theme-status-desc" class="settings-block-desc">Tự động theo hệ thống</p>
+            </div>
             <div class="theme-mode-grid" role="group" aria-label="Chế độ giao diện">
               <button type="button" class="theme-mode-btn active" data-theme-mode="system" aria-pressed="true"
                 onclick="setThemeMode('system')">
@@ -539,232 +535,282 @@
             </div>
           </div>
 
-          <!-- Cài đặt thông báo & Nhắc nhở -->
-          <div class="settings-card-block">
-            <h3 class="settings-block-title">Thông báo trên thiết bị</h3>
-            <p class="settings-block-desc">Nhận chuông nhắc nhở uống nước, uống thuốc đúng giờ trên điện thoại</p>
-            <div class="settings-btn-row">
-              <button type="button" id="btn-enable-push" class="btn-green-pill btn-sm"
-                onclick="enablePushNotifications()">Bật thông báo</button>
-              <button type="button" class="btn-secondary-pill btn-sm" onclick="sendTestPush()">Thử chuông</button>
-            </div>
-            <div id="ios-pwa-tip" class="ios-pwa-tip-banner" onclick="openIOSGuideModal()">
-              <span style="display: inline-flex; align-items: center; gap: 6px;">
-                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
-                  stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
-                  <line x1="12" y1="18" x2="12.01" y2="18" />
+          <!-- Mục 1: Thông số cá nhân -->
+          <details class="settings-card-block settings-accordion">
+            <summary class="settings-accordion-summary">
+              <span class="settings-accordion-icon" aria-hidden="true">
+                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                  stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
                 </svg>
-                <span>Dành cho iPhone: Cách bật chuông thông báo</span>
               </span>
-              <span style="font-weight: 700;">Xem hướng dẫn &rarr;</span>
+              <span class="settings-accordion-text">
+                <span class="settings-accordion-title">Thông số cá nhân</span>
+                <span class="settings-accordion-sub">Tên, chiều cao, mục tiêu cân, nước</span>
+              </span>
+              <svg class="settings-accordion-chevron" viewBox="0 0 24 24" width="18" height="18" fill="none"
+                stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
+                aria-hidden="true">
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </summary>
+            <div class="settings-accordion-body">
+              <form id="settings-form" onsubmit="saveSettings(event)" style="margin-top: 12px;">
+                <div class="form-grid-2">
+                  <div class="form-group">
+                    <label class="form-label" for="set-name">Họ và tên</label>
+                    <input type="text" id="set-name" class="form-input" required>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="set-age">Tuổi</label>
+                    <input type="number" id="set-age" class="form-input" required>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="set-height">Chiều cao (cm)</label>
+                    <input type="number" id="set-height" class="form-input" required>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="set-goal">Mục tiêu cân (kg)</label>
+                    <input type="number" step="0.1" id="set-goal" class="form-input" required>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="set-water-min">Nước tối thiểu (ml)</label>
+                    <input type="number" id="set-water-min" class="form-input" required>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="set-water-max">Nước tối đa (ml)</label>
+                    <input type="number" id="set-water-max" class="form-input" required>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" for="set-t-sleep">Giờ đi ngủ</label>
+                    <input type="time" id="set-t-sleep" class="form-input" required>
+                  </div>
+                </div>
+                <button type="submit" class="btn-green-pill" style="width: 100%; margin-top: 14px;">Lưu thông số hồ
+                  sơ</button>
+              </form>
             </div>
-          </div>
+          </details>
 
-          <!-- Lịch nhắc nhở tự do -->
-          <div class="settings-card-block">
-            <div class="section-title-header">
-              <h3 class="settings-block-title">Lịch nhắc nhở tự do</h3>
-              <button type="button" class="btn-link-action" onclick="saveReminderSchedule()">Lưu lịch</button>
+          <!-- Mục 2: Thông báo & Lịch nhắc -->
+          <details class="settings-card-block settings-accordion">
+            <summary class="settings-accordion-summary">
+              <span class="settings-accordion-icon" aria-hidden="true">
+                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                  stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                  <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+                </svg>
+              </span>
+              <span class="settings-accordion-text">
+                <span class="settings-accordion-title">Thông báo &amp; Lịch nhắc</span>
+                <span class="settings-accordion-sub">Chuông thiết bị &amp; mốc giờ nhắc</span>
+              </span>
+              <svg class="settings-accordion-chevron" viewBox="0 0 24 24" width="18" height="18" fill="none"
+                stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
+                aria-hidden="true">
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </summary>
+            <div class="settings-accordion-body">
+              <div style="padding-top: 12px;">
+                <p class="settings-block-desc" style="margin-top: 0;">Nhận chuông nhắc nhở uống nước, uống thuốc đúng giờ</p>
+                <div class="settings-btn-row">
+                  <button type="button" id="btn-enable-push" class="btn-green-pill btn-sm"
+                    onclick="enablePushNotifications()">Bật thông báo</button>
+                  <button type="button" class="btn-secondary-pill btn-sm" onclick="sendTestPush()">Thử chuông</button>
+                </div>
+                <div id="ios-pwa-tip" class="ios-pwa-tip-banner" onclick="openIOSGuideModal()">
+                  <span style="display: inline-flex; align-items: center; gap: 6px;">
+                    <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none"
+                      stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
+                      aria-hidden="true">
+                      <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+                      <line x1="12" y1="18" x2="12.01" y2="18" />
+                    </svg>
+                    <span>iPhone: Cách bật chuông</span>
+                  </span>
+                  <span style="font-weight: 700;">Xem &rarr;</span>
+                </div>
+              </div>
+
+              <div class="settings-accordion-divider">
+                <div class="section-title-header" style="margin-bottom: 6px;">
+                  <h4 class="settings-block-title" style="font-size: 13.5px;">Lịch nhắc nhở tự do</h4>
+                  <button type="button" class="btn-link-action" onclick="saveReminderSchedule()">Lưu lịch</button>
+                </div>
+                <div class="reminder-schedule-list" style="margin-top: 6px;">
+                  <div class="schedule-row">
+                    <span class="schedule-label">Đo cân sáng:</span>
+                    <div id="remind-weight-chips" class="schedule-chips"></div>
+                    <button type="button" class="btn-add-chip" onclick="addReminderTime('weight', '06:30')">+</button>
+                    <span id="badge-count-weight" class="schedule-count-sub">1 mốc</span>
+                  </div>
+                  <div class="schedule-row">
+                    <span class="schedule-label">Uống thuốc:</span>
+                    <div id="remind-med-chips" class="schedule-chips"></div>
+                    <button type="button" class="btn-add-chip" onclick="addReminderTime('med', '08:00')"
+                      title="Thêm mốc giờ uống thuốc">+</button>
+                    <span id="badge-count-med" class="schedule-count-sub font-tabular">3 lần/ngày</span>
+                  </div>
+                  <div class="schedule-row">
+                    <span class="schedule-label">Nước lọc:</span>
+                    <div id="remind-water-chips" class="schedule-chips"></div>
+                    <button type="button" class="btn-add-chip" onclick="addReminderTime('water', '10:00')">+</button>
+                    <span id="badge-count-water" class="schedule-count-sub">4 mốc</span>
+                  </div>
+                  <div class="schedule-row" style="border-bottom: none; padding-bottom: 0;">
+                    <span class="schedule-label">Giờ đi ngủ:</span>
+                    <div id="remind-sleep-chips" class="schedule-chips"></div>
+                    <button type="button" class="btn-add-chip" onclick="addReminderTime('sleep', '22:30')">+</button>
+                    <span id="badge-count-sleep" class="schedule-count-sub">1 mốc</span>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div class="reminder-schedule-list">
-              <div class="schedule-row">
-                <span class="schedule-label">Đo cân sáng:</span>
-                <div id="remind-weight-chips" class="schedule-chips"></div>
-                <button type="button" class="btn-add-chip" onclick="addReminderTime('weight', '06:30')">+</button>
-                <span id="badge-count-weight" class="schedule-count-sub">1 mốc</span>
-              </div>
-              <div class="schedule-row">
-                <span class="schedule-label">Uống thuốc:</span>
-                <div id="remind-med-chips" class="schedule-chips"></div>
-                <button type="button" class="btn-add-chip" onclick="addReminderTime('med', '08:00')"
-                  title="Thêm mốc giờ uống thuốc">+</button>
-                <span id="badge-count-med" class="schedule-count-sub font-tabular">3 lần/ngày</span>
-              </div>
-              <div class="schedule-row">
-                <span class="schedule-label">Nước lọc:</span>
-                <div id="remind-water-chips" class="schedule-chips"></div>
-                <button type="button" class="btn-add-chip" onclick="addReminderTime('water', '10:00')">+</button>
-                <span id="badge-count-water" class="schedule-count-sub">4 mốc</span>
-              </div>
-              <div class="schedule-row">
-                <span class="schedule-label">Giờ đi ngủ:</span>
-                <div id="remind-sleep-chips" class="schedule-chips"></div>
-                <button type="button" class="btn-add-chip" onclick="addReminderTime('sleep', '22:30')">+</button>
-                <span id="badge-count-sleep" class="schedule-count-sub">1 mốc</span>
-              </div>
-            </div>
-          </div>
+          </details>
 
-          <!-- Cấu hình thông số cá nhân -->
-          <div class="settings-card-block">
-            <h3 class="settings-block-title">Thông số cá nhân</h3>
-            <form id="settings-form" onsubmit="saveSettings(event)" style="margin-top: 12px;">
-              <div class="form-grid-2">
-                <div class="form-group">
-                  <label class="form-label" for="set-name">Họ và tên</label>
-                  <input type="text" id="set-name" class="form-input" required>
-                </div>
-                <div class="form-group">
-                  <label class="form-label" for="set-age">Tuổi</label>
-                  <input type="number" id="set-age" class="form-input" required>
-                </div>
-                <div class="form-group">
-                  <label class="form-label" for="set-height">Chiều cao (cm)</label>
-                  <input type="number" id="set-height" class="form-input" required>
-                </div>
-                <div class="form-group">
-                  <label class="form-label" for="set-goal">Mục tiêu cân (kg)</label>
-                  <input type="number" step="0.1" id="set-goal" class="form-input" required>
-                </div>
-                <div class="form-group">
-                  <label class="form-label" for="set-water-min">Nước tối thiểu (ml)</label>
-                  <input type="number" id="set-water-min" class="form-input" required>
-                </div>
-                <div class="form-group">
-                  <label class="form-label" for="set-water-max">Nước tối đa (ml)</label>
-                  <input type="number" id="set-water-max" class="form-input" required>
-                </div>
-                <div class="form-group">
-                  <label class="form-label" for="set-t-sleep">Giờ đi ngủ</label>
-                  <input type="time" id="set-t-sleep" class="form-input" required>
-                </div>
-              </div>
-              <button type="submit" class="btn-green-pill" style="width: 100%; margin-top: 14px;">Lưu thông số hồ
-                sơ</button>
-            </form>
-          </div>
-
-          <!-- Dữ liệu, Lưu trữ trên máy & Tài khoản -->
-          <div id="settings-data-card" class="settings-card-block" style="margin-bottom: 30px;" role="region"
-            aria-label="Dữ liệu và Tài khoản">
-            <div class="work-vault-top">
-              <div class="work-vault-title-wrap">
-                <svg class="ui-inline-svg work-vault-shield" viewBox="0 0 24 24" width="16" height="16" fill="none"
-                  stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"
-                  aria-hidden="true">
+          <!-- Mục 3: Dữ liệu & Sao lưu -->
+          <details id="settings-data-card" class="settings-card-block settings-accordion" role="region"
+            aria-label="Dữ liệu và Sao lưu">
+            <summary class="settings-accordion-summary">
+              <span class="settings-accordion-icon" aria-hidden="true">
+                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+                  stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                   <path d="m9 12 2 2 4-4" />
                 </svg>
-                <h3 class="settings-block-title" style="margin-bottom: 0;">Dữ liệu &amp; Tài khoản</h3>
-              </div>
+              </span>
+              <span class="settings-accordion-text">
+                <span class="settings-accordion-title">Dữ liệu &amp; Sao lưu</span>
+                <span class="settings-accordion-sub">Xuất Excel, đồng bộ &amp; khôi phục</span>
+              </span>
               <span id="work-vault-badge" class="work-vault-badge font-tabular" role="status" aria-live="polite">Đã đồng
                 bộ 0 mục</span>
-            </div>
-            <div id="work-vault-sub" class="work-vault-sub">
-              Tự động đồng bộ giữa các thiết bị &amp; lưu dự phòng an toàn trên máy này.
-            </div>
+              <svg class="settings-accordion-chevron" viewBox="0 0 24 24" width="18" height="18" fill="none"
+                stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
+                aria-hidden="true">
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </summary>
+            <div class="settings-accordion-body">
+              <div id="work-vault-sub" class="work-vault-sub" style="margin-top: 12px;">
+                Tự động đồng bộ giữa các thiết bị &amp; lưu dự phòng an toàn trên máy này.
+              </div>
 
-            <div class="settings-data-group">
-              <span class="settings-data-group-label">Sổ công việc &amp; Thu chi</span>
-              <div class="settings-data-grid-2">
-                <button type="button" id="btn-settings-export-excel" class="btn-data-action btn-data-primary"
-                  onclick="exportWorkExcel()" title="Tải bảng Excel (.csv) của tháng đang xem">
-                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none"
-                    stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
-                    aria-hidden="true">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line x1="12" y1="15" x2="12" y2="3" />
-                  </svg>
-                  <span>Xuất Excel</span>
-                </button>
-                <button type="button" id="btn-settings-save-vault" class="btn-data-action btn-data-primary"
-                  onclick="exportFinanceVaultFile()"
-                  title="Lưu file dữ liệu thu chi &amp; công việc (.json) về máy cá nhân">
-                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none"
-                    stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
-                    aria-hidden="true">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line x1="12" y1="15" x2="12" y2="3" />
-                  </svg>
-                  <span>Lưu file (.json)</span>
-                </button>
-                <label class="btn-data-action" role="button" tabindex="0"
-                  title="Khôi phục dữ liệu tài chính từ file .json trên máy cá nhân"
-                  onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.querySelector('input').click();}">
-                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none"
-                    stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
-                    aria-hidden="true">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="17 8 12 3 7 8" />
-                    <line x1="12" y1="3" x2="12" y2="15" />
-                  </svg>
-                  <span>Nạp file từ máy</span>
-                  <input type="file" id="finance-vault-file-input" accept=".json" style="display: none;"
-                    onchange="importFinanceVaultFile(event)">
-                </label>
-                <button type="button" id="btn-work-link-disk" class="btn-data-action" onclick="linkOrSyncLocalFinance()"
-                  title="Gắn file tự động lưu trên ổ cứng máy tính hoặc đồng bộ ngay">
-                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none"
-                    stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
-                    aria-hidden="true">
-                    <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                    <path d="M3 3v5h5" />
-                    <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
-                    <path d="M16 16h5v5" />
-                  </svg>
-                  <span id="work-link-disk-label">Đồng bộ ngay</span>
-                </button>
+              <div class="settings-data-group">
+                <span class="settings-data-group-label">Sổ công việc &amp; Khoản nợ</span>
+                <div class="settings-data-grid-2">
+                  <button type="button" id="btn-settings-export-excel" class="btn-data-action btn-data-primary"
+                    onclick="exportWorkExcel()" title="Tải bảng Excel (.csv) của tháng đang xem">
+                    <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none"
+                      stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
+                      aria-hidden="true">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    <span>Xuất Excel</span>
+                  </button>
+                  <button type="button" id="btn-settings-save-vault" class="btn-data-action btn-data-primary"
+                    onclick="exportFinanceVaultFile()"
+                    title="Lưu file dữ liệu thu chi &amp; công việc (.json) về máy cá nhân">
+                    <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none"
+                      stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
+                      aria-hidden="true">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    <span>Lưu file (.json)</span>
+                  </button>
+                  <label class="btn-data-action" role="button" tabindex="0"
+                    title="Khôi phục dữ liệu tài chính từ file .json trên máy cá nhân"
+                    onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.querySelector('input').click();}">
+                    <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none"
+                      stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
+                      aria-hidden="true">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                    <span>Nạp file từ máy</span>
+                    <input type="file" id="finance-vault-file-input" accept=".json" style="display: none;"
+                      onchange="importFinanceVaultFile(event)">
+                  </label>
+                  <button type="button" id="btn-work-link-disk" class="btn-data-action"
+                    onclick="linkOrSyncLocalFinance()"
+                    title="Gắn file tự động lưu trên ổ cứng máy tính hoặc đồng bộ ngay">
+                    <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none"
+                      stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
+                      aria-hidden="true">
+                      <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                      <path d="M3 3v5h5" />
+                      <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+                      <path d="M16 16h5v5" />
+                    </svg>
+                    <span id="work-link-disk-label">Đồng bộ ngay</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="settings-data-group">
+                <span class="settings-data-group-label">Cloud &amp; Sao lưu ứng dụng</span>
+                <div class="settings-data-grid-2">
+                  <label id="btn-sync-local-cloud" class="btn-data-action btn-data-cloud settings-data-span-2"
+                    role="button" tabindex="0"
+                    title="Chọn file .json từ máy cá nhân để tải lên và đồng bộ với dữ liệu Cloud"
+                    onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.querySelector('input').click();}">
+                    <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none"
+                      stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
+                      aria-hidden="true">
+                      <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+                      <path d="M12 12v9" />
+                      <path d="m16 16-4-4-4 4" />
+                    </svg>
+                    <span>Tải file từ máy đồng bộ Cloud</span>
+                    <input type="file" id="sync-local-cloud-input" accept=".json" style="display: none;"
+                      onchange="syncLocalFileToCloud(event)">
+                  </label>
+                  <button type="button" class="btn-data-action btn-data-neutral" onclick="downloadBackup()">
+                    <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none"
+                      stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
+                      aria-hidden="true">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    <span>Tải sao lưu (.json)</span>
+                  </button>
+                  <label class="btn-data-action btn-data-neutral" role="button" tabindex="0"
+                    onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.querySelector('input').click();}">
+                    <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none"
+                      stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
+                      aria-hidden="true">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                    <span>Khôi phục file</span>
+                    <input type="file" id="restore-file-input" accept=".json" style="display: none;"
+                      onchange="restoreBackup(event)">
+                  </label>
+                </div>
               </div>
             </div>
+          </details>
 
-            <div class="settings-data-group">
-              <span class="settings-data-group-label">Cloud &amp; Sao lưu ứng dụng</span>
-              <div class="settings-data-grid-2">
-                <label id="btn-sync-local-cloud" class="btn-data-action btn-data-cloud settings-data-span-2"
-                  role="button" tabindex="0"
-                  title="Chọn file .json từ máy cá nhân để tải lên và đồng bộ với dữ liệu Cloud"
-                  onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.querySelector('input').click();}">
-                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none"
-                    stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
-                    aria-hidden="true">
-                    <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
-                    <path d="M12 12v9" />
-                    <path d="m16 16-4-4-4 4" />
-                  </svg>
-                  <span>Tải file từ máy đồng bộ Cloud</span>
-                  <input type="file" id="sync-local-cloud-input" accept=".json" style="display: none;"
-                    onchange="syncLocalFileToCloud(event)">
-                </label>
-                <button type="button" class="btn-data-action btn-data-neutral" onclick="downloadBackup()">
-                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none"
-                    stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
-                    aria-hidden="true">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line x1="12" y1="15" x2="12" y2="3" />
-                  </svg>
-                  <span>Tải sao lưu (.json)</span>
-                </button>
-                <label class="btn-data-action btn-data-neutral" role="button" tabindex="0"
-                  onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.querySelector('input').click();}">
-                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="14" height="14" fill="none"
-                    stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
-                    aria-hidden="true">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="17 8 12 3 7 8" />
-                    <line x1="12" y1="3" x2="12" y2="15" />
-                  </svg>
-                  <span>Khôi phục file</span>
-                  <input type="file" id="restore-file-input" accept=".json" style="display: none;"
-                    onchange="restoreBackup(event)">
-                </label>
-              </div>
-            </div>
-
-            <div class="settings-logout-footer">
-              <button type="button" id="btn-settings-logout" class="btn-settings-logout" onclick="logout()">
-                <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
-                  stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                  <polyline points="16 17 21 12 16 7" />
-                  <line x1="21" y1="12" x2="9" y2="12" />
-                </svg>
-                <span>Đăng xuất</span>
-              </button>
-            </div>
+          <div class="settings-logout-standalone">
+            <button type="button" id="btn-settings-logout" class="btn-settings-logout" onclick="logout()">
+              <svg class="ui-inline-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
+                stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+              <span>Đăng xuất</span>
+            </button>
           </div>
         </section>
 
@@ -2174,7 +2220,7 @@
     </div>
   </div>
 
-  <script src="/app.js?v=115"></script>
+  <script src="/app.js?v=116"></script>
 </body>
 
 </html>
