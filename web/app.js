@@ -1249,6 +1249,9 @@
       } else if (tabId === 'funds' && typeof renderFundsScreen === 'function') {
         renderFundsScreen();
       }
+      if (tabId === 'funds' && isTabChanged && typeof triggerFundsTabEntrance === 'function') {
+        triggerFundsTabEntrance();
+      }
     } else if (tabId === 'today') {
       renderDynamicGreeting();
     } else if (tabId === 'settings') {
@@ -7827,6 +7830,95 @@
     return `<svg class="ui-inline-svg" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
   }
 
+  function royalCrownSVG(size = 13) {
+    return `<svg class="ui-inline-svg" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 18h18"/><path d="M4 15 2 7l5 4 5-7 5 7 5-4-2 8Z"/></svg>`;
+  }
+
+  let fundsTiltBound = false;
+  let fundsTiltRaf = 0;
+  let fundsEnterTimer = null;
+
+  function triggerFundsTabEntrance() {
+    const tabEl = document.getElementById('tab-funds');
+    if (!tabEl) return;
+    tabEl.classList.remove('is-entering');
+    if (fundsEnterTimer) {
+      clearTimeout(fundsEnterTimer);
+      fundsEnterTimer = null;
+    }
+    if (prefersReducedMotion()) return;
+    void tabEl.offsetWidth;
+    tabEl.classList.add('is-entering');
+    fundsEnterTimer = setTimeout(() => {
+      tabEl.classList.remove('is-entering');
+      fundsEnterTimer = null;
+    }, 850);
+  }
+
+  function bindFundsLuxuryTilt() {
+    if (fundsTiltBound) return;
+    const container = document.getElementById('tab-funds');
+    if (!container) return;
+    fundsTiltBound = true;
+
+    let activeCard = null;
+    const resetCard = (card) => {
+      if (!card) return;
+      card.classList.remove('is-tilting');
+      card.style.setProperty('--rx', '0deg');
+      card.style.setProperty('--ry', '0deg');
+    };
+
+    container.addEventListener('pointermove', (e) => {
+      if (prefersReducedMotion()) return;
+      if (e.pointerType === 'touch') return;
+      const card = e.target && e.target.closest ? e.target.closest('.funds-royal-vault-hero, .fund-goal-card') : null;
+      if (!card) {
+        if (activeCard) {
+          resetCard(activeCard);
+          activeCard = null;
+        }
+        return;
+      }
+      if (activeCard && activeCard !== card) {
+        resetCard(activeCard);
+      }
+      activeCard = card;
+      const clientX = e.clientX;
+      const clientY = e.clientY;
+      if (fundsTiltRaf) cancelAnimationFrame(fundsTiltRaf);
+      fundsTiltRaf = requestAnimationFrame(() => {
+        fundsTiltRaf = 0;
+        if (!activeCard || prefersReducedMotion()) return;
+        const rect = activeCard.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+        const px = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+        const py = Math.min(1, Math.max(0, (clientY - rect.top) / rect.height));
+        const maxDeg = activeCard.classList.contains('funds-royal-vault-hero') ? 3.5 : 4;
+        const rx = ((0.5 - py) * 2 * maxDeg).toFixed(2);
+        const ry = ((px - 0.5) * 2 * maxDeg).toFixed(2);
+        activeCard.classList.add('is-tilting');
+        activeCard.style.setProperty('--rx', `${rx}deg`);
+        activeCard.style.setProperty('--ry', `${ry}deg`);
+        activeCard.style.setProperty('--gx', `${(px * 100).toFixed(1)}%`);
+        activeCard.style.setProperty('--gy', `${(py * 100).toFixed(1)}%`);
+      });
+    }, { passive: true });
+
+    const clearOnLeave = () => {
+      if (fundsTiltRaf) {
+        cancelAnimationFrame(fundsTiltRaf);
+        fundsTiltRaf = 0;
+      }
+      if (activeCard) {
+        resetCard(activeCard);
+        activeCard = null;
+      }
+    };
+    container.addEventListener('pointerleave', clearOnLeave, { passive: true });
+    container.addEventListener('pointercancel', clearOnLeave, { passive: true });
+  }
+
   function animateCountUp(el, fromVal, toVal, durationMs, fmtFn) {
     if (!el || typeof fmtFn !== 'function') return;
     if (prefersReducedMotion() || typeof window.requestAnimationFrame !== 'function' || fromVal === toVal) {
@@ -7856,23 +7948,44 @@
   function triggerFundCelebration(cardEl, addedAmount, crossedGoal) {
     if (!cardEl || prefersReducedMotion()) return;
     const badge = document.createElement('span');
-    badge.className = 'fund-deposit-float font-tabular';
+    badge.className = 'fund-deposit-float is-royal font-tabular';
     badge.textContent = `+${formatShortK(addedAmount)}`;
     cardEl.appendChild(badge);
     setTimeout(() => badge.remove(), 950);
 
+    const dialWrap = cardEl.querySelector('.fund-dial-wrap');
+    if (dialWrap) {
+      const shock = document.createElement('span');
+      shock.className = 'fund-shockwave-ring';
+      shock.setAttribute('aria-hidden', 'true');
+      dialWrap.appendChild(shock);
+      setTimeout(() => shock.remove(), 820);
+    }
+
+    const starSvg = '<svg viewBox="0 0 16 16" width="100%" height="100%" fill="currentColor" aria-hidden="true"><path d="M8 0.5 L9.9 6.1 L15.5 8 L9.9 9.9 L8 15.5 L6.1 9.9 L0.5 8 L6.1 6.1 Z"/></svg>';
     const vectors = crossedGoal
-      ? [[-26, -24], [24, -28], [-38, 4], [34, 8], [-16, 26], [20, 24], [0, -34], [-40, -10]]
-      : [[-22, -20], [20, -24], [-28, 8], [26, 10], [0, -28]];
-    vectors.forEach(([sx, sy]) => {
-      const dot = document.createElement('span');
-      dot.className = crossedGoal ? 'fund-sparkle-dot is-gold' : 'fund-sparkle-dot';
-      dot.style.right = '44px';
-      dot.style.top = '34px';
-      dot.style.setProperty('--sx', `${sx}px`);
-      dot.style.setProperty('--sy', `${sy}px`);
-      cardEl.appendChild(dot);
-      setTimeout(() => dot.remove(), 900);
+      ? [
+        [-30, -28, 45], [26, -32, 95], [-44, 2, 120], [38, 6, -65],
+        [-22, 28, 80], [22, 26, -80], [0, -40, 140], [-46, -14, -45],
+        [44, -18, 60], [-10, -34, 30], [14, -36, -35], [-34, 20, 110],
+        [32, -8, 50], [-18, -16, -90], [8, 32, 70], [40, 22, -110]
+      ]
+      : [
+        [-24, -22, 45], [22, -26, -60], [-32, 8, 90], [28, 10, -45],
+        [0, -32, 120], [-16, 22, -75], [16, 22, 75], [-36, -8, 35],
+        [34, -10, -35], [10, -28, 65]
+      ];
+    vectors.forEach(([sx, sy, sr], i) => {
+      const star = document.createElement('span');
+      star.className = (crossedGoal || i % 2 === 0) ? 'fund-sparkle-star is-gold' : 'fund-sparkle-star';
+      star.style.right = '54px';
+      star.style.top = '96px';
+      star.style.setProperty('--sx', `${sx}px`);
+      star.style.setProperty('--sy', `${sy}px`);
+      star.style.setProperty('--sr', `${sr}deg`);
+      star.innerHTML = starSvg;
+      cardEl.appendChild(star);
+      setTimeout(() => star.remove(), 980);
     });
   }
 
@@ -7903,25 +8016,86 @@
     if (!cardsList) return;
 
     const model = computeFundsModel();
+    const anim = fundsUIState.lastDepositAnim;
+    const hasRecentDepositAnim = Boolean(anim && (Date.now() - anim.at) < 2500);
 
     const setTxt = (id, val) => {
       const el = document.getElementById(id);
       if (el) el.textContent = val;
     };
 
+    const totalMonthSaved = model.funds.reduce((sum, f) => sum + (f.monthSaved || 0), 0);
+    const totalDepositCount = model.funds.reduce((sum, f) => sum + (f.depositCount || 0), 0);
+
+    const heroTotalEl = document.getElementById('funds-hero-total-saved');
+    if (heroTotalEl) {
+      if (hasRecentDepositAnim && anim && !prefersReducedMotion()) {
+        const prevTotal = Math.max(0, model.totalSaved - anim.added);
+        animateCountUp(heroTotalEl, prevTotal, model.totalSaved, 540, formatVND);
+      } else {
+        heroTotalEl.textContent = formatVND(model.totalSaved);
+      }
+    }
+
+    setTxt('funds-hero-target-sub', `/ Mục tiêu ${formatVND(model.totalTarget)}`);
+
+    const statusPillEl = document.getElementById('funds-hero-status-pill');
+    if (statusPillEl) {
+      if (model.completedCount > 0) {
+        statusPillEl.innerHTML = `${royalCrownSVG(12)} <span>Đạt ${model.completedCount}/${model.fundCount} quỹ</span>`;
+      } else {
+        statusPillEl.textContent = `${model.overallPct}% mục tiêu`;
+      }
+    }
+
+    const monthPillEl = document.getElementById('funds-hero-month-pill');
+    if (monthPillEl) {
+      if (totalMonthSaved > 0) {
+        monthPillEl.hidden = false;
+        monthPillEl.textContent = `+${formatShortK(totalMonthSaved)} tháng này`;
+      } else {
+        monthPillEl.hidden = true;
+      }
+    }
+
+    const heroFillEl = document.getElementById('funds-hero-progress-fill');
+    if (heroFillEl) {
+      heroFillEl.style.width = `${model.overallPctClamped}%`;
+    }
+
+    setTxt('funds-hero-stat-count', `${model.fundCount} quỹ`);
+    setTxt('funds-hero-stat-deposits', `${totalDepositCount} lần`);
+
+    if (model.totalRemaining > 0) {
+      setTxt('funds-hero-stat-rem-label', 'Còn thiếu');
+      setTxt('funds-hero-stat-remaining', formatShortK(model.totalRemaining));
+    } else if (model.totalSaved > model.totalTarget && model.totalTarget > 0) {
+      setTxt('funds-hero-stat-rem-label', 'Vượt đích');
+      setTxt('funds-hero-stat-remaining', `+${formatShortK(model.totalSaved - model.totalTarget)}`);
+    } else {
+      setTxt('funds-hero-stat-rem-label', 'Hoàn thành');
+      setTxt('funds-hero-stat-remaining', '100%');
+    }
+
     setTxt('funds-count-sub', `${model.fundCount} quỹ`);
 
     const RING_CIRC = 213.63;
-    cardsList.innerHTML = model.funds.map(f => {
+    cardsList.innerHTML = model.funds.map((f, idx) => {
       const safeName = escapeHTML(f.name);
       const offset = (RING_CIRC * (1 - f.pctClamped / 100)).toFixed(2);
+      const gradId = `fund-grad-${idx}`;
 
       return `
-          <div class="fund-goal-card fund-theme-${escapeHTML(f.color)}${f.reachedGoal ? ' is-goal-reached' : ''}" data-fund-card="${escapeHTML(f.id)}">
+          <div class="fund-goal-card fund-theme-${escapeHTML(f.color)}${f.reachedGoal ? ' is-goal-reached' : ''}" data-fund-card="${escapeHTML(f.id)}" style="--stagger-idx: ${idx + 2};">
             <div class="fund-card-bg" aria-hidden="true">
               <span class="fund-card-grid-bg"></span>
               <span class="fund-card-glow"></span>
               <span class="fund-card-sheen"></span>
+              <span class="fund-card-glare"></span>
+              <span class="fund-corner-ornament c-tl"></span>
+              <span class="fund-corner-ornament c-tr"></span>
+              <span class="fund-corner-ornament c-bl"></span>
+              <span class="fund-corner-ornament c-br"></span>
               <span class="fund-motes">
                 <span class="fund-mote m-1"></span>
                 <span class="fund-mote m-2"></span>
@@ -7936,7 +8110,7 @@
                   <div class="fund-card-title-wrap">
                     <div class="fund-card-name-row">
                       <span class="fund-card-name">${safeName}</span>
-                      ${f.reachedGoal ? `<span class="fund-goal-done-badge">${workIconSVG('check', 11)} Đạt đích</span>` : ''}
+                      ${f.reachedGoal ? `<span class="fund-goal-done-badge">${royalCrownSVG(11)} Đạt đích</span>` : ''}
                     </div>
                   </div>
                 </div>
@@ -7951,12 +8125,20 @@
                 <div class="fund-dial-wrap" aria-label="Tiến độ quỹ ${safeName}: ${f.pctRaw}%">
                   <span class="fund-dial-halo" aria-hidden="true"></span>
                   <svg class="fund-dial-svg" viewBox="0 0 88 88" aria-hidden="true">
+                    <defs>
+                      <linearGradient id="${gradId}" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="var(--fund-ring-start, var(--fund-accent))" />
+                        <stop offset="100%" stop-color="var(--fund-ring-end, #E5C168)" />
+                      </linearGradient>
+                    </defs>
                     <circle class="fund-dial-orbit" cx="44" cy="44" r="41" />
+                    <circle class="fund-dial-ticks" cx="44" cy="44" r="38" />
                     <circle class="fund-ring-track" cx="44" cy="44" r="34" />
                     <circle class="fund-ring-fill" cx="44" cy="44" r="34"
-                      stroke-dasharray="${RING_CIRC}" stroke-dashoffset="${offset}" />
+                      stroke="url(#${gradId})" stroke-dasharray="${RING_CIRC}" stroke-dashoffset="${offset}" />
                   </svg>
                   <div class="fund-dial-center font-tabular">
+                    ${f.reachedGoal ? `<span class="fund-dial-crown" aria-hidden="true">${royalCrownSVG(12)}</span>` : ''}
                     <span class="fund-ring-pct">${f.pctRaw}%</span>
                   </div>
                 </div>
@@ -7981,9 +8163,10 @@
         `;
     }).join('');
 
-    // Hiệu ứng động ăn mừng vừa nạp quỹ (từ vị trí % cũ -> mới + đếm số + pháo sáng)
-    const anim = fundsUIState.lastDepositAnim;
-    if (anim && (Date.now() - anim.at) < 2500) {
+    bindFundsLuxuryTilt();
+
+    // Hiệu ứng động ăn mừng vừa nạp quỹ (từ vị trí % cũ -> mới + đếm số + sóng xung kích & pháo sao vàng)
+    if (hasRecentDepositAnim && anim) {
       fundsUIState.lastDepositAnim = null;
       const targetFund = model.byId.get(anim.fundId);
       const cardEl = Array.from(cardsList.querySelectorAll('.fund-goal-card'))
@@ -8007,7 +8190,7 @@
           const pctEl = cardEl.querySelector('.fund-ring-pct');
           animateCountUp(pctEl, prevPctRaw, targetFund.pctRaw, 480, v => `${v}%`);
           cardEl.classList.add('is-just-deposited');
-          setTimeout(() => cardEl.classList.remove('is-just-deposited'), 900);
+          setTimeout(() => cardEl.classList.remove('is-just-deposited'), 950);
         }
         triggerFundCelebration(cardEl, anim.added, crossedGoal);
       }

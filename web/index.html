@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="/icons/icon-192.png?v=31">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
     rel="stylesheet">
   <script>
     (function () {
@@ -53,8 +53,8 @@
       } catch (_) { }
     })();
   </script>
-  <link rel="stylesheet" href="/style.css?v=107">
-  <link rel="stylesheet" href="/liquid-glass.css?v=107">
+  <link rel="stylesheet" href="/style.css?v=108">
+  <link rel="stylesheet" href="/liquid-glass.css?v=108">
 </head>
 
 <body>
@@ -1226,18 +1226,106 @@
         </section>
 
         <!-- =====================================================================
-             MÀN HÌNH: QUỸ TIẾT KIỆM & MỤC TIÊU (ĐA QUỸ + LỊCH SỬ NẠP TỪNG QUỸ)
+             MÀN HÌNH: QUỸ TIẾT KIỆM & MỤC TIÊU (PRIVATE SOVEREIGN VAULT)
              ===================================================================== -->
         <section id="tab-funds" class="tab-pane" role="tabpanel" aria-label="Quỹ tiết kiệm">
-          <div class="screen-nav-header" style="justify-content: center;">
-            <h1 class="screen-nav-title">Quỹ tiết kiệm</h1>
+          <div class="funds-royal-header" style="--stagger-idx: 0;">
+            <span class="funds-royal-eyebrow">
+              <svg class="ui-inline-svg" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M3 18h18" />
+                <path d="M4 15 2 7l5 4 5-7 5 7 5-4-2 8Z" />
+              </svg>
+              <span>KHO BẠC CÁ NHÂN</span>
+            </span>
+            <h1 class="screen-nav-title funds-royal-title">Quỹ tiết kiệm</h1>
+            <div class="funds-royal-divider" aria-hidden="true">
+              <span class="royal-divider-line"></span>
+              <span class="royal-divider-diamond"></span>
+              <span class="royal-divider-line"></span>
+            </div>
+          </div>
+
+          <!-- Thẻ Kho Bạc Hoàng Kim Tổng Hợp -->
+          <div id="funds-royal-hero" class="funds-royal-vault-hero" style="--stagger-idx: 1;" role="region"
+            aria-label="Tổng quan kho bạc quỹ tiết kiệm">
+            <div class="royal-vault-bg" aria-hidden="true">
+              <svg class="royal-guilloche-svg" viewBox="0 0 260 260" fill="none">
+                <circle cx="130" cy="130" r="122" stroke="currentColor" stroke-width="0.65" stroke-dasharray="3 5" />
+                <circle cx="130" cy="130" r="102" stroke="currentColor" stroke-width="0.6" />
+                <circle cx="130" cy="130" r="82" stroke="currentColor" stroke-width="0.65" stroke-dasharray="1 4" />
+                <circle cx="130" cy="130" r="62" stroke="currentColor" stroke-width="0.55" />
+                <polygon points="130,18 156,104 242,130 156,156 130,242 104,156 18,130 104,104" stroke="currentColor"
+                  stroke-width="0.55" opacity="0.55" />
+                <polygon points="130,42 146,114 218,130 146,146 130,218 114,146 42,130 114,114" stroke="currentColor"
+                  stroke-width="0.5" opacity="0.4" />
+              </svg>
+              <span class="royal-vault-aura"></span>
+              <span class="royal-vault-sheen"></span>
+              <span class="royal-vault-glare"></span>
+              <span class="royal-gold-mote gm-1"></span>
+              <span class="royal-gold-mote gm-2"></span>
+              <span class="royal-gold-mote gm-3"></span>
+              <span class="royal-gold-mote gm-4"></span>
+              <span class="royal-gold-mote gm-5"></span>
+              <span class="royal-gold-mote gm-6"></span>
+              <span class="royal-corner c-tl"></span>
+              <span class="royal-corner c-tr"></span>
+              <span class="royal-corner c-bl"></span>
+              <span class="royal-corner c-br"></span>
+            </div>
+
+            <div class="royal-vault-content">
+              <div class="royal-hero-top">
+                <span class="royal-vault-crest">
+                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M3 18h18" />
+                    <path d="M4 15 2 7l5 4 5-7 5 7 5-4-2 8Z" />
+                  </svg>
+                  <span>TỔNG TÀI SẢN TÍCH LUỸ</span>
+                </span>
+                <span id="funds-hero-status-pill" class="royal-status-pill font-tabular">0% mục tiêu</span>
+              </div>
+
+              <div class="royal-hero-balance-block">
+                <strong id="funds-hero-total-saved" class="royal-hero-balance font-tabular">0đ</strong>
+                <div class="royal-hero-sub-row">
+                  <span id="funds-hero-target-sub" class="royal-hero-target font-tabular">/ Mục tiêu 0đ</span>
+                  <span id="funds-hero-month-pill" class="royal-month-pill font-tabular" hidden>+0đ tháng này</span>
+                </div>
+              </div>
+
+              <div class="royal-progress-wrap" aria-hidden="true">
+                <div class="royal-progress-track">
+                  <div id="funds-hero-progress-fill" class="royal-progress-fill" style="width: 0%;">
+                    <span class="royal-progress-diamond"></span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="royal-hero-stats-grid">
+                <div class="royal-stat-cell">
+                  <span class="royal-stat-label">Danh mục</span>
+                  <strong id="funds-hero-stat-count" class="royal-stat-val font-tabular">1 quỹ</strong>
+                </div>
+                <div class="royal-stat-cell">
+                  <span class="royal-stat-label">Lần nạp</span>
+                  <strong id="funds-hero-stat-deposits" class="royal-stat-val font-tabular">0 lần</strong>
+                </div>
+                <div class="royal-stat-cell">
+                  <span id="funds-hero-stat-rem-label" class="royal-stat-label">Còn thiếu</span>
+                  <strong id="funds-hero-stat-remaining" class="royal-stat-val font-tabular">0đ</strong>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Danh sách các quỹ -->
           <div class="section-container" style="margin-top: 2px; margin-bottom: 32px;">
-            <div class="section-title-header">
-              <h2 class="section-heading">Các quỹ của bạn</h2>
-              <span id="funds-count-sub" class="work-list-sub font-tabular">1 quỹ</span>
+            <div class="section-title-header funds-section-header">
+              <h2 class="section-heading funds-section-heading">Các quỹ của bạn</h2>
+              <span id="funds-count-sub" class="work-list-sub funds-count-pill font-tabular">1 quỹ</span>
             </div>
             <div id="funds-cards-list" class="funds-cards-stack"></div>
           </div>
@@ -2262,7 +2350,7 @@
     </div>
   </div>
 
-  <script src="/app.js?v=107"></script>
+  <script src="/app.js?v=108"></script>
 </body>
 
 </html>
