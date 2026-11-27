@@ -729,6 +729,125 @@ func (s *Server) queryMonthDaysBrief(month string) []workDayBrief {
 	return out
 }
 
+func computeWorkSummaryFromSlices(allJobs []workJob, allLedger []workLedger, datePrefix string, exactDate bool) workSummary {
+	var sum workSummary
+	var start, end string
+	if !exactDate {
+		start, end = monthDateRange(datePrefix)
+	}
+	matchDate := func(d string) bool {
+		if exactDate {
+			return d == datePrefix
+		}
+		return d >= start && d < end
+	}
+
+	for _, j := range allJobs {
+		if matchDate(j.Date) {
+			sum.TotalJobs++
+			sum.TotalRevenue += j.Price
+			if len(j.Payments) > 0 {
+				if j.RemainingAmount > 0 {
+					sum.UnpaidJobs++
+					sum.UnpaidAmount += j.RemainingAmount
+				} else {
+					sum.PaidJobs++
+				}
+			} else if j.Status == "CTT" {
+				sum.UnpaidJobs++
+				sum.UnpaidAmount += j.Price
+			} else {
+				sum.PaidJobs++
+				sum.PaidAmount += j.Price
+			}
+		}
+		for _, p := range j.Payments {
+			if matchDate(p.Date) {
+				sum.PaidAmount += p.Amount
+			}
+		}
+	}
+
+	var maxFundBalID int64 = -1
+	for _, l := range allLedger {
+		if matchDate(l.Date) {
+			switch l.Category {
+			case "expense":
+				sum.ExpenseAmount += l.Amount
+			case "fund_in":
+				sum.FundIn += l.Amount
+			case "fund_bal":
+				if l.ID > maxFundBalID {
+					maxFundBalID = l.ID
+					sum.FundBal = l.Amount
+				}
+			case "borrow":
+				sum.BorrowAmount += l.RemainingAmount
+			case "repay":
+				sum.RepayAmount += l.Amount
+			}
+		}
+		if l.Category == "borrow" {
+			for _, rep := range l.Repayments {
+				if matchDate(rep.Date) {
+					sum.RepayAmount += rep.Amount
+				}
+			}
+		}
+	}
+
+	sum.NetCash = sum.PaidAmount - sum.ExpenseAmount
+	return sum
+}
+
+func computeMonthDaysBriefFromSlices(allJobs []workJob, allLedger []workLedger, month string) []workDayBrief {
+	start, end := monthDateRange(month)
+	byDate := map[string]*workDayBrief{}
+	ensureDay := func(d string) *workDayBrief {
+		b := byDate[d]
+		if b == nil {
+			b = &workDayBrief{Date: d}
+			byDate[d] = b
+		}
+		return b
+	}
+
+	for _, j := range allJobs {
+		if j.Date >= start && j.Date < end {
+			b := ensureDay(j.Date)
+			b.JobCount++
+			b.TotalRevenue += j.Price
+			if len(j.Payments) > 0 {
+				b.UnpaidAmount += j.RemainingAmount
+			} else if j.Status == "CTT" {
+				b.UnpaidAmount += j.Price
+			} else {
+				b.PaidAmount += j.Price
+			}
+		}
+		for _, p := range j.Payments {
+			if p.Date >= start && p.Date < end {
+				ensureDay(p.Date).PaidAmount += p.Amount
+			}
+		}
+	}
+
+	for _, l := range allLedger {
+		if l.Category == "expense" && l.Date >= start && l.Date < end {
+			ensureDay(l.Date).ExpenseAmount += l.Amount
+		}
+	}
+
+	out := make([]workDayBrief, 0, len(byDate))
+	for _, b := range byDate {
+		out = append(out, *b)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].Date > out[j].Date
+	})
+	return out
+}
+
 func (s *Server) workSuggestions() ([]string, []servicePreset) {
 	seenCust := map[string]bool{}
 	customers := []string{}
@@ -825,10 +944,10 @@ func (s *Server) handleGetWork(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	daySum := s.computeWorkSummary(date, true)
-	monthSum := s.computeWorkSummary(month, false)
+	daySum := computeWorkSummaryFromSlices(allJobs, allLedger, date, true)
+	monthSum := computeWorkSummaryFromSlices(allJobs, allLedger, month, false)
 	unpaidGroups, debtGroups, totalUnpaidAll, totalUnpaidJobs := buildDebtGroups(allJobs, true)
-	recentDays := s.queryMonthDaysBrief(month)
+	recentDays := computeMonthDaysBriefFromSlices(allJobs, allLedger, month)
 	customers, services := s.workSuggestions()
 	tombstones := s.queryAllTombstones()
 

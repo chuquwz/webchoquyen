@@ -1000,7 +1000,7 @@ a:focus-visible,
   font-weight: 700;
   color: var(--text-main);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .btn-water-chip:hover {
@@ -1047,7 +1047,7 @@ a:focus-visible,
   font-weight: 700;
   color: var(--text-sub);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .btn-med-chip.taken {
@@ -1076,7 +1076,7 @@ a:focus-visible,
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s ease;
+  transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .btn-stepper-pill:hover {
@@ -1270,7 +1270,7 @@ a:focus-visible,
   justify-content: center;
   gap: 4px;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .day-capsule:hover {
@@ -2141,7 +2141,7 @@ input[type="time"].form-input {
   -moz-appearance: none;
   appearance: none;
   outline: none;
-  transition: all 0.2s ease;
+  transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .pin-input:focus {
@@ -10732,6 +10732,18 @@ html[data-readonly="1"] #tab-settings .settings-accordion {
 html[data-readonly="1"] #tab-today [role="button"],
 html[data-readonly="1"] #tab-today .bento-card {
   cursor: default;
+}
+
+/* Performance: Viewport containment for long debt lists & pause hidden/dragged ambient loops */
+.work-debt-group-shell:not(:has(.is-open)):not(:has(.is-swiping-left)):not(:has(.is-swiping-right)) {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 92px;
+}
+
+body:has(.modal-overlay.open) .tab-pane *,
+.tab-pane.is-swipe-dragging *,
+.tab-pane.is-swipe-preview * {
+  animation-play-state: paused !important;
 }
 
 /* Media Queries for Accessibility */

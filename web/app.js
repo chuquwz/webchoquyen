@@ -44,6 +44,32 @@
     return false;
   }
 
+  const appViewportCache = { left: 0, right: 390, width: 390, dirty: true };
+  function refreshAppViewportCache() {
+    const appView = document.getElementById('app-view');
+    const vw = window.innerWidth || 390;
+    if (!appView || appView.style.display === 'none') {
+      appViewportCache.left = 0;
+      appViewportCache.right = vw;
+      appViewportCache.width = vw;
+      appViewportCache.dirty = true;
+      return appViewportCache;
+    }
+    const rect = appView.getBoundingClientRect();
+    const w = rect.width > 0 ? rect.width : vw;
+    appViewportCache.left = Math.max(0, rect.left || 0);
+    appViewportCache.right = rect.right > 0 ? rect.right : vw;
+    appViewportCache.width = Math.max(240, w);
+    appViewportCache.dirty = false;
+    return appViewportCache;
+  }
+  function getAppViewportMetrics() {
+    if (appViewportCache.dirty) return refreshAppViewportCache();
+    return appViewportCache;
+  }
+  window.addEventListener('resize', () => { appViewportCache.dirty = true; }, { passive: true });
+  window.addEventListener('orientationchange', () => { appViewportCache.dirty = true; }, { passive: true });
+
   // Utility Toast (hỗ trợ nút Hoàn tác & tạm dừng đếm ngược khi người dùng đang chạm/focus)
   window.showToast = function (msg, isErrOrOpts = false) {
     const container = document.getElementById('toast-container');
@@ -384,19 +410,29 @@
     return `${d}|${amt}|${note}|${ts}`;
   }
 
+  let syncQueueMemCache = null;
+  let syncQueueHydrated = false;
+
   function readSyncQueueSync() {
+    if (syncQueueMemCache !== null) return syncQueueMemCache.slice();
     try {
       const raw = localStorage.getItem(SYNC_QUEUE_KEY);
-      if (!raw) return [];
+      if (!raw) {
+        syncQueueMemCache = [];
+        return [];
+      }
       const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : [];
+      syncQueueMemCache = Array.isArray(parsed) ? parsed : [];
+      return syncQueueMemCache.slice();
     } catch (_) {
+      syncQueueMemCache = [];
       return [];
     }
   }
 
   function writeSyncQueueSync(queue) {
     const clean = Array.isArray(queue) ? queue : [];
+    syncQueueMemCache = clean.slice();
     try {
       localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(clean));
     } catch (_) { }
@@ -410,14 +446,17 @@
   }
 
   async function hydrateSyncQueueFromIDB() {
+    if (syncQueueHydrated) return readSyncQueueSync();
+    syncQueueHydrated = true;
     if (typeof idbGet !== 'function') return readSyncQueueSync();
     const localQ = readSyncQueueSync();
     const idbQ = await idbGet('sync_queue');
     if (Array.isArray(idbQ) && idbQ.length > 0 && localQ.length === 0) {
+      syncQueueMemCache = idbQ.slice();
       try {
         localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(idbQ));
       } catch (_) { }
-      return idbQ;
+      return idbQ.slice();
     }
     return localQ;
   }
@@ -795,24 +834,23 @@
 
   async function onAuthenticatedBoot() {
     syncState.authenticated = true;
-    await hydrateSyncQueueFromIDB();
-    if (typeof hydrateVaultFromIDB === 'function') {
-      await hydrateVaultFromIDB();
-      if ((state.activeTab === 'work' || state.activeTab === 'ledger' || state.activeTab === 'funds')
-        && typeof computeWorkFromLocalVault === 'function') {
-        computeWorkFromLocalVault(workState.date || state.today);
-      }
+    if ((state.activeTab === 'work' || state.activeTab === 'ledger' || state.activeTab === 'funds')
+      && typeof computeWorkFromLocalVault === 'function') {
+      computeWorkFromLocalVault(workState.date || state.today);
     }
+    await Promise.all([
+      hydrateSyncQueueFromIDB(),
+      typeof hydrateVaultFromIDB === 'function' ? hydrateVaultFromIDB() : Promise.resolve()
+    ]);
     bindSyncLifecycleListeners();
     startSyncWatcher();
     await flushPendingSyncQueues({ silent: true });
-    await loadToday({ silent: true });
-    await syncFinanceVaultOnBoot();
-    if (state.activeTab === 'work' || state.activeTab === 'ledger' || state.activeTab === 'funds') {
-      lastWorkSyncAt = Date.now();
-      await loadWorkData(workState.date || state.today, { silent: true });
-    }
-    await checkRemoteSyncState({ silent: true, force: true });
+    lastWorkSyncAt = Date.now();
+    syncState.lastCheckAt = Date.now();
+    await Promise.all([
+      loadToday({ silent: true }),
+      loadWorkData(workState.date || state.today, { silent: true })
+    ]);
   }
 
   function setupDisableLongPressCopy() {
@@ -841,7 +879,11 @@
     setupRouting();
     setupTabSwipeGesture();
     setupNavScrollMinimize();
-    setupLiquidGlassRefraction();
+    if (typeof window.requestIdleCallback === 'function') {
+      window.requestIdleCallback(() => setupLiquidGlassRefraction(), { timeout: 600 });
+    } else {
+      setTimeout(setupLiquidGlassRefraction, 180);
+    }
     setupLiquidGlassLight();
     setupModalSheetGestures();
     setupWorkJobSwipeGestures();
@@ -894,8 +936,10 @@
       });
 
       setInterval(() => {
-        reg.update().catch(() => { });
-      }, 30000);
+        if (document.visibilityState === 'visible') {
+          reg.update().catch(() => { });
+        }
+      }, 300000);
     }).catch(() => { });
 
     let isRefreshing = false;
@@ -957,6 +1001,7 @@
     if (loginEl) loginEl.style.display = 'none';
     if (appEl) appEl.style.display = 'block';
     if (navEl) navEl.style.display = 'flex';
+    appViewportCache.dirty = true;
     positionNavLens();
   }
 
@@ -1059,8 +1104,8 @@
     const nav = document.getElementById('app-bottom-nav');
     if (!nav || nav.dataset.minimizeBound) return;
     nav.dataset.minimizeBound = '1';
-    const reduceMotion = prefersReducedMotion();
     let lastY = window.scrollY || 0;
+    let isCompact = nav.classList.contains('is-compact');
     let ticking = false;
     window.addEventListener('scroll', () => {
       if (ticking) return;
@@ -1068,12 +1113,13 @@
       requestAnimationFrame(() => {
         ticking = false;
         const y = window.scrollY || 0;
-        if (!reduceMotion) {
-          document.documentElement.style.setProperty('--lg-rim-angle', (135 + Math.sin(y / 180) * 32).toFixed(1) + 'deg');
-        }
         const dy = y - lastY;
         if (Math.abs(dy) < 8) return;
-        nav.classList.toggle('is-compact', dy > 0 && y > 120);
+        const nextCompact = dy > 0 && y > 120;
+        if (nextCompact !== isCompact) {
+          isCompact = nextCompact;
+          nav.classList.toggle('is-compact', isCompact);
+        }
         lastY = y;
       });
     }, { passive: true });
@@ -1297,6 +1343,8 @@
     if (tabId === 'work' || tabId === 'ledger' || tabId === 'funds') {
       if (!workState.date && typeof computeWorkFromLocalVault === 'function') {
         computeWorkFromLocalVault(workState.date || state.today);
+      } else if (typeof flushWorkTabViews === 'function') {
+        flushWorkTabViews(tabId);
       } else if (tabId === 'funds' && typeof renderFundsScreen === 'function') {
         renderFundsScreen();
       }
@@ -1435,7 +1483,7 @@
     }
 
     function getStride() {
-      return Math.max(240, appView.clientWidth || window.innerWidth || 390);
+      return Math.max(240, getAppViewportMetrics().width || window.innerWidth || 390);
     }
 
     // side: 1 = tab kế tiếp (vuốt sang trái), -1 = tab trước (vuốt sang phải)
@@ -1457,6 +1505,9 @@
     function ensureWorkDataFor(tab) {
       if ((tab === 'work' || tab === 'ledger' || tab === 'funds') && !workState.date && typeof computeWorkFromLocalVault === 'function') {
         computeWorkFromLocalVault(workState.date || state.today);
+      }
+      if (typeof flushWorkTabViews === 'function') {
+        flushWorkTabViews(tab);
       } else if (tab === 'funds' && typeof renderFundsScreen === 'function') {
         renderFundsScreen();
       }
@@ -1693,11 +1744,9 @@
 
       if (!touch || !isSwipeAllowed()) return;
 
-      const rect = typeof appView.getBoundingClientRect === 'function'
-        ? appView.getBoundingClientRect()
-        : { left: 0, right: window.innerWidth || 390 };
-      const leftBoundary = Math.max(0, rect.left || 0);
-      const rightBoundary = rect.right && rect.right > 0 ? rect.right : (window.innerWidth || 390);
+      const metrics = getAppViewportMetrics();
+      const leftBoundary = metrics.left;
+      const rightBoundary = metrics.right;
       const viewportWidth = window.innerWidth || rightBoundary;
       const isEdgeSwipe = touch.clientX - leftBoundary <= EDGE_ZONE_PX || rightBoundary - touch.clientX <= EDGE_ZONE_PX ||
         touch.clientX <= EDGE_ZONE_PX || touch.clientX >= viewportWidth - EDGE_ZONE_PX;
@@ -4351,9 +4400,60 @@
   const FINANCE_IDB_STORE = 'kv';
   let linkedFinanceFileHandle = null;
   let idbHydrated = false;
+  let idbConnPromise = null;
+  let vaultMemCache = null;
+  let vaultPersistTimer = null;
+  let pendingVaultPersistPayload = null;
+  let vaultLifecycleBound = false;
+
+  function cloneVaultShallow(v) {
+    if (!v || typeof v !== 'object') {
+      return { db_id: '', updated_at: 0, dirty: false, jobs: [], ledger: [], tombstones: [] };
+    }
+    return {
+      db_id: v.db_id || '',
+      updated_at: v.updated_at || 0,
+      dirty: Boolean(v.dirty),
+      jobs: Array.isArray(v.jobs) ? v.jobs.slice() : [],
+      ledger: Array.isArray(v.ledger) ? v.ledger.slice() : [],
+      tombstones: Array.isArray(v.tombstones) ? v.tombstones.slice() : []
+    };
+  }
+
+  function flushPendingVaultPersist() {
+    if (vaultPersistTimer) {
+      clearTimeout(vaultPersistTimer);
+      vaultPersistTimer = null;
+    }
+    if (!pendingVaultPersistPayload) return;
+    const payload = pendingVaultPersistPayload;
+    pendingVaultPersistPayload = null;
+    try {
+      localStorage.setItem(FINANCE_VAULT_KEY, JSON.stringify(payload));
+    } catch (e) { }
+    idbSet('vault_main', payload);
+  }
+
+  function bindVaultLifecycleFlush() {
+    if (vaultLifecycleBound) return;
+    vaultLifecycleBound = true;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') flushPendingVaultPersist();
+    });
+    window.addEventListener('pagehide', flushPendingVaultPersist);
+    window.addEventListener('storage', (e) => {
+      if (!e || e.key === null || e.key === FINANCE_VAULT_KEY) {
+        vaultMemCache = null;
+      }
+      if (!e || e.key === null || e.key === SYNC_QUEUE_KEY) {
+        syncQueueMemCache = null;
+      }
+    });
+  }
 
   function openFinanceIDB() {
-    return new Promise((resolve, reject) => {
+    if (idbConnPromise) return idbConnPromise;
+    idbConnPromise = new Promise((resolve, reject) => {
       if (!('indexedDB' in window)) return reject(new Error('No IndexedDB'));
       const req = indexedDB.open(FINANCE_IDB_NAME, 1);
       req.onupgradeneeded = () => {
@@ -4362,9 +4462,24 @@
           db.createObjectStore(FINANCE_IDB_STORE);
         }
       };
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
+      req.onsuccess = () => {
+        const db = req.result;
+        db.onclose = () => { idbConnPromise = null; };
+        db.onversionchange = () => {
+          idbConnPromise = null;
+          try { db.close(); } catch (_) { }
+        };
+        resolve(db);
+      };
+      req.onerror = () => {
+        idbConnPromise = null;
+        reject(req.error);
+      };
+      req.onblocked = () => {
+        idbConnPromise = null;
+      };
     });
+    return idbConnPromise;
   }
 
   async function idbGet(key) {
@@ -4394,11 +4509,16 @@
   }
 
   function readFinanceVaultSync() {
+    bindVaultLifecycleFlush();
+    if (vaultMemCache) return cloneVaultShallow(vaultMemCache);
     try {
       const raw = localStorage.getItem(FINANCE_VAULT_KEY);
-      if (!raw) return { db_id: '', updated_at: 0, dirty: false, jobs: [], ledger: [], tombstones: [] };
+      if (!raw) {
+        vaultMemCache = { db_id: '', updated_at: 0, dirty: false, jobs: [], ledger: [], tombstones: [] };
+        return cloneVaultShallow(vaultMemCache);
+      }
       const parsed = JSON.parse(raw);
-      return {
+      vaultMemCache = {
         db_id: parsed.db_id || '',
         updated_at: parsed.updated_at || 0,
         dirty: Boolean(parsed.dirty),
@@ -4406,8 +4526,10 @@
         ledger: Array.isArray(parsed.ledger) ? parsed.ledger : [],
         tombstones: Array.isArray(parsed.tombstones) ? parsed.tombstones : []
       };
+      return cloneVaultShallow(vaultMemCache);
     } catch (e) {
-      return { db_id: '', updated_at: 0, dirty: false, jobs: [], ledger: [], tombstones: [] };
+      vaultMemCache = { db_id: '', updated_at: 0, dirty: false, jobs: [], ledger: [], tombstones: [] };
+      return cloneVaultShallow(vaultMemCache);
     }
   }
 
@@ -4426,10 +4548,18 @@
       const idbCount = idbVault.jobs.length + (Array.isArray(idbVault.ledger) ? idbVault.ledger.length : 0);
       if (localCount === 0 && idbCount > 0) {
         const normalized = Object.assign({ tombstones: [] }, idbVault);
+        vaultMemCache = {
+          db_id: normalized.db_id || '',
+          updated_at: normalized.updated_at || 0,
+          dirty: Boolean(normalized.dirty),
+          jobs: Array.isArray(normalized.jobs) ? normalized.jobs : [],
+          ledger: Array.isArray(normalized.ledger) ? normalized.ledger : [],
+          tombstones: Array.isArray(normalized.tombstones) ? normalized.tombstones : []
+        };
         try {
           localStorage.setItem(FINANCE_VAULT_KEY, JSON.stringify(normalized));
         } catch (e) { }
-        return normalized;
+        return cloneVaultShallow(vaultMemCache);
       }
     }
     return local;
@@ -4449,6 +4579,7 @@
   }
 
   function saveFinanceVaultToDevice(vaultInput) {
+    bindVaultLifecycleFlush();
     const cur = readFinanceVaultSync();
     const payload = {
       app: 'QuyenHealth-FinanceVault',
@@ -4460,13 +4591,13 @@
       ledger: Array.isArray(vaultInput.ledger) ? vaultInput.ledger : cur.ledger,
       tombstones: Array.isArray(vaultInput.tombstones) ? vaultInput.tombstones.slice(-1500) : (cur.tombstones || [])
     };
-    try {
-      localStorage.setItem(FINANCE_VAULT_KEY, JSON.stringify(payload));
-    } catch (e) { }
-    idbSet('vault_main', payload);
+    vaultMemCache = payload;
+    pendingVaultPersistPayload = payload;
+    if (vaultPersistTimer) clearTimeout(vaultPersistTimer);
+    vaultPersistTimer = setTimeout(flushPendingVaultPersist, 50);
     writeToLinkedDiskFile(payload);
     renderFinanceVaultStatus(payload);
-    return payload;
+    return cloneVaultShallow(payload);
   }
 
   function appendTombstoneToVault(vaultObj, kind, uid, sig) {
@@ -5158,8 +5289,8 @@
 
   async function loadWorkData(targetDate, opts = {}) {
     const reqSeq = ++workLoadSeq;
-    await hydrateSyncQueueFromIDB();
-    await hydrateVaultFromIDB();
+    if (!syncQueueHydrated) await hydrateSyncQueueFromIDB();
+    if (!idbHydrated) await hydrateVaultFromIDB();
     await flushPendingSyncQueues({ silent: true });
     if (reqSeq !== workLoadSeq) return;
     const dateParam = targetDate || workState.date || state.today || '';
@@ -5288,13 +5419,79 @@
     setTxt('work-badge-day-jobs', String(workState.jobs.length));
     setTxt('work-badge-unpaid-all', String(workState.totalUnpaidJobs || 0));
 
-    renderWorkSuggestions();
-    renderWorkCalendar();
-    renderWorkJobsList();
-    renderWorkUnpaidGroups();
-    renderLedgerScreen();
-    if (typeof renderFundsScreen === 'function') {
-      renderFundsScreen();
+    markWorkViewsDirty();
+    flushWorkTabViews(state.activeTab);
+    scheduleIdleSuggestionsWarm();
+  }
+
+  const workRenderDirty = {
+    suggestions: true,
+    calendar: true,
+    jobs: true,
+    unpaid: true,
+    ledger: true,
+    funds: true
+  };
+  let idleSuggestionsTimer = 0;
+
+  function markWorkViewsDirty() {
+    workRenderDirty.suggestions = true;
+    workRenderDirty.calendar = true;
+    workRenderDirty.jobs = true;
+    workRenderDirty.unpaid = true;
+    workRenderDirty.ledger = true;
+    workRenderDirty.funds = true;
+  }
+
+  function flushWorkTabViews(tabId) {
+    if (tabId === 'work') {
+      if (workState.workCalendarExpanded) {
+        if (workRenderDirty.calendar) {
+          workRenderDirty.calendar = false;
+          renderWorkCalendar();
+        } else {
+          syncCalendarCollapseUI();
+        }
+      } else {
+        syncCalendarCollapseUI();
+      }
+      if (workState.subTab === 'unpaid') {
+        if (workRenderDirty.unpaid) {
+          workRenderDirty.unpaid = false;
+          renderWorkUnpaidGroups();
+        }
+      } else if (workRenderDirty.jobs) {
+        workRenderDirty.jobs = false;
+        renderWorkJobsList();
+      }
+    } else if (tabId === 'ledger') {
+      if (workRenderDirty.ledger) {
+        workRenderDirty.ledger = false;
+        renderLedgerScreen();
+      }
+    } else if (tabId === 'funds') {
+      if (workRenderDirty.funds) {
+        workRenderDirty.funds = false;
+        if (typeof renderFundsScreen === 'function') {
+          renderFundsScreen();
+        }
+      }
+    }
+  }
+
+  function scheduleIdleSuggestionsWarm() {
+    if (idleSuggestionsTimer) return;
+    const run = () => {
+      idleSuggestionsTimer = 0;
+      if (workRenderDirty.suggestions) {
+        workRenderDirty.suggestions = false;
+        renderWorkSuggestions();
+      }
+    };
+    if (typeof window.requestIdleCallback === 'function') {
+      idleSuggestionsTimer = window.requestIdleCallback(run, { timeout: 600 });
+    } else {
+      idleSuggestionsTimer = setTimeout(run, 260);
     }
   }
 
@@ -5335,6 +5532,7 @@
         pane.classList.toggle('active', k === sub);
       }
     });
+    flushWorkTabViews('work');
   };
 
   function renderWorkSuggestions() {
@@ -5406,7 +5604,10 @@
 
   window.openAddWorkJobModal = function () {
     if (!guardWriteAction()) return;
-    renderWorkSuggestions();
+    if (workRenderDirty.suggestions) {
+      workRenderDirty.suggestions = false;
+      renderWorkSuggestions();
+    }
     openModal('modal-add-work-job');
     setTimeout(() => {
       const custInp = document.getElementById('work-job-customer');
@@ -6010,12 +6211,9 @@
       if (!e.touches || e.touches.length !== 1) return;
 
       const touch = e.touches[0];
-      const appView = document.getElementById('app-view');
-      const rect = appView && typeof appView.getBoundingClientRect === 'function'
-        ? appView.getBoundingClientRect()
-        : { left: 0, right: window.innerWidth || 390 };
-      const leftBoundary = Math.max(0, rect.left || 0);
-      const rightBoundary = rect.right && rect.right > 0 ? rect.right : (window.innerWidth || 390);
+      const metrics = getAppViewportMetrics();
+      const leftBoundary = metrics.left;
+      const rightBoundary = metrics.right;
       const viewportWidth = window.innerWidth || rightBoundary;
       if (touch.clientX - leftBoundary <= EDGE_ZONE_PX ||
         rightBoundary - touch.clientX <= EDGE_ZONE_PX ||
@@ -6558,6 +6756,11 @@
 
   window.toggleWorkCalendar = function () {
     workState.workCalendarExpanded = !workState.workCalendarExpanded;
+    if (workState.workCalendarExpanded && workRenderDirty.calendar) {
+      workRenderDirty.calendar = false;
+      renderWorkCalendar();
+      return;
+    }
     syncCalendarCollapseUI();
   };
 
@@ -6725,9 +6928,17 @@
     return '';
   }
 
+  let debtSearchRaf = 0;
+
   window.onDebtSearchInput = function (val) {
     workState.debtSearchQuery = String(val || '');
-    renderWorkUnpaidGroups();
+    syncSearchInputUI('debt-search-input', 'debt-search-clear', workState.debtSearchQuery);
+    if (debtSearchRaf) cancelAnimationFrame(debtSearchRaf);
+    debtSearchRaf = requestAnimationFrame(() => {
+      debtSearchRaf = 0;
+      workRenderDirty.unpaid = false;
+      renderWorkUnpaidGroups();
+    });
   };
 
   window.onDebtSearchKeydown = function (e) {
@@ -6743,9 +6954,14 @@
   };
 
   window.clearDebtSearch = function () {
+    if (debtSearchRaf) {
+      cancelAnimationFrame(debtSearchRaf);
+      debtSearchRaf = 0;
+    }
     workState.debtSearchQuery = '';
     const inputEl = document.getElementById('debt-search-input');
     if (inputEl) inputEl.value = '';
+    workRenderDirty.unpaid = false;
     renderWorkUnpaidGroups();
     if (inputEl) inputEl.focus();
   };
@@ -6785,6 +7001,10 @@
   };
 
   window.resetDebtFilters = function () {
+    if (debtSearchRaf) {
+      cancelAnimationFrame(debtSearchRaf);
+      debtSearchRaf = 0;
+    }
     workState.debtSearchQuery = '';
     workState.debtTimeMode = 'all';
     workState.debtTimeDate = '';
@@ -6793,6 +7013,7 @@
     workState.debtTimeTo = '';
     const inputEl = document.getElementById('debt-search-input');
     if (inputEl) inputEl.value = '';
+    workRenderDirty.unpaid = false;
     renderWorkUnpaidGroups();
     if (inputEl) inputEl.focus();
   };
@@ -7454,9 +7675,17 @@
     renderBorrowListModal();
   };
 
+  let borrowSearchRaf = 0;
+
   window.onBorrowSearchInput = function (val) {
     workState.borrowSearchQuery = String(val || '');
-    renderBorrowListModal();
+    syncSearchInputUI('borrow-search-input', 'borrow-search-clear', workState.borrowSearchQuery);
+    if (borrowSearchRaf) cancelAnimationFrame(borrowSearchRaf);
+    borrowSearchRaf = requestAnimationFrame(() => {
+      borrowSearchRaf = 0;
+      workRenderDirty.ledger = false;
+      renderBorrowListModal();
+    });
   };
 
   window.onBorrowSearchKeydown = function (e) {
@@ -7473,9 +7702,14 @@
   };
 
   window.clearBorrowSearch = function () {
+    if (borrowSearchRaf) {
+      cancelAnimationFrame(borrowSearchRaf);
+      borrowSearchRaf = 0;
+    }
     workState.borrowSearchQuery = '';
     const inputEl = document.getElementById('borrow-search-input');
     if (inputEl) inputEl.value = '';
+    workRenderDirty.ledger = false;
     renderBorrowListModal();
     if (inputEl) inputEl.focus();
   };

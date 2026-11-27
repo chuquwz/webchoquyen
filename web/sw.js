@@ -1,10 +1,10 @@
-const CACHE_NAME = 'quyenanh-v120';
+const CACHE_NAME = 'quyenanh-v121';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/style.css?v=120',
-  '/liquid-glass.css?v=120',
-  '/app.js?v=120',
+  '/style.css?v=121',
+  '/liquid-glass.css?v=121',
+  '/app.js?v=121',
   '/manifest.webmanifest',
   '/icons/icon-192.png?v=31',
   '/icons/icon-512.png?v=31'
@@ -37,15 +37,37 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
-  // Không chặn và không cache API
-  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/healthz')) {
+  if (url.origin !== self.location.origin || url.pathname.startsWith('/api/') || url.pathname.startsWith('/healthz')) {
     return;
   }
-  // Chiến lược Network First: Luôn tải từ máy chủ để người dùng nhận ngay bản mới, chỉ fallback cache khi offline
+
+  // Tài nguyên tĩnh đã gắn ?v=... hoặc ảnh/icon bất biến: Cache-First để mở app tức thì (< 50ms)
+  const isVersionedOrMedia = url.searchParams.has('v') ||
+    url.pathname.startsWith('/ali/') ||
+    url.pathname.startsWith('/icons/');
+
+  if (isVersionedOrMedia) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+        return fetch(event.request).then((resp) => {
+          if (resp.status === 200) {
+            const clone = resp.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return resp;
+        });
+      })
+    );
+    return;
+  }
+
+  // HTML shell & manifest: Network-First để phát hiện bản ?v= mới ngay khi máy chủ cập nhật
   event.respondWith(
     fetch(event.request).then((resp) => {
-      if (resp.status === 200 && event.request.method === 'GET') {
+      if (resp.status === 200) {
         const clone = resp.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
       }

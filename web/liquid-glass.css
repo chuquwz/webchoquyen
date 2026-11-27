@@ -18,7 +18,7 @@
 
   --lg-chrome: rgba(255, 255, 255, 0.32);
   --lg-surface: rgba(255, 255, 255, 0.44);
-  --lg-surface-list: rgba(255, 255, 255, 0.56);
+  --lg-surface-list: rgba(255, 255, 255, 0.78);
   --lg-surface-strong: rgba(255, 255, 255, 0.58);
   --lg-sheet: rgba(255, 255, 255, 0.54);
   --lg-field: rgba(255, 255, 255, 0.52);
@@ -96,7 +96,7 @@ html[data-theme="dark"] {
 
   --lg-chrome: rgba(20, 32, 24, 0.36);
   --lg-surface: rgba(22, 35, 26, 0.44);
-  --lg-surface-list: rgba(22, 34, 25, 0.56);
+  --lg-surface-list: rgba(22, 34, 25, 0.74);
   --lg-surface-strong: rgba(32, 48, 36, 0.56);
   --lg-sheet: rgba(16, 26, 19, 0.58);
   --lg-field: rgba(16, 26, 19, 0.58);
@@ -526,12 +526,10 @@ html[data-theme="dark"] .work-calendar-card.is-collapsed .btn-work-cal-toggle {
   box-shadow: var(--lg-shadow-card), var(--lg-specular);
 }
 
-/* List cards: lighter blur for smooth scroll FPS; debt group keeps status border */
+/* List cards: crisp multi-layer translucent cards without per-row GPU backdrop blur for 120fps scrolling */
 .work-job-card {
   background-color: var(--lg-surface-list);
   background-image: var(--lg-card-sheen);
-  -webkit-backdrop-filter: var(--lg-blur-list);
-  backdrop-filter: var(--lg-blur-list);
   border-color: var(--lg-hairline);
   box-shadow: var(--lg-shadow-card), var(--lg-specular);
 }
@@ -539,8 +537,6 @@ html[data-theme="dark"] .work-calendar-card.is-collapsed .btn-work-cal-toggle {
 html[data-theme="dark"] .work-job-card {
   background-color: var(--lg-surface-list);
   background-image: var(--lg-card-sheen);
-  -webkit-backdrop-filter: var(--lg-blur-list);
-  backdrop-filter: var(--lg-blur-list);
   border-color: var(--lg-hairline);
   box-shadow: var(--lg-shadow-card), var(--lg-specular);
 }
@@ -548,16 +544,12 @@ html[data-theme="dark"] .work-job-card {
 .work-debt-group-card {
   background-color: var(--lg-surface-list);
   background-image: var(--lg-card-sheen);
-  -webkit-backdrop-filter: var(--lg-blur-list);
-  backdrop-filter: var(--lg-blur-list);
   box-shadow: var(--lg-shadow-card), var(--lg-specular);
 }
 
 html[data-theme="dark"] .work-debt-group-card {
   background-color: var(--lg-surface-list);
   background-image: var(--lg-card-sheen);
-  -webkit-backdrop-filter: var(--lg-blur-list);
-  backdrop-filter: var(--lg-blur-list);
   box-shadow: var(--lg-shadow-card), var(--lg-specular);
 }
 
