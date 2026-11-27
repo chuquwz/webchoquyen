@@ -7938,21 +7938,8 @@
                       <span class="fund-card-name">${safeName}</span>
                       ${f.reachedGoal ? `<span class="fund-goal-done-badge">${workIconSVG('check', 11)} Đạt đích</span>` : ''}
                     </div>
-                    <div class="fund-target-pill font-tabular">
-                      <svg class="fund-target-pill-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <circle cx="12" cy="12" r="9" />
-                        <circle cx="12" cy="12" r="4" />
-                      </svg>
-                      <span>Mục tiêu ${formatVND(f.target)}</span>
-                    </div>
                   </div>
                 </div>
-                <button type="button" class="btn-fund-edit-gear" onclick="openFundEditorModal('${escapeHTML(f.id)}')"
-                  aria-label="Cài đặt quỹ ${safeName}" title="Cài đặt tên & mục tiêu quỹ">
-                  <svg class="ui-inline-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                  </svg>
-                </button>
               </div>
 
               <div class="fund-hero-showcase">
@@ -7971,7 +7958,6 @@
                   </svg>
                   <div class="fund-dial-center font-tabular">
                     <span class="fund-ring-pct">${f.pctRaw}%</span>
-                    <span class="fund-dial-sub">mục tiêu</span>
                   </div>
                 </div>
               </div>

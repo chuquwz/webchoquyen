@@ -8105,27 +8105,6 @@ html[data-theme="dark"] .btn-fab-plus {
   color: var(--fund-btn-fg);
 }
 
-.fund-target-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  margin-top: 5px;
-  padding: 3px 10px 3px 8px;
-  border-radius: 999px;
-  background-color: var(--fund-badge-bg);
-  border: 1px solid var(--fund-border);
-  color: var(--fund-text-strong);
-  font-size: 12px;
-  font-weight: 750;
-  line-height: 1.25;
-  max-width: 100%;
-}
-
-.fund-target-pill-icon {
-  flex-shrink: 0;
-  opacity: 0.9;
-}
-
 .btn-fund-edit-gear {
   width: 44px;
   height: 44px;
@@ -8262,12 +8241,6 @@ html[data-theme="dark"] .btn-fab-plus {
   color: var(--fund-text-strong);
 }
 
-.fund-dial-sub {
-  font-size: 9.5px;
-  font-weight: 700;
-  color: var(--text-sub);
-  margin-top: 1px;
-}
 
 /* Shimmer Progress Bar (dùng trong modal lịch sử nạp quỹ) */
 .fund-progress-track {
